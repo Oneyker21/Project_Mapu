@@ -92,7 +92,7 @@ const LoginScreen = ({ navigation }) => {
         <View style={styles.form}>
           <Input
             label="Email"
-            placeholder="tu@email.com"
+            placeholder="Ingresa tu email"
             value={formData.email}
             onChangeText={(value) => handleInputChange('email', value)}
             keyboardType="email-address"
