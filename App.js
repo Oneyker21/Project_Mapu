@@ -1,13 +1,9 @@
 import React from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
-import Maps from './src/utils/MapViewLeaflet';
+import { LoginScreen } from './src/screens/Auth';
+import { Map } from './src/components/map/Map';
 
 export default function App() {
-  return (
-    <SafeAreaView style={styles.container}>
-      <Maps />
-    </SafeAreaView>
-  );
+  return <Map />;
 }
 
 const styles = StyleSheet.create({
