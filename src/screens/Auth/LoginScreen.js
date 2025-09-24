@@ -2,16 +2,16 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Alert,
   TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import Input from '../../components/ui/Input';
-import Button from '../../components/ui/Button';
+import { Input, Button } from '../../components';
 
 const LoginScreen = ({ navigation }) => {
   const [formData, setFormData] = useState({
@@ -45,13 +45,11 @@ const LoginScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      // Aquí iría la lógica de autenticación
-      // Por ahora simulamos un delay
+      // Aquí iría la lógica de autenticación con Firebase
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Simulamos login exitoso
       Alert.alert('Éxito', 'Inicio de sesión exitoso');
-      // navigation.navigate('Home'); // Descomenta cuando tengas navegación configurada
+      // navigation.navigate('Home');
     } catch (error) {
       Alert.alert('Error', 'Error al iniciar sesión. Inténtalo de nuevo.');
     } finally {
@@ -61,14 +59,13 @@ const LoginScreen = ({ navigation }) => {
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Limpiar error cuando el usuario empiece a escribir
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView 
         style={styles.keyboardContainer}
@@ -143,7 +140,7 @@ const LoginScreen = ({ navigation }) => {
             ¿No tienes cuenta?{' '}
             <Text 
               style={styles.footerLink}
-              onPress={() => Alert.alert('Info', 'Registro pendiente')}
+              onPress={() => navigation.navigate('Register')}
               suppressHighlighting={true}
             >
               Regístrate aquí
@@ -152,10 +149,11 @@ const LoginScreen = ({ navigation }) => {
         </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 };
 
+// Estilos CSS integrados
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -168,8 +166,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 60,
-    paddingBottom: 40,
-    minHeight: '100%',
+    paddingBottom: 100, // Aumentado para evitar que se vea detrás de la navegación del sistema
   },
   header: {
     alignItems: 'center',
@@ -232,20 +229,15 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     marginTop: 16,
-    paddingBottom: 20,
-    minHeight: 40,
   },
   footerText: {
     color: '#6B7280',
     fontSize: 14,
     textAlign: 'center',
-    lineHeight: 20,
   },
   footerLink: {
     color: '#3B82F6',
     fontWeight: '600',
-    fontSize: 14,
-    lineHeight: 20,
   },
 });
 
