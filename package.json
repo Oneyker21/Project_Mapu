@@ -14,7 +14,7 @@
     "firebase": "^12.2.1",
     "react": "19.0.0",
     "react-native": "0.79.6",
-    "react-native-maps": "^1.26.6"
+    "react-native-webview": "13.13.5"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
