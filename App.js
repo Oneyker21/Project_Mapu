@@ -1,14 +1,14 @@
 import React from 'react';
-import { LoginScreen } from './src/screens/Auth';
-import { Map } from './src/components/map/Map';
+import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AppNavigator } from './src/navigation/navegation';
 
 export default function App() {
-  return <Map />;
+  return (
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <AppNavigator />
+      </NavigationContainer>
+    </SafeAreaProvider>
+  );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-});

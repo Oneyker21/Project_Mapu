@@ -47,8 +47,8 @@ const Stepper = ({ currentStep, totalSteps, stepTitles = [] }) => {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    marginVertical: 20,
-    paddingHorizontal: 20,
+    marginVertical: 12,
+    paddingHorizontal: 12,
   },
   stepsRow: {
     flexDirection: 'row',
@@ -60,9 +60,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stepCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
@@ -78,29 +78,29 @@ const styles = StyleSheet.create({
     borderColor: '#1D4ED8',
   },
   stepNumber: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#9CA3AF',
   },
   stepNumberActive: {
     color: '#FFFFFF',
   },
   stepLine: {
-    width: 40,
+    width: 28,
     height: 2,
     backgroundColor: '#E5E7EB',
-    marginHorizontal: 8,
+    marginHorizontal: 6,
+    borderRadius: 1,
   },
   stepLineActive: {
     backgroundColor: '#3B82F6',
   },
   currentStepTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#3B82F6',
-    marginTop: 12,
-    textAlign: 'left',
-    alignSelf: 'flex-start',
+    color: '#1F2937',
+    marginTop: 8,
+    textAlign: 'center',
     width: '100%',
   },
 });

@@ -8,12 +8,14 @@ import {
   Alert,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Input, Button } from '../../components';
 
 const LoginScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -65,7 +67,7 @@ const LoginScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }]}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView 
         style={styles.keyboardContainer}
@@ -73,7 +75,7 @@ const LoginScreen = ({ navigation }) => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView 
-          contentContainerStyle={styles.scrollContainer}
+          contentContainerStyle={[styles.scrollContainer, { paddingBottom: Math.max(insets.bottom + 24, 100) }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           bounces={false}

@@ -8,9 +8,9 @@ import {
   Alert,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Image,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -27,6 +27,7 @@ import {
 } from '../../utils/validations';
 
 const RegisterScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Paso 1: básicos
@@ -480,7 +481,7 @@ const RegisterScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }]}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView 
         style={styles.keyboardContainer}
@@ -488,7 +489,7 @@ const RegisterScreen = ({ navigation }) => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView 
-          contentContainerStyle={styles.scrollContainer}
+          contentContainerStyle={[styles.scrollContainer, { paddingBottom: Math.max(insets.bottom + 24, 100) }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           bounces={false}
@@ -496,9 +497,6 @@ const RegisterScreen = ({ navigation }) => {
         <View style={styles.header}>
           <Text style={styles.appName}>Mapu</Text>
           <Text style={styles.title}>Crear Cuenta</Text>
-          <Text style={styles.subtitle}>
-            {currentStep === 1 ? 'Datos básicos' : currentStep === 2 ? 'Tipo de usuario' : 'Información adicional'}
-          </Text>
         </View>
 
         <Stepper 
@@ -577,11 +575,7 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 8,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
+  
   // Indicador de pasos
   stepIndicator: {
     flexDirection: 'row',
