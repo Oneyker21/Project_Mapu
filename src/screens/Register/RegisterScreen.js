@@ -25,10 +25,12 @@ import {
   validateNationality,
   validateResidence
 } from '../../utils/validations';
+import { registerUser } from '../../services/auth.js';
 
 const RegisterScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(1);
+  
   const [formData, setFormData] = useState({
     // Paso 1: básicos
     firstName: '',
@@ -37,14 +39,14 @@ const RegisterScreen = ({ navigation }) => {
     password: '',
     confirmPassword: '',
     // Paso 2: rol
-    role: '', // 'local' | 'tourist'
+    role: '', // 'centro_turistico' | 'tourist'
     // Paso 3: turista
     profileImage: null,
     phone: '',
     nationality: '',
     residence: '',
     interests: [], // ['Cultura','Historia',...]
-    // Paso 3: local (negocio)
+    // Paso 3: centro turístico
     businessName: '',
     businessCategory: '',
     businessEmail: '',
@@ -54,6 +56,8 @@ const RegisterScreen = ({ navigation }) => {
     businessLatitude: '',
     businessLongitude: '',
     businessCost: '',
+    businessLogo: null,
+    businessCover: null,
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -115,11 +119,11 @@ const RegisterScreen = ({ navigation }) => {
       if (!residenceValidation.isValid) {
         newErrors.residence = residenceValidation.message;
       }
-    } else if (formData.role === 'local') {
-      if (!formData.businessName) newErrors.businessName = 'Nombre del negocio requerido';
+    } else if (formData.role === 'centro_turistico') {
+      if (!formData.businessName) newErrors.businessName = 'Nombre del centro turístico requerido';
       if (!formData.businessCategory) newErrors.businessCategory = 'Categoría requerida';
-      if (!formData.businessEmail) newErrors.businessEmail = 'Email del negocio requerido';
-      if (!formData.businessPhone) newErrors.businessPhone = 'Teléfono del negocio requerido';
+      if (!formData.businessEmail) newErrors.businessEmail = 'Email del centro turístico requerido';
+      if (!formData.businessPhone) newErrors.businessPhone = 'Teléfono del centro turístico requerido';
       if (!formData.businessAddress) newErrors.businessAddress = 'Dirección requerida';
     }
     setErrors(newErrors);
@@ -145,6 +149,52 @@ const RegisterScreen = ({ navigation }) => {
     if (!result.canceled) {
       setFormData({ ...formData, profileImage: result.assets[0] });
     }
+  };
+
+  const pickLogo = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permisos', 'Se necesitan permisos para acceder a la galería');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+    if (!result.canceled) {
+      setFormData(prev => ({ ...prev, businessLogo: result.assets[0] }));
+    }
+  };
+
+  const pickCover = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permisos', 'Se necesitan permisos para acceder a la galería');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 1,
+    });
+    if (!result.canceled) {
+      setFormData(prev => ({ ...prev, businessCover: result.assets[0] }));
+    }
+  };
+
+  const openMapPicker = () => {
+    navigation.navigate('MapPicker', {
+      initialCoords: (formData.businessLatitude && formData.businessLongitude) ? {
+        latitude: Number(formData.businessLatitude),
+        longitude: Number(formData.businessLongitude),
+      } : undefined,
+      onPick: ({ latitude, longitude }) => {
+        setFormData(prev => ({ ...prev, businessLatitude: String(latitude), businessLongitude: String(longitude) }));
+      }
+    });
   };
 
   const nextStep = () => {
@@ -175,11 +225,46 @@ const RegisterScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      // Aquí iría la lógica de registro con Firebase
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Preparar datos para Firebase
+      const userData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+        role: formData.role,
+        ...(formData.role === 'tourist' ? {
+          phone: formData.phone,
+          nationality: formData.nationality,
+          residence: formData.residence,
+          interests: formData.interests,
+          profileImage: formData.profileImage
+        } : {
+          businessName: formData.businessName,
+          businessCategory: formData.businessCategory,
+          businessEmail: formData.businessEmail,
+          businessPhone: formData.businessPhone,
+          businessSchedule: formData.businessSchedule,
+          address: formData.businessAddress,
+          latitude: formData.businessLatitude,
+          longitude: formData.businessLongitude,
+          businessCost: formData.businessCost,
+          businessLogo: formData.businessLogo,
+          businessCover: formData.businessCover
+        })
+      };
+
+      const result = await registerUser(userData);
       
-      Alert.alert('Éxito', `Registro exitoso como ${formData.role === 'local' ? 'Local' : 'Turista'}`);
-      // navigation.navigate('Login');
+      if (result.success) {
+        Alert.alert('Éxito', `Registro exitoso como ${formData.role === 'centro_turistico' ? 'Centro Turístico' : 'Turista'}`, [
+          {
+            text: 'Ver Perfil',
+            onPress: () => navigation.navigate('Main', { screen: 'Perfil' })
+          }
+        ]);
+      } else {
+        Alert.alert('Error', result.error || 'Error al registrarse. Inténtalo de nuevo.');
+      }
     } catch (error) {
       Alert.alert('Error', 'Error al registrarse. Inténtalo de nuevo.');
     } finally {
@@ -268,25 +353,25 @@ const RegisterScreen = ({ navigation }) => {
       <Text style={styles.roleSubtitle}>Selecciona el tipo de usuario que mejor te describa</Text>
 
       <TouchableOpacity
-        style={[styles.roleCard, formData.role === 'local' && styles.roleCardSelected]}
-        onPress={() => selectRole('local')}
+        style={[styles.roleCard, formData.role === 'centro_turistico' && styles.roleCardSelected]}
+        onPress={() => selectRole('centro_turistico')}
       >
         <View style={styles.roleIcon}>
           <Ionicons 
-            name="home" 
+            name="business" 
             size={32} 
-            color={formData.role === 'local' ? '#3B82F6' : '#6B7280'} 
+            color={formData.role === 'centro_turistico' ? '#3B82F6' : '#6B7280'} 
           />
         </View>
         <View style={styles.roleContent}>
-          <Text style={[styles.roleName, formData.role === 'local' && styles.roleNameSelected]}>
-            Local
+          <Text style={[styles.roleName, formData.role === 'centro_turistico' && styles.roleNameSelected]}>
+            Centro Turístico
           </Text>
-          <Text style={[styles.roleDescription, formData.role === 'local' && styles.roleDescriptionSelected]}>
-            Conoces bien la zona y quieres compartir lugares secretos y experiencias locales
+          <Text style={[styles.roleDescription, formData.role === 'centro_turistico' && styles.roleDescriptionSelected]}>
+            Tienes un museo, hotel, centro recreativo o negocio turístico que quieres promocionar
           </Text>
         </View>
-        {formData.role === 'local' && (
+        {formData.role === 'centro_turistico' && (
           <View style={styles.roleCheck}>
             <Ionicons name="checkmark-circle" size={24} color="#3B82F6" />
           </View>
@@ -393,13 +478,37 @@ const RegisterScreen = ({ navigation }) => {
     </View>
   );
 
-  const renderLocalForm = () => (
+  const renderCentroTuristicoForm = () => (
     <View style={styles.form}>
-      <Text style={styles.roleTitle}>Datos del negocio</Text>
+      <Text style={styles.roleTitle}>Datos del Centro Turístico</Text>
+      {/* Logo y portada */}
+      <View style={styles.mediaRow}>
+        <TouchableOpacity style={styles.logoPicker} onPress={pickLogo}>
+          {formData.businessLogo ? (
+            <Image source={{ uri: formData.businessLogo.uri }} style={styles.logoImage} />
+          ) : (
+            <View style={styles.logoPlaceholder}>
+              <Ionicons name="image" size={20} color="#6B7280" />
+              <Text style={styles.logoText}>Logo</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.coverPicker} onPress={pickCover}>
+          {formData.businessCover ? (
+            <Image source={{ uri: formData.businessCover.uri }} style={styles.coverImage} />
+          ) : (
+            <View style={styles.coverPlaceholder}>
+              <Ionicons name="images" size={20} color="#6B7280" />
+              <Text style={styles.coverText}>Portada</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
 
       <Input
-        label="Nombre del negocio"
-        placeholder="Ej. Hostal Sol"
+        label="Nombre del Centro Turístico"
+        placeholder="Ej. Museo Nacional, Hotel Granada, Centro Recreativo..."
         value={formData.businessName}
         onChangeText={(value) => handleInputChange('businessName', value)}
         error={errors.businessName}
@@ -414,15 +523,15 @@ const RegisterScreen = ({ navigation }) => {
 
       <Input
         label="Categoría"
-        placeholder="Restaurante / Hospedaje / Cultural / Café"
+        placeholder="Museo / Hotel / Centro Recreativo / Restaurante / Galería..."
         value={formData.businessCategory}
         onChangeText={(value) => handleInputChange('businessCategory', value)}
         error={errors.businessCategory}
       />
 
       <Input
-        label="Email del negocio"
-        placeholder="contacto@negocio.com"
+        label="Email del Centro Turístico"
+        placeholder="contacto@centroturistico.com"
         value={formData.businessEmail}
         onChangeText={(value) => handleInputChange('businessEmail', value)}
         keyboardType="email-address"
@@ -431,7 +540,7 @@ const RegisterScreen = ({ navigation }) => {
       />
 
       <Input
-        label="Teléfono del negocio"
+        label="Teléfono del Centro Turístico"
         placeholder="+505 0000 0000"
         value={formData.businessPhone}
         onChangeText={(value) => handleInputChange('businessPhone', value)}
@@ -454,21 +563,28 @@ const RegisterScreen = ({ navigation }) => {
         error={errors.businessAddress}
       />
 
-      <Input
-        label="Latitud"
-        placeholder="12.3456"
-        value={formData.businessLatitude}
-        onChangeText={(value) => handleInputChange('businessLatitude', value)}
-        keyboardType="decimal-pad"
-      />
-
-      <Input
-        label="Longitud"
-        placeholder="-86.1234"
-        value={formData.businessLongitude}
-        onChangeText={(value) => handleInputChange('businessLongitude', value)}
-        keyboardType="decimal-pad"
-      />
+      <View style={styles.coordsRow}>
+        <View style={{ flex: 1 }}>
+          <Input
+            label="Latitud"
+            placeholder="12.3456"
+            value={formData.businessLatitude}
+            onChangeText={(value) => handleInputChange('businessLatitude', value)}
+            keyboardType="decimal-pad"
+          />
+        </View>
+        <View style={{ width: 12 }} />
+        <View style={{ flex: 1 }}>
+          <Input
+            label="Longitud"
+            placeholder="-86.1234"
+            value={formData.businessLongitude}
+            onChangeText={(value) => handleInputChange('businessLongitude', value)}
+            keyboardType="decimal-pad"
+          />
+        </View>
+      </View>
+      <Button title="Seleccionar en el mapa" variant="secondary" onPress={openMapPicker} />
 
       <Input
         label="Costo"
@@ -481,8 +597,21 @@ const RegisterScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }]}>
+    <View style={styles.container}>
       <StatusBar style="dark" />
+      
+      {/* Header with back button extending to camera/notch area */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => navigation.navigate('Login')}
+        >
+          <Ionicons name="arrow-back" size={24} color="#374151" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Crear Cuenta</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
       <KeyboardAvoidingView 
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -494,7 +623,7 @@ const RegisterScreen = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
           bounces={false}
         >
-        <View style={styles.header}>
+        <View style={styles.contentHeader}>
           <Text style={styles.appName}>Mapu</Text>
           <Text style={styles.title}>Crear Cuenta</Text>
         </View>
@@ -505,7 +634,7 @@ const RegisterScreen = ({ navigation }) => {
           stepTitles={stepTitles} 
         />
 
-        {currentStep === 1 ? renderStep1() : currentStep === 2 ? renderStep2() : (formData.role === 'local' ? renderLocalForm() : renderTouristForm())}
+        {currentStep === 1 ? renderStep1() : currentStep === 2 ? renderStep2() : (formData.role === 'centro_turistico' ? renderCentroTuristicoForm() : renderTouristForm())}
 
         {/* Botones de navegación */}
         {currentStep > 1 && (
@@ -539,7 +668,7 @@ const RegisterScreen = ({ navigation }) => {
         </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -549,16 +678,37 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  headerSpacer: {
+    width: 40, // Same width as back button to center title
+  },
   keyboardContainer: {
     flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 100, // Aumentado para evitar que se vea detrás de la navegación del sistema
+    paddingTop: 40,
+    paddingBottom: 100,
   },
-  header: {
+  contentHeader: {
     alignItems: 'center',
     marginBottom: 32,
   },
@@ -742,6 +892,65 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  mediaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  logoPicker: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  logoText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  coverPicker: {
+    flex: 1,
+    height: 64,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  coverText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  coverImage: {
+    width: '100%',
+    height: '100%',
+  },
+  coordsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   chip: {
     borderWidth: 1,
