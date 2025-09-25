@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,19 +9,45 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Input, Button } from '../../components';
+import { loginUser } from '../../services/auth.js';
+import { getSavedCredentials } from '../../services/storage.js';
+import { useAuth } from '../../contexts/AuthContext';
 
 const LoginScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [rememberUser, setRememberUser] = useState(false);
+
+  // Cargar credenciales guardadas al montar el componente
+  useEffect(() => {
+    loadSavedCredentials();
+  }, []);
+
+  const loadSavedCredentials = async () => {
+    try {
+      const result = await getSavedCredentials();
+      if (result.success && result.rememberUser && result.credentials) {
+        setFormData({
+          email: result.credentials.email,
+          password: result.credentials.password,
+        });
+        setRememberUser(true);
+      }
+    } catch (error) {
+      console.error('Error al cargar credenciales:', error);
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -47,11 +73,14 @@ const LoginScreen = ({ navigation }) => {
 
     setLoading(true);
     try {
-      // Aquí iría la lógica de autenticación con Firebase
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const result = await loginUser(formData.email, formData.password, rememberUser);
       
-      Alert.alert('Éxito', 'Inicio de sesión exitoso');
-      // navigation.navigate('Home');
+      if (result.success) {
+        login(result.user);
+        Alert.alert('Éxito', 'Inicio de sesión exitoso');
+      } else {
+        Alert.alert('Error', result.error || 'Error al iniciar sesión. Inténtalo de nuevo.');
+      }
     } catch (error) {
       Alert.alert('Error', 'Error al iniciar sesión. Inténtalo de nuevo.');
     } finally {
@@ -67,8 +96,16 @@ const LoginScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) }]}>
+    <View style={styles.container}>
       <StatusBar style="dark" />
+      
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <View style={styles.headerSpacer} />
+        <Text style={styles.headerTitle}>Iniciar Sesión</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
       <KeyboardAvoidingView 
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -80,7 +117,7 @@ const LoginScreen = ({ navigation }) => {
           keyboardShouldPersistTaps="handled"
           bounces={false}
         >
-        <View style={styles.header}>
+        <View style={styles.contentHeader}>
           <Text style={styles.appName}>Mapu</Text>
           <Text style={styles.title}>¡Bienvenido!</Text>
           <Text style={styles.subtitle}>
@@ -110,7 +147,21 @@ const LoginScreen = ({ navigation }) => {
             error={errors.password}
           />
 
-          <TouchableOpacity style={styles.forgotPassword}>
+          <TouchableOpacity 
+            style={styles.rememberContainer}
+            onPress={() => setRememberUser(!rememberUser)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, rememberUser && styles.checkboxChecked]}>
+              {rememberUser && <Ionicons name="checkmark" size={16} color="white" />}
+            </View>
+            <Text style={styles.rememberText}>Recordarme</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.forgotPassword}
+            onPress={() => navigation.navigate('ForgotPassword')}
+          >
             <Text style={styles.forgotPasswordText}>
               ¿Olvidaste tu contraseña?
             </Text>
@@ -151,7 +202,7 @@ const LoginScreen = ({ navigation }) => {
         </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -161,16 +212,37 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  headerSpacer: {
+    width: 40, // Same width as back button to center title
+  },
   keyboardContainer: {
     flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 100, // Aumentado para evitar que se vea detrás de la navegación del sistema
+    paddingTop: 40,
+    paddingBottom: 100,
   },
-  header: {
+  contentHeader: {
     alignItems: 'center',
     marginBottom: 48,
   },
@@ -197,6 +269,31 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignSelf: 'center',
     width: '100%',
+  },
+  rememberContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    borderRadius: 4,
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+  },
+  checkboxChecked: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  rememberText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
   },
   forgotPassword: {
     alignSelf: 'flex-end',
