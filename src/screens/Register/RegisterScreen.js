@@ -15,22 +15,24 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Input, Button, Stepper, PasswordSecurity, PasswordConfirm } from '../../components';
-import { 
-  validateName, 
-  validateLastName, 
-  validateEmail, 
-  validatePassword, 
+import {
+  validateName,
+  validateLastName,
+  validateEmail,
+  validatePassword,
   validateConfirmPassword,
   validatePhone,
-  validateNationality,
+  validateDocumentType,
+  validateDocumentNumber,
   validateResidence
 } from '../../utils/validations';
 import { registerUser } from '../../services/auth.js';
+import { Picker } from '@react-native-picker/picker';
 
 const RegisterScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(1);
-  
+
   const [formData, setFormData] = useState({
     // Paso 1: básicos
     firstName: '',
@@ -43,7 +45,8 @@ const RegisterScreen = ({ navigation }) => {
     // Paso 3: turista
     profileImage: null,
     phone: '',
-    nationality: '',
+    documentType: '',
+    documentNumber: '',
     residence: '',
     interests: [], // ['Cultura','Historia',...]
     // Paso 3: centro turístico
@@ -64,7 +67,7 @@ const RegisterScreen = ({ navigation }) => {
 
   const validateStep1 = () => {
     const newErrors = {};
-    
+
     const firstNameValidation = validateName(formData.firstName);
     if (!firstNameValidation.isValid) {
       newErrors.firstName = firstNameValidation.message;
@@ -109,10 +112,13 @@ const RegisterScreen = ({ navigation }) => {
       if (!phoneValidation.isValid) {
         newErrors.phone = phoneValidation.message;
       }
-
-      const nationalityValidation = validateNationality(formData.nationality);
-      if (!nationalityValidation.isValid) {
-        newErrors.nationality = nationalityValidation.message;
+      const documentTypeValidation = validateDocumentType(formData.documentType);
+      if (!documentTypeValidation.isValid) {
+        newErrors.documentType = documentTypeValidation.message;
+      }
+      const documentNumberValidation = validateDocumentNumber(formData.documentNumber);
+      if (!documentNumberValidation.isValid) {
+        newErrors.documentNumber = documentNumberValidation.message;
       }
 
       const residenceValidation = validateResidence(formData.residence);
@@ -234,7 +240,8 @@ const RegisterScreen = ({ navigation }) => {
         role: formData.role,
         ...(formData.role === 'tourist' ? {
           phone: formData.phone,
-          nationality: formData.nationality,
+          documentType: formData.documentType,
+          documentNumber: formData.documentNumber,
           residence: formData.residence,
           interests: formData.interests,
           profileImage: formData.profileImage
@@ -254,7 +261,7 @@ const RegisterScreen = ({ navigation }) => {
       };
 
       const result = await registerUser(userData);
-      
+
       if (result.success) {
         Alert.alert('Éxito', `Registro exitoso como ${formData.role === 'centro_turistico' ? 'Centro Turístico' : 'Turista'}`, [
           {
@@ -324,7 +331,7 @@ const RegisterScreen = ({ navigation }) => {
         showPasswordToggle
         error={errors.password}
       />
-      
+
       {formData.password && (
         <PasswordSecurity password={formData.password} />
       )}
@@ -357,10 +364,10 @@ const RegisterScreen = ({ navigation }) => {
         onPress={() => selectRole('centro_turistico')}
       >
         <View style={styles.roleIcon}>
-          <Ionicons 
-            name="business" 
-            size={32} 
-            color={formData.role === 'centro_turistico' ? '#3B82F6' : '#6B7280'} 
+          <Ionicons
+            name="business"
+            size={32}
+            color={formData.role === 'centro_turistico' ? '#3B82F6' : '#6B7280'}
           />
         </View>
         <View style={styles.roleContent}>
@@ -383,10 +390,10 @@ const RegisterScreen = ({ navigation }) => {
         onPress={() => selectRole('tourist')}
       >
         <View style={styles.roleIcon}>
-          <Ionicons 
-            name="airplane" 
-            size={32} 
-            color={formData.role === 'tourist' ? '#3B82F6' : '#6B7280'} 
+          <Ionicons
+            name="airplane"
+            size={32}
+            color={formData.role === 'tourist' ? '#3B82F6' : '#6B7280'}
           />
         </View>
         <View style={styles.roleContent}>
@@ -413,12 +420,12 @@ const RegisterScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
-  const interestOptions = ['Cultura','Historia','Gastronomía','Aventura','Arte'];
+  const interestOptions = ['Cultura', 'Historia', 'Gastronomía', 'Aventura', 'Arte'];
 
   const renderTouristForm = () => (
     <View style={styles.form}>
       <Text style={styles.roleTitle}>Información del Turista</Text>
-      
+
       {/* Foto de perfil */}
       <View style={styles.profileImageContainer}>
         <Text style={styles.profileImageLabel}>Foto de Perfil</Text>
@@ -443,19 +450,31 @@ const RegisterScreen = ({ navigation }) => {
         error={errors.phone}
       />
 
-      <Input
-        label="Nacionalidad"
-        placeholder="Ej. Nicaragüense, Mexicana, Española"
-        value={formData.nationality}
-        onChangeText={(value) => handleInputChange('nationality', value)}
-        error={errors.nationality}
-      />
 
+      <Picker
+        selectedValue={formData.documentType}
+        style={styles.Picker}
+        onValueChange={(value) => handleInputChange('documentType', value)}
+      >
+        <Picker.Item label="Selecciona un tipo de documento" value="" />
+        <Picker.Item label="Cédula de Identidad" value="cedula" />
+        <Picker.Item label="Pasaporte" value="pasaporte" />
+      </Picker>
+      {errors.documentType && <Text style={{ color: 'red', marginBottom: 8 }}>{errors.documentType}</Text>}
+
+      <Input
+        label="Número de Documento"
+        placeholder="Ej. 001-080800-0000X"
+        value={formData.documentNumber}
+        onChangeText={(value) => handleInputChange('documentNumber', value)}
+        error={errors.documentNumber}
+      />
       <Input
         label="Residencia"
         placeholder="Ciudad, País"
         value={formData.residence}
         onChangeText={(value) => handleInputChange('residence', value)}
+        
         error={errors.residence}
       />
 
@@ -599,11 +618,11 @@ const RegisterScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* Header with back button extending to camera/notch area */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <TouchableOpacity 
-          style={styles.backButton} 
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => navigation.navigate('Login')}
         >
           <Ionicons name="arrow-back" size={24} color="#374151" />
@@ -612,60 +631,60 @@ const RegisterScreen = ({ navigation }) => {
         <View style={styles.headerSpacer} />
       </View>
 
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={[styles.scrollContainer, { paddingBottom: Math.max(insets.bottom + 24, 100) }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           bounces={false}
         >
-        <View style={styles.contentHeader}>
-          <Text style={styles.appName}>Mapu</Text>
-          <Text style={styles.title}>Crear Cuenta</Text>
-        </View>
-
-        <Stepper 
-          currentStep={currentStep} 
-          totalSteps={totalSteps} 
-          stepTitles={stepTitles} 
-        />
-
-        {currentStep === 1 ? renderStep1() : currentStep === 2 ? renderStep2() : (formData.role === 'centro_turistico' ? renderCentroTuristicoForm() : renderTouristForm())}
-
-        {/* Botones de navegación */}
-        {currentStep > 1 && (
-          <View style={styles.stepButtons}>
-            <Button 
-              title="Atrás" 
-              onPress={prevStep} 
-              variant="secondary" 
-              style={styles.backButton} 
-            />
-            <Button 
-              title={getButtonTitle()} 
-              onPress={nextStep} 
-              loading={loading} 
-              style={styles.nextButton} 
-            />
+          <View style={styles.contentHeader}>
+            <Text style={styles.appName}>Mapu</Text>
+            <Text style={styles.title}>Crear Cuenta</Text>
           </View>
-        )}
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            ¿Ya tienes cuenta?{' '}
-            <Text 
-              style={styles.footerLink}
-              onPress={() => navigation.navigate('Login')}
-              suppressHighlighting={true}
-            >
-              Inicia sesión aquí
+          <Stepper
+            currentStep={currentStep}
+            totalSteps={totalSteps}
+            stepTitles={stepTitles}
+          />
+
+          {currentStep === 1 ? renderStep1() : currentStep === 2 ? renderStep2() : (formData.role === 'centro_turistico' ? renderCentroTuristicoForm() : renderTouristForm())}
+
+          {/* Botones de navegación */}
+          {currentStep > 1 && (
+            <View style={styles.stepButtons}>
+              <Button
+                title="Atrás"
+                onPress={prevStep}
+                variant="secondary"
+                style={styles.backButton}
+              />
+              <Button
+                title={getButtonTitle()}
+                onPress={nextStep}
+                loading={loading}
+                style={styles.nextButton}
+              />
+            </View>
+          )}
+
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              ¿Ya tienes cuenta?{' '}
+              <Text
+                style={styles.footerLink}
+                onPress={() => navigation.navigate('Login')}
+                suppressHighlighting={true}
+              >
+                Inicia sesión aquí
+              </Text>
             </Text>
-          </Text>
-        </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -725,7 +744,7 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 8,
   },
-  
+
   // Indicador de pasos
   stepIndicator: {
     flexDirection: 'row',
@@ -914,6 +933,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
+  },
+  Picker: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    height: 60,
+    width: '100%',
   },
   logoText: {
     fontSize: 12,
