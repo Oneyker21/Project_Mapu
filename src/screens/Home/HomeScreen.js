@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Modal } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Modal, ActivityIndicator } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -23,19 +23,20 @@ const HomeScreen = ({ navigation }) => {
   const [userData, setUserData] = useState(null);
   const [mapRegion, setMapRegion] = useState(INITIAL_REGION);
   const [showMenu, setShowMenu] = useState(false);
+  const [loadingUserData, setLoadingUserData] = useState(true);
 
   const loadUserData = async () => {
     try {
       if (authUser) {
         console.log('Current user:', authUser?.uid);
-        
+
         // Obtener datos adicionales del usuario desde Firestore
         const userDoc = await getDoc(doc(db, 'users', authUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
           console.log('User data from Firestore:', data);
           setUserData(data);
-          
+
           // Si es un centro turístico con coordenadas, centrar el mapa
           if (data.role === 'centro_turistico' && data.latitude && data.longitude) {
             console.log('Centering map on coordinates:', data.latitude, data.longitude);
@@ -56,6 +57,8 @@ const HomeScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Error cargando datos del usuario:', error);
+    } finally {
+      setLoadingUserData(false);
     }
   };
 
@@ -64,14 +67,14 @@ const HomeScreen = ({ navigation }) => {
       console.log('Loading centers from Firestore...');
       const centersSnapshot = await getDocs(collection(db, 'users'));
       const centersData = [];
-      
-      centersSnapshot.forEach((doc) => {
-        const data = doc.data();
-        console.log('Found user:', doc.id, 'Role:', data.role, 'Coords:', data.latitude, data.longitude);
-        
+
+      centersSnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        console.log('Found user:', docSnap.id, 'Role:', data.role, 'Coords:', data.latitude, data.longitude);
+
         if (data.role === 'centro_turistico' && data.latitude && data.longitude) {
           centersData.push({
-            id: doc.id,
+            id: docSnap.id,
             ...data,
             coordinate: {
               latitude: parseFloat(data.latitude),
@@ -80,7 +83,7 @@ const HomeScreen = ({ navigation }) => {
           });
         }
       });
-      
+
       console.log('Centers loaded:', centersData.length, centersData);
       setCenters(centersData);
     } catch (error) {
@@ -111,9 +114,56 @@ const HomeScreen = ({ navigation }) => {
     );
   };
 
+  // Funcion reusable para abrir MapPicker con la ubicacion guardada y acción de guardado
+  const openMapPickerForUser = (closeMenu = true) => {
+    if (closeMenu) setShowMenu(false);
+
+    const initialCoords = userData?.latitude && userData?.longitude
+      ? { latitude: parseFloat(userData.latitude), longitude: parseFloat(userData.longitude) }
+      : { latitude: mapRegion.latitude, longitude: mapRegion.longitude };
+
+    navigation.navigate('MapPicker', {
+      initialCoords,
+      onPick: async (coords) => {
+        try {
+          if (!authUser) throw new Error('No auth user');
+          // Actualizar en Firestore (guardamos como strings para mantener compatibilidad)
+          await updateDoc(doc(db, 'users', authUser.uid), {
+            latitude: coords.latitude.toString(),
+            longitude: coords.longitude.toString(),
+          });
+
+          // Actualizar estado local
+          setUserData((prev) => ({
+            ...(prev || {}),
+            latitude: coords.latitude.toString(),
+            longitude: coords.longitude.toString(),
+          }));
+
+
+
+          // Centrar mapa en la nueva ubicación
+          setMapRegion({
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          });
+
+          await loadCenters();
+
+          Alert.alert('Ubicación Actualizada', `Nueva ubicación: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
+        } catch (err) {
+          console.error('Error actualizando ubicación:', err);
+          Alert.alert('Error', 'No se pudo actualizar la ubicación.');
+        }
+      }
+    });
+  };
+
   const getQuickActions = () => {
     const isCenter = userData?.role === 'centro_turistico';
-    
+
     if (isCenter) {
       return [
         {
@@ -122,12 +172,8 @@ const HomeScreen = ({ navigation }) => {
           icon: 'location',
           color: '#3B82F6',
           onPress: () => {
-            setShowMenu(false);
-            navigation.navigate('MapPicker', {
-              onPick: (coords) => {
-                Alert.alert('Ubicación Actualizada', `Nueva ubicación: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
-              }
-            });
+            // Abre el map picker centrado en la ubicación guardada y actualiza Firestore al confirmar
+            openMapPickerForUser(true);
           }
         },
         {
@@ -247,6 +293,16 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  // Mientras carga userData, mostramos un loader pequeño (evita interacciones prematuras)
+  if (loadingUserData) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+        <Text style={{ marginTop: 8 }}>Cargando datos de usuario...</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}> 
       {/* Header personalizado */}
@@ -290,11 +346,9 @@ const HomeScreen = ({ navigation }) => {
             <>
               <TouchableOpacity 
                 style={styles.optionButton}
-                onPress={() => navigation.navigate('MapPicker', {
-                  onPick: (coords) => {
-                    Alert.alert('Ubicación Actualizada', `Nueva ubicación: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
-                  }
-                })}
+                onPress={() => {
+                  openMapPickerForUser(false);
+                }}
               >
                 <Ionicons name="location" size={20} color="#3B82F6" />
                 <Text style={styles.optionButtonText}>Ubicación</Text>
@@ -401,7 +455,7 @@ const HomeScreen = ({ navigation }) => {
               )}
             </Marker>
           ))}
-          
+
           {/* Marcador temporal al tocar el mapa */}
           {selectedLocation && (
             <Marker
@@ -414,7 +468,7 @@ const HomeScreen = ({ navigation }) => {
             </Marker>
           )}
         </MapView>
-        
+
         {/* Footer con acciones rápidas */}
         {authUser && userData && (
           <View style={[styles.footerContainer, { paddingBottom: insets.bottom }]}>
@@ -437,7 +491,7 @@ const HomeScreen = ({ navigation }) => {
                       <Text style={styles.footerButtonText}>Mi Centro</Text>
                     </TouchableOpacity>
                   )}
-                  
+
                   <TouchableOpacity 
                     style={styles.footerButton}
                     onPress={() => Alert.alert('Reseñas', 'Ver y responder reseñas')}
@@ -445,7 +499,7 @@ const HomeScreen = ({ navigation }) => {
                     <Ionicons name="star" size={20} color="#F59E0B" />
                     <Text style={styles.footerButtonText}>Reseñas</Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity 
                     style={styles.footerButton}
                     onPress={() => Alert.alert('Promociones', 'Crear ofertas especiales')}
@@ -453,13 +507,24 @@ const HomeScreen = ({ navigation }) => {
                     <Ionicons name="megaphone" size={20} color="#EC4899" />
                     <Text style={styles.footerButtonText}>Promociones</Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity 
                     style={styles.footerButton}
                     onPress={() => navigation.navigate('Main', { screen: 'Perfil' })}
                   >
                     <Ionicons name="settings" size={20} color="#6B7280" />
                     <Text style={styles.footerButtonText}>Perfil</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={styles.footerButton}
+                    onPress={() => {
+                      // Abre el MapPicker centrado en la ubicación guardada y actualiza Firestore al confirmar
+                      openMapPickerForUser(false);
+                    }}
+                  >
+                    <Ionicons name="location" size={20} color="#EC4899" />
+                    <Text style={styles.footerButtonText}>Ubicar</Text>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -471,7 +536,7 @@ const HomeScreen = ({ navigation }) => {
                     <Ionicons name="heart" size={20} color="#EF4444" />
                     <Text style={styles.footerButtonText}>Favoritos</Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity 
                     style={styles.footerButton}
                     onPress={() => Alert.alert('Buscar', 'Buscar centros turísticos cercanos')}
@@ -479,7 +544,7 @@ const HomeScreen = ({ navigation }) => {
                     <Ionicons name="search" size={20} color="#3B82F6" />
                     <Text style={styles.footerButtonText}>Buscar</Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity 
                     style={styles.footerButton}
                     onPress={() => Alert.alert('Mis Reseñas', 'Tus reseñas y calificaciones')}
@@ -487,7 +552,7 @@ const HomeScreen = ({ navigation }) => {
                     <Ionicons name="star" size={20} color="#F59E0B" />
                     <Text style={styles.footerButtonText}>Reseñas</Text>
                   </TouchableOpacity>
-                  
+
                   <TouchableOpacity 
                     style={styles.footerButton}
                     onPress={() => navigation.navigate('Main', { screen: 'Perfil' })}
@@ -522,7 +587,7 @@ const HomeScreen = ({ navigation }) => {
                 <Ionicons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
-            
+
             <ScrollView style={styles.menuContent} showsVerticalScrollIndicator={false}>
               <View style={styles.quickActionsGrid}>
                 {getQuickActions().map((action) => (
@@ -715,7 +780,7 @@ const styles = StyleSheet.create({
   },
   footerContainer: {
     position: 'absolute',
-    bottom: 0,
+    bottom: '-15%',
     left: 0,
     right: 0,
     backgroundColor: '#FFFFFF',
@@ -805,5 +870,4 @@ const styles = StyleSheet.create({
 });
 
 export default HomeScreen;
-
 

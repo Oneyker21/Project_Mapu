@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, Alert, PermissionsAndroid, Platform } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { View, StyleSheet, Text, Alert, ActivityIndicator } from 'react-native';
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { Button } from '../../components';
+import { MaterialIcons } from '@expo/vector-icons';
 
 const DEFAULT_REGION = {
   latitude: 12.136389,
@@ -15,12 +16,23 @@ const DEFAULT_REGION = {
 const MapPickerScreen = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
   const initial = route?.params?.initialCoords;
-  const [coords, setCoords] = useState(initial || { latitude: DEFAULT_REGION.latitude, longitude: DEFAULT_REGION.longitude });
-  const [userLocation, setUserLocation] = useState(null);
+
+  // 🔑 Si hay ubicación guardada, arrancamos ahí. Si no, arrancamos con default.
+  const [region, setRegion] = useState(
+    initial
+      ? { ...initial, latitudeDelta: 0.02, longitudeDelta: 0.02 }
+      : DEFAULT_REGION
+  );
+
   const [loading, setLoading] = useState(false);
+  const [mapReady, setMapReady] = useState(!!initial); // si hay initial, ya podemos mostrar mapa
+  const [userLocation, setUserLocation] = useState(null);
 
   useEffect(() => {
-    getCurrentLocation();
+    // 🟢 Solo buscamos ubicación si NO hay coordenadas iniciales
+    if (!initial) {
+      getCurrentLocation();
+    }
   }, []);
 
   const requestLocationPermission = async () => {
@@ -47,6 +59,7 @@ const MapPickerScreen = ({ route, navigation }) => {
       const hasPermission = await requestLocationPermission();
       if (!hasPermission) {
         setLoading(false);
+        setMapReady(true);
         return;
       }
 
@@ -55,10 +68,10 @@ const MapPickerScreen = ({ route, navigation }) => {
       });
 
       const { latitude, longitude } = location.coords;
-      const newCoords = { latitude, longitude };
-      
-      setUserLocation(newCoords);
-      setCoords(newCoords);
+      const newRegion = { latitude, longitude, latitudeDelta: 0.02, longitudeDelta: 0.02 };
+
+      setUserLocation({ latitude, longitude });
+      setRegion(newRegion);
     } catch (error) {
       console.error('Error al obtener ubicación:', error);
       Alert.alert(
@@ -68,64 +81,58 @@ const MapPickerScreen = ({ route, navigation }) => {
       );
     } finally {
       setLoading(false);
+      setMapReady(true);
     }
-  };
-
-  const onMapPress = (e) => {
-    setCoords(e.nativeEvent.coordinate);
   };
 
   const confirm = () => {
     if (route?.params?.onPick) {
-      route.params.onPick(coords);
+      route.params.onPick({ latitude: region.latitude, longitude: region.longitude });
     }
     navigation.goBack();
   };
 
+  if (!mapReady) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={{ marginTop: 10 }}>Cargando mapa...</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}> 
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <MapView
         style={styles.map}
         provider={PROVIDER_GOOGLE}
-        initialRegion={{ 
-          ...DEFAULT_REGION, 
-          ...(userLocation || initial || {})
-        }}
-        onPress={onMapPress}
+        region={region}
         showsUserLocation={true}
         showsMyLocationButton={false}
         followsUserLocation={false}
-      >
-        {coords && (
-          <Marker 
-            coordinate={coords} 
-            title="Ubicación seleccionada"
-            description="Toca el mapa para cambiar la ubicación"
-          />
-        )}
-        {userLocation && (
-          <Marker 
-            coordinate={userLocation} 
-            pinColor="blue"
-            title="Mi ubicación"
-            description="Tu ubicación actual"
-          />
-        )}
-      </MapView>
+        onRegionChangeComplete={(r) => setRegion(r)}
+        onMapReady={() => setMapReady(true)}
+      />
+
+      {/* Pin fijo */}
+      <View style={styles.markerFixed}>
+        <MaterialIcons name="location-pin" size={40} color="red" />
+      </View>
+
       <View style={styles.footer}>
         <Text style={styles.coordsText}>
-          Lat: {coords.latitude.toFixed(6)}, Lng: {coords.longitude.toFixed(6)}
+          Lat: {region.latitude.toFixed(6)}, Lng: {region.longitude.toFixed(6)}
         </Text>
         <View style={styles.buttonContainer}>
-          <Button 
-            title="Mi ubicación" 
+          <Button
+            title="Mi ubicación"
             onPress={getCurrentLocation}
             loading={loading}
             variant="secondary"
             style={styles.locationButton}
           />
-          <Button 
-            title="Confirmar ubicación" 
+          <Button
+            title="Confirmar ubicación"
             onPress={confirm}
             style={styles.confirmButton}
           />
@@ -136,11 +143,15 @@ const MapPickerScreen = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  map: {
-    flex: 1,
+  container: { flex: 1 },
+  map: { flex: 1 },
+  markerFixed: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginLeft: -16,
+    marginTop: 10,
+    zIndex: 999,
   },
   footer: {
     position: 'absolute',
@@ -159,26 +170,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#374151',
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  locationButton: {
-    flex: 1,
-  },
-  confirmButton: {
-    flex: 1,
-  },
+  buttonContainer: { flexDirection: 'row', gap: 12 },
+  locationButton: { flex: 1 },
+  confirmButton: { flex: 1 },
 });
 
 export default MapPickerScreen;
-
-
