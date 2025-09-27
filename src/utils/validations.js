@@ -131,3 +131,72 @@ export const validateResidence = (residence) => {
   }
   return { isValid: true, message: '' };
 };
+
+export const validateDocumentType = (documentType) => {
+  if (!documentType || documentType.trim().length === 0) {
+    return { isValid: false, message: 'El tipo de documento es requerido' };
+  }
+  const validTypes = ['cedula', 'pasaporte'];
+  if (!validTypes.includes(documentType)) {
+    return { isValid: false, message: 'Tipo de documento no válido' };
+  }
+  return { isValid: true, message: '' };
+};
+
+export const validateDocumentNumber = (documentNumber, documentType) => {
+  if (!documentNumber || documentNumber.trim().length === 0) {
+    return { isValid: false, message: 'El número de documento es requerido' };
+  }
+
+  if (documentType === 'cedula') {
+    // Validar formato de cédula: ###-######-####A-Z (4 dígitos + 1 letra al final)
+    const cedulaRegex = /^\d{3}-\d{6}-\d{4}[A-Z]$/;
+    if (!cedulaRegex.test(documentNumber.trim())) {
+      return { isValid: false, message: 'Formato de cédula inválido. Use: ###-######-####A-Z' };
+    }
+  } else if (documentType === 'pasaporte') {
+    // Validar formato de pasaporte (más flexible)
+    const pasaporteRegex = /^[A-Z0-9]{6,12}$/;
+    if (!pasaporteRegex.test(documentNumber.trim())) {
+      return { isValid: false, message: 'Formato de pasaporte inválido. Use solo letras y números' };
+    }
+  }
+
+  return { isValid: true, message: '' };
+};
+
+// Función para formatear automáticamente la cédula
+export const formatCedula = (value) => {
+  // Remover todos los caracteres no numéricos excepto la última letra
+  let cleanValue = value.replace(/[^0-9A-Z]/g, '');
+  
+  // Si tiene más de 14 caracteres, truncar (13 números + 1 letra)
+  if (cleanValue.length > 14) {
+    cleanValue = cleanValue.substring(0, 14);
+  }
+  
+  // Separar números de la letra
+  const numbers = cleanValue.replace(/[^0-9]/g, '');
+  const letter = cleanValue.replace(/[^A-Z]/g, '');
+  
+  let formatted = '';
+  
+  // Formatear números con guiones: ###-######-####
+  if (numbers.length > 0) {
+    if (numbers.length <= 3) {
+      formatted = numbers;
+    } else if (numbers.length <= 9) {
+      formatted = numbers.substring(0, 3) + '-' + numbers.substring(3);
+    } else {
+      // Formato completo: ###-######-####
+      formatted = numbers.substring(0, 3) + '-' + numbers.substring(3, 9) + '-' + numbers.substring(9, 13);
+    }
+  }
+  
+  // Agregar la letra al final si existe
+  if (letter) {
+    formatted += letter;
+  }
+  
+  return formatted;
+};

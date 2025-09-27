@@ -28,32 +28,26 @@ const HomeScreen = ({ navigation }) => {
   const loadUserData = async () => {
     try {
       if (authUser) {
-        console.log('Current user:', authUser?.uid);
+        // Determinar la colección según el rol del usuario
+        let collectionName = 'turistas'; // Por defecto turistas
+        if (authUser.role === 'centro_turistico' || authUser.tipoUsuario === 'CentroTuristico') {
+          collectionName = 'centrosTuristicos';
+        } else if (authUser.role === 'tourist' || authUser.tipoUsuario === 'Turista') {
+          collectionName = 'turistas';
+        }
 
         // Obtener datos adicionales del usuario desde Firestore
-        const userDoc = await getDoc(doc(db, 'users', authUser.uid));
+        console.log('HomeScreen - Buscando en colección:', collectionName);
+        console.log('HomeScreen - User ID:', authUser.uid);
+        const userDoc = await getDoc(doc(db, collectionName, authUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
-          console.log('User data from Firestore:', data);
+          console.log('HomeScreen - Datos del usuario encontrados:', data);
+          console.log('HomeScreen - Imagen de perfil:', data.imagenPerfil);
           setUserData(data);
-
-          // Si es un centro turístico con coordenadas, centrar el mapa
-          if (data.role === 'centro_turistico' && data.latitude && data.longitude) {
-            console.log('Centering map on coordinates:', data.latitude, data.longitude);
-            setMapRegion({
-              latitude: parseFloat(data.latitude),
-              longitude: parseFloat(data.longitude),
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            });
-          } else {
-            console.log('No coordinates found or not a center:', data.role, data.latitude, data.longitude);
-          }
         } else {
-          console.log('User document does not exist');
+          console.log('HomeScreen - No se encontraron datos en la colección:', collectionName);
         }
-      } else {
-        console.log('No current user');
       }
     } catch (error) {
       console.error('Error cargando datos del usuario:', error);
@@ -64,18 +58,17 @@ const HomeScreen = ({ navigation }) => {
 
   const loadCenters = async () => {
     try {
-      console.log('Loading centers from Firestore...');
-      const centersSnapshot = await getDocs(collection(db, 'users'));
+      const centersSnapshot = await getDocs(collection(db, 'centrosTuristicos'));
       const centersData = [];
 
       centersSnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        console.log('Found user:', docSnap.id, 'Role:', data.role, 'Coords:', data.latitude, data.longitude);
 
-        if (data.role === 'centro_turistico' && data.latitude && data.longitude) {
+        if (data.latitude && data.longitude) {
           centersData.push({
             id: docSnap.id,
             ...data,
+            businessName: data.nombreNegocio || data.businessName,
             coordinate: {
               latitude: parseFloat(data.latitude),
               longitude: parseFloat(data.longitude)
@@ -84,7 +77,6 @@ const HomeScreen = ({ navigation }) => {
         }
       });
 
-      console.log('Centers loaded:', centersData.length, centersData);
       setCenters(centersData);
     } catch (error) {
       console.error('Error cargando centros:', error);
@@ -98,6 +90,31 @@ const HomeScreen = ({ navigation }) => {
     loadUserData();
     loadCenters();
   }, []);
+
+  // Efecto para centrar el mapa cuando se cargan los datos del usuario
+  useEffect(() => {
+    if (userData && authUser) {
+      const isCenter = userData.role === 'centro_turistico' || userData.tipoUsuario === 'CentroTuristico';
+      if (isCenter && userData.latitude && userData.longitude) {
+        const centerCoords = {
+          latitude: parseFloat(userData.latitude),
+          longitude: parseFloat(userData.longitude),
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        };
+        setMapRegion(centerCoords);
+        
+        // Mostrar alerta informativa después de un pequeño delay
+        setTimeout(() => {
+          Alert.alert(
+            'Centro Turístico',
+            `Bienvenido a ${userData.nombreNegocio || userData.businessName || 'tu centro'}. Te hemos dirigido a tu ubicación registrada.`,
+            [{ text: 'Entendido' }]
+          );
+        }, 1000);
+      }
+    }
+  }, [userData, authUser]);
 
   const handleMapPress = (e) => {
     setSelectedLocation(e.nativeEvent.coordinate);
@@ -127,8 +144,14 @@ const HomeScreen = ({ navigation }) => {
       onPick: async (coords) => {
         try {
           if (!authUser) throw new Error('No auth user');
+          // Determinar la colección según el rol del usuario
+          let collectionName = 'users';
+          if (authUser.role === 'centro_turistico' || authUser.tipoUsuario === 'CentroTuristico') {
+            collectionName = 'centrosTuristicos';
+          }
+
           // Actualizar en Firestore (guardamos como strings para mantener compatibilidad)
-          await updateDoc(doc(db, 'users', authUser.uid), {
+          await updateDoc(doc(db, collectionName, authUser.uid), {
             latitude: coords.latitude.toString(),
             longitude: coords.longitude.toString(),
           });
@@ -162,7 +185,7 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const getQuickActions = () => {
-    const isCenter = userData?.role === 'centro_turistico';
+    const isCenter = userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico';
 
     if (isCenter) {
       return [
@@ -311,12 +334,17 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.profileSection}>
           <View style={styles.profileInfo}>
             <View style={styles.profileContainer}>
-              {userData?.profileImage ? (
-                <Image source={{ uri: userData.profileImage }} style={styles.profileImage} />
+              {userData?.imagenPerfil ? (
+                <Image 
+                  source={{ uri: userData.imagenPerfil }} 
+                  style={styles.profileImage}
+                  onError={(error) => console.log('Error cargando imagen en Home:', error)}
+                  onLoad={() => console.log('Imagen cargada exitosamente en Home')}
+                />
               ) : (
                 <View style={styles.profilePlaceholder}>
                   <Ionicons 
-                    name={userData?.role === 'centro_turistico' ? 'business' : 'person'} 
+                    name={(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'business' : 'person'} 
                     size={24} 
                     color="#3B82F6" 
                   />
@@ -325,11 +353,16 @@ const HomeScreen = ({ navigation }) => {
             </View>
             <View style={styles.userInfo}>
               <Text style={styles.userName}>
-                {userData?.businessName || userData?.firstName || authUser?.displayName || 'Usuario'}
+                {userData?.nombreNegocio || userData?.businessName || userData?.firstName || authUser?.displayName || 'Usuario'}
               </Text>
               <Text style={styles.userRole}>
-                {userData?.role === 'centro_turistico' ? 'Centro Turístico' : 'Turista'}
+                {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'Centro Turístico' : 'Turista'}
               </Text>
+              {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') && userData?.nombrePropietario && (
+                <Text style={styles.propietarioName}>
+                  Propietario: {userData.nombrePropietario}
+                </Text>
+              )}
             </View>
           </View>
           <TouchableOpacity 
@@ -342,7 +375,7 @@ const HomeScreen = ({ navigation }) => {
 
         {/* Opciones de acción */}
         <View style={styles.optionsSection}>
-          {userData?.role === 'centro_turistico' ? (
+          {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? (
             <>
               <TouchableOpacity 
                 style={styles.optionButton}
@@ -426,33 +459,26 @@ const HomeScreen = ({ navigation }) => {
             <Marker
               key={center.id}
               coordinate={center.coordinate}
-              title={center.businessName || 'Centro Turístico'}
-              description={center.description || 'Sin descripción'}
+              title={center.businessName || center.nombreNegocio || 'Centro Turístico'}
+              description={center.description || center.descripcion || 'Sin descripción'}
               onPress={() => handleMarkerPress(center)}
             >
-              {authUser && userData && center.id === authUser.uid ? (
-                // Marcador personalizado con información del centro del usuario
-                <View style={styles.centerInfoMarker}>
-                  <View style={styles.centerInfoContent}>
-                    <View style={styles.centerLogoContainer}>
-                      {center.logoUrl ? (
-                        <Image source={{ uri: center.logoUrl }} style={styles.centerLogo} />
-                      ) : (
-                        <Ionicons name="business" size={20} color="#3B82F6" />
-                      )}
-                    </View>
-                    <View style={styles.centerInfoText}>
-                      <Text style={styles.centerName}>{center.businessName || 'Centro Turístico'}</Text>
-                      <Text style={styles.centerAddress}>{center.address || 'Sin dirección'}</Text>
-                    </View>
+              {/* Marcador personalizado para todos los centros turísticos */}
+              <View style={styles.centerInfoMarker}>
+                <View style={styles.centerInfoContent}>
+                  <View style={styles.centerLogoContainer}>
+                    {center.logoUrl ? (
+                      <Image source={{ uri: center.logoUrl }} style={styles.centerLogo} />
+                    ) : (
+                      <Ionicons name="business" size={20} color="#3B82F6" />
+                    )}
+                  </View>
+                  <View style={styles.centerInfoText}>
+                    <Text style={styles.centerName}>{center.businessName || center.nombreNegocio || 'Centro Turístico'}</Text>
+                    <Text style={styles.centerAddress}>{center.address || center.direccion || 'Sin dirección'}</Text>
                   </View>
                 </View>
-              ) : (
-                // Marcador normal para otros centros
-                <View style={styles.customMarker}>
-                  <Ionicons name="business" size={20} color="#FFFFFF" />
-                </View>
-              )}
+              </View>
             </Marker>
           ))}
 
@@ -473,7 +499,7 @@ const HomeScreen = ({ navigation }) => {
         {authUser && userData && (
           <View style={[styles.footerContainer, { paddingBottom: insets.bottom }]}>
             <View style={styles.footerContent}>
-              {userData.role === 'centro_turistico' ? (
+              {(userData.role === 'centro_turistico' || userData.tipoUsuario === 'CentroTuristico') ? (
                 <>
                   {userData.latitude && userData.longitude && (
                     <TouchableOpacity 
@@ -578,7 +604,7 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.menuContainer}>
             <View style={styles.menuHeader}>
               <Text style={styles.menuTitle}>
-                {userData?.role === 'centro_turistico' ? 'Gestionar Centro' : 'Acciones Rápidas'}
+                {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'Gestionar Centro' : 'Acciones Rápidas'}
               </Text>
               <TouchableOpacity 
                 style={styles.closeButton}
@@ -666,6 +692,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     fontWeight: '500',
+  },
+  propietarioName: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontWeight: '400',
+    marginTop: 2,
   },
   menuButton: {
     padding: 8,

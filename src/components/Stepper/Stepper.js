@@ -34,12 +34,14 @@ const Stepper = ({ currentStep, totalSteps, stepTitles = [] }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.stepsRow}>
-        {Array.from({ length: totalSteps }, (_, index) => renderStep(index + 1))}
+      <View style={styles.horizontalLayout}>
+        {currentTitle && (
+          <Text style={styles.currentStepTitle}>{currentTitle}</Text>
+        )}
+        <View style={styles.stepsRow}>
+          {Array.from({ length: totalSteps }, (_, index) => renderStep(index + 1))}
+        </View>
       </View>
-      {currentTitle && (
-        <Text style={styles.currentStepTitle}>{currentTitle}</Text>
-      )}
     </View>
   );
 };
@@ -48,12 +50,18 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     marginVertical: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
+  },
+  horizontalLayout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 4,
   },
   stepsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
   },
   stepContainer: {
     flexDirection: 'row',
@@ -99,9 +107,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1F2937',
-    marginTop: 8,
-    textAlign: 'center',
-    width: '100%',
+    textAlign: 'left',
+    marginRight: 16,
   },
 });
 

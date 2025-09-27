@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { getCurrentUser } from '../../services/auth.js';
@@ -23,10 +23,25 @@ const ProfileScreen = ({ navigation }) => {
       if (authUser) {
         setUser(authUser);
         
+        // Determinar la colección según el rol del usuario
+        let collectionName = 'turistas'; // Por defecto turistas
+        if (authUser.role === 'centro_turistico' || authUser.tipoUsuario === 'CentroTuristico') {
+          collectionName = 'centrosTuristicos';
+        } else if (authUser.role === 'tourist' || authUser.tipoUsuario === 'Turista') {
+          collectionName = 'turistas';
+        }
+        
         // Obtener datos adicionales del usuario desde Firestore
-        const userDoc = await getDoc(doc(db, 'users', authUser.uid));
+        console.log('Buscando en colección:', collectionName);
+        console.log('User ID:', authUser.uid);
+        const userDoc = await getDoc(doc(db, collectionName, authUser.uid));
         if (userDoc.exists()) {
-          setUserData(userDoc.data());
+          const data = userDoc.data();
+          console.log('Datos del usuario encontrados:', data);
+          console.log('Imagen de perfil:', data.imagenPerfil);
+          setUserData(data);
+        } else {
+          console.log('No se encontraron datos en la colección:', collectionName);
         }
       }
     } catch (error) {
@@ -185,21 +200,50 @@ const ProfileScreen = ({ navigation }) => {
         {/* Header del perfil */}
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
-            <Ionicons name="business" size={30} color="#3B82F6" />
+            {userData?.imagenPerfil ? (
+              <Image 
+                source={{ uri: userData.imagenPerfil }} 
+                style={styles.profileImage}
+                onError={(error) => console.log('Error cargando imagen:', error)}
+                onLoad={() => console.log('Imagen cargada exitosamente')}
+              />
+            ) : (
+              <Ionicons 
+                name={(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? "business" : "person"} 
+                size={30} 
+                color="#3B82F6" 
+              />
+            )}
           </View>
           <Text style={styles.userName}>
-            {userData?.businessName || user?.displayName || 'Centro Turístico'}
+            {userData?.nombreNegocio || userData?.businessName || user?.displayName || 'Usuario'}
           </Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
+          {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') && userData?.nombrePropietario && (
+            <Text style={styles.propietarioName}>
+              Propietario: {userData.nombrePropietario}
+            </Text>
+          )}
           <Text style={styles.userRole}>
-            {userData?.role === 'centro_turistico' ? 'Centro Turístico' : 'Usuario'}
+            {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'Centro Turístico' : 'Turista'}
           </Text>
+          
+          {/* Debug info - remover después */}
+          {__DEV__ && (
+            <View style={styles.debugContainer}>
+              <Text style={styles.debugText}>Debug Info:</Text>
+              <Text style={styles.debugText}>Role: {authUser?.role}</Text>
+              <Text style={styles.debugText}>TipoUsuario: {authUser?.tipoUsuario}</Text>
+              <Text style={styles.debugText}>ImagenPerfil: {userData?.imagenPerfil ? 'Sí' : 'No'}</Text>
+              <Text style={styles.debugText}>URL: {userData?.imagenPerfil}</Text>
+            </View>
+          )}
         </View>
 
         {/* Opciones del menú */}
         <View style={styles.menuContainer}>
           <Text style={styles.menuTitle}>
-            {userData?.role === 'centro_turistico' ? 'Gestionar Centro' : 'Mi Cuenta'}
+            {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'Gestionar Centro' : 'Mi Cuenta'}
           </Text>
           {menuOptions.map((option) => (
             <TouchableOpacity
@@ -256,13 +300,37 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
   },
   avatarContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: '#EBF4FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  profileImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  debugContainer: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 2,
   },
   userName: {
     fontSize: 20,
@@ -284,6 +352,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 10,
+  },
+  propietarioName: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    fontWeight: '400',
+    marginTop: 2,
+    marginBottom: 4,
   },
   menuContainer: {
     backgroundColor: '#FFFFFF',

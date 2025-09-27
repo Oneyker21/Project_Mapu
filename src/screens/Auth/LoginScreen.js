@@ -28,6 +28,7 @@ const LoginScreen = ({ navigation }) => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [rememberUser, setRememberUser] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   // Cargar credenciales guardadas al montar el componente
   useEffect(() => {
@@ -72,17 +73,18 @@ const LoginScreen = ({ navigation }) => {
     if (!validateForm()) return;
 
     setLoading(true);
+    setLoginError(''); // Limpiar error anterior
     try {
       const result = await loginUser(formData.email, formData.password, rememberUser);
       
       if (result.success) {
         login(result.user);
-        Alert.alert('Éxito', 'Inicio de sesión exitoso');
+        // No mostrar alert, el AuthNavigator manejará la navegación automáticamente
       } else {
-        Alert.alert('Error', result.error || 'Error al iniciar sesión. Inténtalo de nuevo.');
+        setLoginError(result.error || 'Error al iniciar sesión. Inténtalo de nuevo.');
       }
     } catch (error) {
-      Alert.alert('Error', 'Error al iniciar sesión. Inténtalo de nuevo.');
+      setLoginError('Error al iniciar sesión. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -93,26 +95,32 @@ const LoginScreen = ({ navigation }) => {
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
+    // Limpiar error de login cuando el usuario empiece a escribir
+    if (loginError) {
+      setLoginError('');
+    }
   };
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
       
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.headerSpacer} />
-        <Text style={styles.headerTitle}>Iniciar Sesión</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      {/* Fondo para el sistema de navegación */}
+      <View style={[styles.systemNavBackground, { height: insets.bottom }]} />
+      
+      {/* Fondo para el área superior del sistema */}
+      <View style={[styles.systemTopBackground, { height: insets.top }]} />
 
       <KeyboardAvoidingView 
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <ScrollView 
-          contentContainerStyle={[styles.scrollContainer, { paddingBottom: Math.max(insets.bottom + 24, 100) }]}
+          contentContainerStyle={[styles.scrollContainer, { 
+            paddingTop: insets.top + 40,
+            paddingBottom: Math.max(insets.bottom + 20, 100) 
+          }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           bounces={false}
@@ -155,7 +163,7 @@ const LoginScreen = ({ navigation }) => {
             <View style={[styles.checkbox, rememberUser && styles.checkboxChecked]}>
               {rememberUser && <Ionicons name="checkmark" size={16} color="white" />}
             </View>
-            <Text style={styles.rememberText}>Recordarme</Text>
+            <Text style={styles.rememberText}>¿Desea recordar la contraseña?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -173,6 +181,14 @@ const LoginScreen = ({ navigation }) => {
             loading={loading}
             style={styles.loginButton}
           />
+
+          {/* Mensaje de error de login */}
+          {loginError ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={16} color="#EF4444" />
+              <Text style={styles.errorText}>{loginError}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
@@ -212,6 +228,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
+  systemNavBackground: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#F9FAFB',
+    zIndex: 1000,
+  },
+  systemTopBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#F9FAFB',
+    zIndex: 1000,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -239,7 +271,6 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 40,
     paddingBottom: 100,
   },
   contentHeader: {
@@ -305,7 +336,24 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   loginButton: {
-    marginBottom: 24,
+    marginBottom: 16,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 14,
+    marginLeft: 8,
+    flex: 1,
   },
   divider: {
     flexDirection: 'row',

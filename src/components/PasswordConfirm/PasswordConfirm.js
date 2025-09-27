@@ -28,6 +28,11 @@ const PasswordConfirm = ({
         {...props}
       />
       
+      {/* Contador de caracteres */}
+      <Text style={styles.characterCount}>
+        {(value || '').length}/50
+      </Text>
+      
       {/* Indicador de confirmación */}
       {value && (
         <View style={styles.confirmationIndicator}>
@@ -52,6 +57,15 @@ const styles = StyleSheet.create({
   container: {
     marginTop: 16, // Espacio arriba para separar de las etiquetas
     marginBottom: 16,
+  },
+  characterCount: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    textAlign: 'right',
+    marginTop: -8,
+    marginRight: 4,
+    marginBottom: -2,
+    lineHeight: 14,
   },
   confirmationIndicator: {
     marginTop: 8,

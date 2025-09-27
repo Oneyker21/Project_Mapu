@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, TextInput, Text, TouchableOpacity, Animated, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -13,8 +13,14 @@ const Input = ({
   ...props 
 }) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
+  const [isFocused, setIsFocused] = useState(!!value);
   const [labelAnimation] = useState(new Animated.Value(value ? 1 : 0));
+
+  // Actualizar el estado cuando el valor cambie
+  useEffect(() => {
+    setIsFocused(!!value);
+    animateLabel(value ? 1 : 0);
+  }, [value]);
 
   const togglePasswordVisibility = () => {
     setIsPasswordVisible(!isPasswordVisible);
@@ -61,7 +67,7 @@ const Input = ({
       outputRange: [16, 12],
     }),
     color: isFocused ? '#3B82F6' : error ? '#EF4444' : '#6B7280',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 4,
     zIndex: 1,
   };

@@ -6,6 +6,7 @@ import { AppNavigator } from './navegation';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import RegisterScreen from '../screens/Register/RegisterScreen';
 import ForgotPasswordScreen from '../screens/Auth/ForgotPasswordScreen';
+import MapPickerScreen from '../screens/Map/MapPickerScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -31,6 +32,7 @@ export const AuthNavigator = () => {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="MapPicker" component={MapPickerScreen} />
         </>
       )}
     </Stack.Navigator>
