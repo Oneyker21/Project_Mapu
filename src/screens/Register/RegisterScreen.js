@@ -76,6 +76,7 @@ const RegisterScreen = ({ navigation }) => {
     'Museo', 'Hotel', 'Restaurante', 'Centro Recreativo', 'Galería', 
     'Parque', 'Playa', 'Montaña', 'Ciudad', 'Pueblo'
   ]);
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   const validateStep1 = () => {
     if (!formData.role) {
@@ -148,6 +149,12 @@ const RegisterScreen = ({ navigation }) => {
       if (!formData.businessEmail) newErrors.businessEmail = 'Email del centro turístico requerido';
       if (!formData.businessPhone) newErrors.businessPhone = 'Teléfono del centro turístico requerido';
     }
+    
+    // Validar aceptación de términos y condiciones
+    if (!acceptTerms) {
+      newErrors.acceptTerms = 'Debes aceptar los términos y condiciones para continuar';
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -953,6 +960,43 @@ const RegisterScreen = ({ navigation }) => {
         />
 
         {currentStep === 1 ? renderStep1() : currentStep === 2 ? renderStep2() : (formData.role === 'centro_turistico' ? renderCentroTuristicoForm() : renderTouristForm())}
+
+        {/* Checkbox de términos y condiciones - solo en el paso 3 */}
+        {currentStep === 3 && (
+          <View style={styles.termsContainer}>
+            <TouchableOpacity
+              style={styles.termsCheckbox}
+              onPress={() => setAcceptTerms(!acceptTerms)}
+            >
+              <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
+                {acceptTerms && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+              </View>
+              <View style={styles.termsTextContainer}>
+                <Text style={styles.termsText}>
+                  Acepto los{' '}
+                  <Text 
+                    style={styles.termsLink}
+                    onPress={() => navigation.navigate('TermsAndConditions')}
+                    suppressHighlighting={true}
+                  >
+                    Términos y Condiciones
+                  </Text>
+                  {' '}y la{' '}
+                  <Text 
+                    style={styles.termsLink}
+                    onPress={() => navigation.navigate('PrivacyPolicy')}
+                    suppressHighlighting={true}
+                  >
+                    Política de Privacidad
+                  </Text>
+                </Text>
+              </View>
+            </TouchableOpacity>
+            {errors.acceptTerms && (
+              <Text style={styles.errorText}>{errors.acceptTerms}</Text>
+            )}
+          </View>
+        )}
 
         {/* Botones de navegación */}
         <View style={styles.stepButtons}>
@@ -2073,6 +2117,45 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#EF4444',
     marginLeft: 4,
+    fontWeight: '500',
+  },
+  // Estilos para el checkbox de términos y condiciones
+  termsContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  termsCheckbox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  checkboxChecked: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  termsTextContainer: {
+    flex: 1,
+  },
+  termsText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#374151',
+  },
+  termsLink: {
+    color: '#3B82F6',
+    textDecorationLine: 'underline',
     fontWeight: '500',
   },
 });
