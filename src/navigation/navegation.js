@@ -9,6 +9,7 @@ import LoginScreen from '../screens/Auth/LoginScreen';
 import RegisterScreen from '../screens/Register/RegisterScreen';
 import HomeScreen from '../screens/Home/HomeScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
+import CentroTuristicoProfileScreen from '../screens/Profile/CentroTuristicoProfileScreen';
 import MapPickerScreen from '../screens/Map/MapPickerScreen';
 
 const Stack = createNativeStackNavigator();
@@ -83,6 +84,7 @@ export function AppNavigator() {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="MapPicker" component={MapPickerScreen} />
+      <Stack.Screen name="CentroTuristicoProfile" component={CentroTuristicoProfileScreen} />
     </Stack.Navigator>
   );
 }

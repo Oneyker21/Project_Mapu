@@ -103,7 +103,7 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       
       {/* Fondo para el sistema de navegación */}
       <View style={[styles.systemNavBackground, { height: insets.bottom }]} />
@@ -129,7 +129,7 @@ const LoginScreen = ({ navigation }) => {
           <Text style={styles.appName}>Mapu</Text>
           <Text style={styles.title}>¡Bienvenido!</Text>
           <Text style={styles.subtitle}>
-            Inicia sesión para continuar
+            Descubre lugares increíbles y conecta con el turismo
           </Text>
         </View>
 
@@ -222,18 +222,18 @@ const LoginScreen = ({ navigation }) => {
   );
 };
 
-// Estilos CSS integrados
+// Estilos CSS integrados - Tema Turístico Modo Oscuro
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#0F0F0F',
   },
   systemNavBackground: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#0F0F0F',
     zIndex: 1000,
   },
   systemTopBackground: {
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#0F0F0F',
     zIndex: 1000,
   },
   header: {
@@ -250,9 +250,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(15, 15, 15, 0.95)',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#1A1A1A',
   },
   backButton: {
     padding: 8,
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: '#FFFFFF',
   },
   headerSpacer: {
     width: 40, // Same width as back button to center title
@@ -276,24 +276,30 @@ const styles = StyleSheet.create({
   contentHeader: {
     alignItems: 'center',
     marginBottom: 48,
+    paddingTop: 20,
   },
   appName: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
-    color: '#3B82F6',
-    marginBottom: 16,
+    color: '#4ADE80', // Verde más brillante para modo oscuro
+    marginBottom: 8,
     letterSpacing: 1,
+    textShadowColor: '#DAA621',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#FFFFFF',
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#4ADE80', // Verde más brillante para modo oscuro
     textAlign: 'center',
+    fontWeight: '500',
   },
   form: {
     flex: 1,
@@ -310,20 +316,20 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
+    borderColor: '#DAA621',
     borderRadius: 4,
     marginRight: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'white',
+    backgroundColor: '#1A1A1A',
   },
   checkboxChecked: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: '#4ADE80', // Verde más brillante para modo oscuro
+    borderColor: '#4ADE80',
   },
   rememberText: {
     fontSize: 14,
-    color: '#374151',
+    color: '#FFFFFF',
     fontWeight: '500',
   },
   forgotPassword: {
@@ -331,26 +337,36 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   forgotPasswordText: {
-    color: '#3B82F6',
+    color: '#4ADE80', // Verde más brillante para modo oscuro
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   loginButton: {
     marginBottom: 16,
+    backgroundColor: '#4ADE80', // Verde más brillante para modo oscuro
+    borderRadius: 12,
+    shadowColor: '#4ADE80',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: '#2D1B1B',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#5B2C2C',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginBottom: 16,
   },
   errorText: {
-    color: '#EF4444',
+    color: '#F87171',
     fontSize: 14,
     marginLeft: 8,
     flex: 1,
@@ -363,28 +379,33 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#DAA621',
   },
   dividerText: {
     marginHorizontal: 16,
-    color: '#6B7280',
+    color: '#4ADE80', // Verde más brillante para modo oscuro
     fontSize: 14,
+    fontWeight: '600',
   },
   googleButton: {
     marginBottom: 32,
+    backgroundColor: '#1A1A1A',
+    borderWidth: 2,
+    borderColor: '#DAA621',
+    borderRadius: 12,
   },
   footer: {
     alignItems: 'center',
     marginTop: 16,
   },
   footerText: {
-    color: '#6B7280',
+    color: '#FFFFFF',
     fontSize: 14,
     textAlign: 'center',
   },
   footerLink: {
-    color: '#3B82F6',
-    fontWeight: '600',
+    color: '#4ADE80', // Verde más brillante para modo oscuro
+    fontWeight: '700',
   },
 });
 
