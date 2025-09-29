@@ -67,6 +67,10 @@ const Input = ({
       outputRange: [16, 12],
     }),
     color: isFocused ? '#4ADE80' : error ? '#F87171' : '#9CA3AF',
+    backgroundColor: isFocused ? '#0F0F0F' : 'transparent',
+    paddingHorizontal: isFocused ? 8 : 0,
+    paddingVertical: isFocused ? 2 : 0,
+    borderRadius: isFocused ? 12 : 0,
     zIndex: 1,
   };
 

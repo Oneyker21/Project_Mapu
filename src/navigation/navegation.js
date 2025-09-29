@@ -11,6 +11,14 @@ import HomeScreen from '../screens/Home/HomeScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import CentroTuristicoProfileScreen from '../screens/Profile/CentroTuristicoProfileScreen';
 import MapPickerScreen from '../screens/Map/MapPickerScreen';
+import ReviewsScreen from '../screens/Reviews/ReviewsScreen';
+import ReservationsScreen from '../screens/Management/ReservationsScreen';
+import StatisticsScreen from '../screens/Management/StatisticsScreen';
+import PromotionsScreen from '../screens/Management/PromotionsScreen';
+import NotificationsScreen from '../screens/Management/NotificationsScreen';
+import SettingsScreen from '../screens/Settings/SettingsScreen';
+import PrivacyPolicyScreen from '../screens/Legal/PrivacyPolicyScreen';
+import TermsAndConditionsScreen from '../screens/Legal/TermsAndConditionsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -85,6 +93,42 @@ export function AppNavigator() {
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="MapPicker" component={MapPickerScreen} />
       <Stack.Screen name="CentroTuristicoProfile" component={CentroTuristicoProfileScreen} />
+      <Stack.Screen name="Reviews" component={ReviewsScreen} />
+      <Stack.Screen 
+        name="Reservations" 
+        component={ReservationsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Statistics" 
+        component={StatisticsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Promotions" 
+        component={PromotionsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Notifications" 
+        component={NotificationsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="PrivacyPolicy" 
+        component={PrivacyPolicyScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="TermsAndConditions" 
+        component={TermsAndConditionsScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }

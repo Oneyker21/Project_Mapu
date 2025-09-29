@@ -81,17 +81,6 @@ const ProfileScreen = ({ navigation }) => {
           onPress: () => navigation.navigate('CentroTuristicoProfile')
         },
         {
-          id: 'location',
-          title: 'Ubicación del Centro',
-          icon: 'location',
-          description: 'Actualizar ubicación en el mapa',
-          onPress: () => navigation.navigate('MapPicker', {
-            onPick: (coords) => {
-              Alert.alert('Ubicación Actualizada', `Nueva ubicación: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
-            }
-          })
-        },
-        {
           id: 'reservations',
           title: 'Reservaciones',
           icon: 'calendar',
@@ -131,7 +120,7 @@ const ProfileScreen = ({ navigation }) => {
           title: 'Configuración',
           icon: 'settings',
           description: 'Preferencias y notificaciones',
-          onPress: () => Alert.alert('Configuración', 'Panel de configuración en desarrollo')
+          onPress: () => navigation.navigate('Settings')
         }
       ];
     } else {
@@ -176,7 +165,7 @@ const ProfileScreen = ({ navigation }) => {
           title: 'Configuración',
           icon: 'settings',
           description: 'Preferencias de la app',
-          onPress: () => Alert.alert('Configuración', 'Configuración de la aplicación')
+          onPress: () => navigation.navigate('Settings')
         }
       ];
     }

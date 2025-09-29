@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Modal, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Modal, ActivityIndicator, PanResponder, Animated } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,8 +22,22 @@ const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
   const [mapRegion, setMapRegion] = useState(INITIAL_REGION);
+  const [mapRef, setMapRef] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [loadingUserData, setLoadingUserData] = useState(true);
+  const [hasShownWelcome, setHasShownWelcome] = useState(false);
+  
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationText, setNotificationText] = useState('');
+  
+  // Función para mostrar notificación flotante
+  const showFloatingNotification = (text) => {
+    setNotificationText(text);
+    setShowNotification(true);
+    setTimeout(() => {
+      setShowNotification(false);
+    }, 2500);
+  };
 
   const loadUserData = async () => {
     try {
@@ -105,19 +119,18 @@ const HomeScreen = ({ navigation }) => {
     loadCenters();
   }, []);
 
-  // Refresh automático cada 5 segundos para datos actualizados
+  // Refresh automático cada 30 segundos solo para centros turísticos
   useEffect(() => {
     const interval = setInterval(() => {
-      loadUserData();
-      loadCenters();
-    }, 5000); // Refresh cada 5 segundos
+      loadCenters(); // Solo recargar centros, no datos del usuario
+    }, 30000); // Refresh cada 30 segundos
 
     return () => clearInterval(interval);
   }, []);
 
   // Efecto para centrar el mapa cuando se cargan los datos del usuario
   useEffect(() => {
-    if (userData && authUser) {
+    if (userData && authUser && !hasShownWelcome) {
       const isCenter = userData.role === 'centro_turistico' || userData.tipoUsuario === 'CentroTuristico';
       // Usar latitud/longitud (español) como prioridad, luego latitude/longitude (inglés)
       const userLat = userData.latitud || userData.latitude;
@@ -133,17 +146,19 @@ const HomeScreen = ({ navigation }) => {
         console.log('Centrando mapa en coordenadas del usuario:', centerCoords);
         setMapRegion(centerCoords);
         
-        // Mostrar alerta informativa después de un pequeño delay
+        // Usar animateToRegion si el mapa está disponible
+        if (mapRef) {
+          mapRef.animateToRegion(centerCoords, 1000);
+        }
+        
+        // Mostrar notificación flotante solo la primera vez
         setTimeout(() => {
-          Alert.alert(
-            'Centro Turístico',
-            `Bienvenido a ${userData.nombreNegocio || userData.businessName || 'tu centro'}. Te hemos dirigido a tu ubicación registrada.`,
-            [{ text: 'Entendido' }]
-          );
-        }, 1000);
+          showFloatingNotification(`¡Bienvenido a ${userData.nombreNegocio || userData.businessName || 'tu centro'}!`);
+          setHasShownWelcome(true);
+        }, 1500);
       }
     }
-  }, [userData, authUser]);
+  }, [userData, authUser, hasShownWelcome]);
 
   const handleMapPress = (e) => {
     setSelectedLocation(e.nativeEvent.coordinate);
@@ -218,12 +233,18 @@ const HomeScreen = ({ navigation }) => {
 
 
           // Centrar mapa en la nueva ubicación
-          setMapRegion({
+          const newRegion = {
             latitude: coords.latitude,
             longitude: coords.longitude,
             latitudeDelta: 0.01,
             longitudeDelta: 0.01,
-          });
+          };
+          setMapRegion(newRegion);
+          
+          // Usar animateToRegion para mover el mapa
+          if (mapRef) {
+            mapRef.animateToRegion(newRegion, 1000);
+          }
 
           await loadCenters();
 
@@ -242,63 +263,47 @@ const HomeScreen = ({ navigation }) => {
     if (isCenter) {
       return [
         {
-          id: 'location',
-          title: 'Actualizar Ubicación',
-          icon: 'location',
-          color: '#3B82F6',
-          onPress: () => {
-            // Abre el map picker centrado en la ubicación guardada y actualiza Firestore al confirmar
-            openMapPickerForUser(true);
-          }
-        },
-        {
-          id: 'business_info',
-          title: 'Mi Centro',
-          icon: 'business',
-          color: '#10B981',
-          onPress: () => {
-            setShowMenu(false);
-            Alert.alert('Mi Centro', 'Editar información del centro turístico');
-          }
-        },
-        {
           id: 'reservations',
           title: 'Reservaciones',
+          subtitle: 'Gestionar reservas de visitantes',
           icon: 'calendar',
           color: '#F59E0B',
           onPress: () => {
             setShowMenu(false);
-            Alert.alert('Reservaciones', 'Gestionar reservas de visitantes');
-          }
-        },
-        {
-          id: 'reviews',
-          title: 'Reseñas',
-          icon: 'star',
-          color: '#EF4444',
-          onPress: () => {
-            setShowMenu(false);
-            Alert.alert('Reseñas', 'Ver y responder reseñas');
+            navigation.navigate('Reservations');
           }
         },
         {
           id: 'analytics',
           title: 'Estadísticas',
+          subtitle: 'Ver métricas de visitas',
           icon: 'bar-chart',
           color: '#8B5CF6',
           onPress: () => {
             setShowMenu(false);
-            Alert.alert('Estadísticas', 'Ver métricas de visitas');
+            navigation.navigate('Statistics');
           }
         },
         {
           id: 'promotions',
           title: 'Promociones',
+          subtitle: 'Crear ofertas especiales',
           icon: 'megaphone',
           color: '#EC4899',
           onPress: () => {
             setShowMenu(false);
-            Alert.alert('Promociones', 'Crear ofertas especiales');
+            navigation.navigate('Promotions');
+          }
+        },
+        {
+          id: 'notifications',
+          title: 'Notificaciones',
+          subtitle: 'Configurar alertas',
+          icon: 'notifications',
+          color: '#10B981',
+          onPress: () => {
+            setShowMenu(false);
+            navigation.navigate('Notifications');
           }
         }
       ];
@@ -306,7 +311,8 @@ const HomeScreen = ({ navigation }) => {
       return [
         {
           id: 'favorites',
-          title: 'Favoritos',
+          title: 'Mis Favoritos',
+          subtitle: 'Centros turísticos guardados',
           icon: 'heart',
           color: '#EF4444',
           onPress: () => {
@@ -317,6 +323,7 @@ const HomeScreen = ({ navigation }) => {
         {
           id: 'search',
           title: 'Buscar Cercanos',
+          subtitle: 'Encontrar centros cerca de ti',
           icon: 'search',
           color: '#3B82F6',
           onPress: () => {
@@ -326,7 +333,8 @@ const HomeScreen = ({ navigation }) => {
         },
         {
           id: 'history',
-          title: 'Historial',
+          title: 'Mi Historial',
+          subtitle: 'Centros que has visitado',
           icon: 'time',
           color: '#10B981',
           onPress: () => {
@@ -337,6 +345,7 @@ const HomeScreen = ({ navigation }) => {
         {
           id: 'reviews',
           title: 'Mis Reseñas',
+          subtitle: 'Tus reseñas y calificaciones',
           icon: 'star',
           color: '#F59E0B',
           onPress: () => {
@@ -347,21 +356,12 @@ const HomeScreen = ({ navigation }) => {
         {
           id: 'notifications',
           title: 'Notificaciones',
+          subtitle: 'Configurar alertas',
           icon: 'notifications',
           color: '#8B5CF6',
           onPress: () => {
             setShowMenu(false);
             Alert.alert('Notificaciones', 'Configurar notificaciones');
-          }
-        },
-        {
-          id: 'profile',
-          title: 'Mi Perfil',
-          icon: 'person',
-          color: '#EC4899',
-          onPress: () => {
-            setShowMenu(false);
-            navigation.navigate('Main', { screen: 'Perfil' });
           }
         }
       ];
@@ -418,17 +418,6 @@ const HomeScreen = ({ navigation }) => {
               {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') && (
                 <View style={styles.profileActionsContainer}>
                   <TouchableOpacity 
-                    style={styles.editProfileButton}
-                    onPress={() => {
-                      console.log('Navegando a CentroTuristicoProfile');
-                      navigation.navigate('CentroTuristicoProfile');
-                    }}
-                  >
-                    <Ionicons name="create-outline" size={16} color="#3B82F6" />
-                    <Text style={styles.editProfileButtonText}>Personalizar Perfil</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
                     style={styles.refreshButton}
                     onPress={() => {
                       console.log('Refrescando datos...');
@@ -437,119 +426,112 @@ const HomeScreen = ({ navigation }) => {
                     }}
                   >
                     <Ionicons name="refresh" size={16} color="#10B981" />
-                    <Text style={styles.refreshButtonText}>Actualizar</Text>
+                    <Text style={styles.refreshButtonText}>Refrescar</Text>
                   </TouchableOpacity>
                   
+                  <TouchableOpacity 
+                    style={[styles.refreshButton, { backgroundColor: '#FEF3C7' }]}
+                    onPress={() => {
+                      console.log('Debug - Datos del usuario:', userData);
+                      console.log('Debug - Latitud:', userData?.latitud || userData?.latitude);
+                      console.log('Debug - Longitud:', userData?.longitud || userData?.longitude);
+                      Alert.alert(
+                        'Debug Info',
+                        `Latitud: ${userData?.latitud || userData?.latitude || 'No encontrada'}\nLongitud: ${userData?.longitud || userData?.longitude || 'No encontrada'}`,
+                        [{ text: 'OK' }]
+                      );
+                    }}
+                  >
+                    <Ionicons name="bug" size={16} color="#F59E0B" />
+                    <Text style={[styles.refreshButtonText, { color: '#F59E0B' }]}>Debug</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
           </View>
-          <TouchableOpacity 
-            style={styles.menuButton}
-            onPress={() => setShowMenu(true)}
-          >
-            <Ionicons name="menu" size={24} color="#6B7280" />
-          </TouchableOpacity>
         </View>
 
-        {/* Opciones de acción */}
-        <View style={styles.optionsSection}>
+        {/* Acciones rápidas principales */}
+        <View style={styles.quickActionsSection}>
           {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? (
             <>
               <TouchableOpacity 
-                style={styles.optionButton}
+                style={[styles.quickActionCard, { backgroundColor: '#EBF4FF' }]}
                 onPress={() => navigation.navigate('CentroTuristicoProfile')}
               >
-                <Ionicons name="settings" size={20} color="#3B82F6" />
-                <Text style={styles.optionButtonText}>Personalizar</Text>
+                <Ionicons name="business" size={24} color="#3B82F6" />
+                <Text style={[styles.quickActionText, { color: '#3B82F6' }]}>Mi Centro</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.optionButton}
-                onPress={() => {
-                  // Ir directamente a las coordenadas registradas del centro turístico
-                  if (userData?.latitud && userData?.longitud) {
-                    const centerCoords = {
-                      latitude: parseFloat(userData.latitud),
-                      longitude: parseFloat(userData.longitud),
-                      latitudeDelta: 0.01,
-                      longitudeDelta: 0.01,
-                    };
-                    setMapRegion(centerCoords);
-                    Alert.alert(
-                      'Ubicación del Centro',
-                      `Te hemos dirigido a la ubicación registrada de ${userData.nombreNegocio || 'tu centro'}.`,
-                      [{ text: 'Entendido' }]
-                    );
-                  } else {
-                    Alert.alert(
-                      'Ubicación No Registrada',
-                      'No tienes una ubicación registrada. Ve a "Personalizar" para agregar la ubicación de tu centro.',
-                      [
-                        { text: 'Cancelar', style: 'cancel' },
-                        { 
-                          text: 'Personalizar', 
-                          style: 'default',
-                          onPress: () => navigation.navigate('CentroTuristicoProfile')
+              
+                  <TouchableOpacity 
+                    style={[styles.quickActionCard, { backgroundColor: '#F0FDF4' }]}
+                    onPress={() => {
+                      // Usar latitud/longitud (español) como prioridad, luego latitude/longitude (inglés)
+                      const userLat = userData?.latitud || userData?.latitude;
+                      const userLng = userData?.longitud || userData?.longitude;
+                      
+                      console.log('=== VER MI CENTRO DEBUG ===');
+                      console.log('userData completo:', JSON.stringify(userData, null, 2));
+                      console.log('userData.latitud:', userData?.latitud);
+                      console.log('userData.longitud:', userData?.longitud);
+                      console.log('userData.latitude:', userData?.latitude);
+                      console.log('userData.longitude:', userData?.longitude);
+                      console.log('userLat final:', userLat);
+                      console.log('userLng final:', userLng);
+                      console.log('========================');
+                      
+                      if (userLat && userLng && userLat !== '' && userLng !== '') {
+                        const centerCoords = {
+                          latitude: parseFloat(userLat),
+                          longitude: parseFloat(userLng),
+                          latitudeDelta: 0.01,
+                          longitudeDelta: 0.01,
+                        };
+                        console.log('Ver Mi Centro - Coordenadas calculadas:', centerCoords);
+                        
+                        // Usar animateToRegion para mover el mapa
+                        if (mapRef) {
+                          mapRef.animateToRegion(centerCoords, 1000); // 1 segundo de animación
                         }
-                      ]
-                    );
-                  }
-                }}
-              >
-                <Ionicons name="location" size={20} color="#10B981" />
-                <Text style={styles.optionButtonText}>Ubicación</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.optionButton}
-                onPress={() => Alert.alert('Reservaciones', 'Gestionar reservas de visitantes')}
-              >
-                <Ionicons name="calendar" size={20} color="#10B981" />
-                <Text style={styles.optionButtonText}>Reservas</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.optionButton}
-                onPress={() => Alert.alert('Estadísticas', 'Ver métricas de visitas')}
-              >
-                <Ionicons name="bar-chart" size={20} color="#8B5CF6" />
-                <Text style={styles.optionButtonText}>Estadísticas</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.optionButton}
-                onPress={() => Alert.alert('Reseñas', 'Ver y responder reseñas')}
-              >
-                <Ionicons name="star" size={20} color="#F59E0B" />
-                <Text style={styles.optionButtonText}>Reseñas</Text>
+                        
+                        // También actualizar el estado
+                        setMapRegion(centerCoords);
+                        
+                        Alert.alert(
+                          'Ubicación del Centro',
+                          `Te hemos dirigido a la ubicación registrada de ${userData.nombreNegocio || userData.businessName || 'tu centro'}.\n\nCoordenadas: ${userLat}, ${userLng}`,
+                          [{ text: 'Perfecto' }]
+                        );
+                      } else {
+                        console.log('Ver Mi Centro - No se encontraron coordenadas válidas');
+                        Alert.alert(
+                          'Ubicación No Registrada',
+                          'No tienes una ubicación registrada. Ve a "Mi Centro" para agregar la ubicación.\n\nCoordenadas encontradas:\nLatitud: ' + (userLat || 'No encontrada') + '\nLongitud: ' + (userLng || 'No encontrada'),
+                          [{ text: 'Entendido' }]
+                        );
+                      }
+                    }}
+                  >
+                <Ionicons name="locate" size={24} color="#10B981" />
+                <Text style={[styles.quickActionText, { color: '#10B981' }]}>Ver Mi Centro</Text>
               </TouchableOpacity>
             </>
           ) : (
             <>
               <TouchableOpacity 
-                style={styles.optionButton}
+                style={[styles.quickActionCard, { backgroundColor: '#FEF2F2' }]}
                 onPress={() => Alert.alert('Favoritos', 'Centros turísticos favoritos')}
               >
-                <Ionicons name="heart" size={20} color="#EF4444" />
-                <Text style={styles.optionButtonText}>Favoritos</Text>
+                <Ionicons name="heart" size={24} color="#EF4444" />
+                <Text style={[styles.quickActionText, { color: '#EF4444' }]}>Favoritos</Text>
               </TouchableOpacity>
+              
               <TouchableOpacity 
-                style={styles.optionButton}
+                style={[styles.quickActionCard, { backgroundColor: '#EBF4FF' }]}
                 onPress={() => Alert.alert('Buscar', 'Buscar centros turísticos cercanos')}
               >
-                <Ionicons name="search" size={20} color="#3B82F6" />
-                <Text style={styles.optionButtonText}>Buscar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.optionButton}
-                onPress={() => Alert.alert('Historial', 'Centros que has visitado')}
-              >
-                <Ionicons name="time" size={20} color="#10B981" />
-                <Text style={styles.optionButtonText}>Historial</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.optionButton}
-                onPress={() => Alert.alert('Notificaciones', 'Configurar notificaciones')}
-              >
-                <Ionicons name="notifications" size={20} color="#8B5CF6" />
-                <Text style={styles.optionButtonText}>Notificaciones</Text>
+                <Ionicons name="search" size={24} color="#3B82F6" />
+                <Text style={[styles.quickActionText, { color: '#3B82F6' }]}>Buscar</Text>
               </TouchableOpacity>
             </>
           )}
@@ -559,6 +541,7 @@ const HomeScreen = ({ navigation }) => {
       {/* Contenido del mapa */}
       <View style={styles.mapContainer}>
         <MapView
+          ref={setMapRef}
           style={styles.map}
           provider={PROVIDER_GOOGLE}
           initialRegion={mapRegion}
@@ -608,105 +591,41 @@ const HomeScreen = ({ navigation }) => {
           )}
         </MapView>
 
-        {/* Footer con acciones rápidas */}
+        {/* Footer simplificado */}
         {authUser && userData && (
           <View style={[styles.footerContainer, { paddingBottom: insets.bottom }]}>
             <View style={styles.footerContent}>
-              {(userData.role === 'centro_turistico' || userData.tipoUsuario === 'CentroTuristico') ? (
-                <>
-                  {userData.latitude && userData.longitude && (
-                    <TouchableOpacity 
-                      style={styles.footerButton}
-                      onPress={() => {
-                        setMapRegion({
-                          latitude: parseFloat(userData.latitude),
-                          longitude: parseFloat(userData.longitude),
-                          latitudeDelta: 0.01,
-                          longitudeDelta: 0.01,
-                        });
-                      }}
-                    >
-                      <Ionicons name="locate" size={20} color="#3B82F6" />
-                      <Text style={styles.footerButtonText}>Mi Centro</Text>
-                    </TouchableOpacity>
-                  )}
+              <TouchableOpacity 
+                style={styles.footerButton}
+                onPress={() => setShowMenu(true)}
+              >
+                <Ionicons name="menu" size={24} color="#6B7280" />
+                <Text style={styles.footerButtonText}>Menú</Text>
+              </TouchableOpacity>
 
-                  <TouchableOpacity 
-                    style={styles.footerButton}
-                    onPress={() => Alert.alert('Reseñas', 'Ver y responder reseñas')}
-                  >
-                    <Ionicons name="star" size={20} color="#F59E0B" />
-                    <Text style={styles.footerButtonText}>Reseñas</Text>
-                  </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.footerButton}
+                onPress={() => navigation.navigate('Reviews')}
+              >
+                <Ionicons name="star" size={24} color="#F59E0B" />
+                <Text style={styles.footerButtonText}>Reseñas</Text>
+              </TouchableOpacity>
 
-                  <TouchableOpacity 
-                    style={styles.footerButton}
-                    onPress={() => Alert.alert('Promociones', 'Crear ofertas especiales')}
-                  >
-                    <Ionicons name="megaphone" size={20} color="#EC4899" />
-                    <Text style={styles.footerButtonText}>Promociones</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={styles.footerButton}
-                    onPress={() => navigation.navigate('Main', { screen: 'Perfil' })}
-                  >
-                    <Ionicons name="settings" size={20} color="#6B7280" />
-                    <Text style={styles.footerButtonText}>Perfil</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={styles.footerButton}
-                    onPress={() => {
-                      // Abre el MapPicker centrado en la ubicación guardada y actualiza Firestore al confirmar
-                      openMapPickerForUser(false);
-                    }}
-                  >
-                    <Ionicons name="location" size={20} color="#EC4899" />
-                    <Text style={styles.footerButtonText}>Ubicar</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <>
-                  <TouchableOpacity 
-                    style={styles.footerButton}
-                    onPress={() => Alert.alert('Favoritos', 'Centros turísticos favoritos')}
-                  >
-                    <Ionicons name="heart" size={20} color="#EF4444" />
-                    <Text style={styles.footerButtonText}>Favoritos</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={styles.footerButton}
-                    onPress={() => Alert.alert('Buscar', 'Buscar centros turísticos cercanos')}
-                  >
-                    <Ionicons name="search" size={20} color="#3B82F6" />
-                    <Text style={styles.footerButtonText}>Buscar</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={styles.footerButton}
-                    onPress={() => Alert.alert('Mis Reseñas', 'Tus reseñas y calificaciones')}
-                  >
-                    <Ionicons name="star" size={20} color="#F59E0B" />
-                    <Text style={styles.footerButtonText}>Reseñas</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity 
-                    style={styles.footerButton}
-                    onPress={() => navigation.navigate('Main', { screen: 'Perfil' })}
-                  >
-                    <Ionicons name="person" size={20} color="#6B7280" />
-                    <Text style={styles.footerButtonText}>Perfil</Text>
-                  </TouchableOpacity>
-                </>
+              {(userData.role === 'centro_turistico' || userData.tipoUsuario === 'CentroTuristico') && (
+                <TouchableOpacity 
+                  style={styles.footerButton}
+                  onPress={() => navigation.navigate('Settings')}
+                >
+                  <Ionicons name="settings" size={24} color="#10B981" />
+                  <Text style={styles.footerButtonText}>Configurar</Text>
+                </TouchableOpacity>
               )}
             </View>
           </View>
         )}
       </View>
 
-      {/* Menú deslizable */}
+      {/* Menú simple */}
       <Modal
         visible={showMenu}
         transparent={true}
@@ -714,16 +633,31 @@ const HomeScreen = ({ navigation }) => {
         onRequestClose={() => setShowMenu(false)}
       >
         <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={styles.modalBackground}
+            activeOpacity={1}
+            onPress={() => setShowMenu(false)}
+          />
+          
           <View style={styles.menuContainer}>
+            {/* Línea de agarre dentro del menú */}
+            <View style={styles.dragHandleContainer}>
+              <View style={styles.dragHandle} />
+            </View>
+            
             <View style={styles.menuHeader}>
               <Text style={styles.menuTitle}>
-                {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'Gestionar Centro' : 'Acciones Rápidas'}
+                {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'Herramientas del Centro' : 'Acciones Rápidas'}
               </Text>
               <TouchableOpacity 
                 style={styles.closeButton}
                 onPress={() => setShowMenu(false)}
               >
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <Ionicons 
+                  name="close" 
+                  size={24} 
+                  color="#6B7280" 
+                />
               </TouchableOpacity>
             </View>
 
@@ -738,7 +672,10 @@ const HomeScreen = ({ navigation }) => {
                     <View style={[styles.quickActionIcon, { backgroundColor: action.color + '20' }]}>
                       <Ionicons name={action.icon} size={24} color={action.color} />
                     </View>
-                    <Text style={styles.quickActionTitle}>{action.title}</Text>
+                    <View style={styles.quickActionTextContainer}>
+                      <Text style={styles.quickActionTitle}>{action.title}</Text>
+                      <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -746,6 +683,13 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Notificación flotante personalizada */}
+      {showNotification && (
+        <View style={styles.floatingNotification}>
+          <Text style={styles.notificationText}>{notificationText}</Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 };
@@ -851,28 +795,37 @@ const styles = StyleSheet.create({
   menuButton: {
     padding: 8,
   },
-  optionsSection: {
+  quickActionsSection: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 16,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
-  optionButton: {
+  quickActionCard: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 16,
     paddingHorizontal: 12,
-    minWidth: 60,
+    marginHorizontal: 4,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  optionButtonText: {
-    fontSize: 11,
+  quickActionText: {
+    fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
-    marginTop: 4,
+    marginTop: 6,
     textAlign: 'center',
   },
   mapContainer: {
@@ -998,32 +951,84 @@ const styles = StyleSheet.create({
   // Estilos del menú deslizable
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'flex-end',
+  },
+  modalBackground: {
+    flex: 1,
   },
   menuContainer: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    minHeight: '50%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '90%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 16,
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    backgroundColor: 'transparent',
+  },
+  dragHandle: {
+    width: 40,
+    height: 6,
+    backgroundColor: '#9CA3AF',
+    borderRadius: 4,
   },
   menuHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#F3F4F6',
   },
   menuTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontWeight: '700',
+    color: '#1F2937',
+    flex: 1,
+    textAlign: 'center',
   },
   closeButton: {
     padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+  floatingNotification: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    right: 20,
+    backgroundColor: '#1F2937',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 12,
+    zIndex: 1000,
+  },
+  notificationText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   menuContent: {
     flex: 1,
@@ -1049,11 +1054,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
+  quickActionTextContainer: {
+    flex: 1,
+    marginLeft: 16,
+  },
   quickActionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
-    flex: 1,
+    marginBottom: 4,
+  },
+  quickActionSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '400',
   },
 });
 
