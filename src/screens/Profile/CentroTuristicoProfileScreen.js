@@ -531,32 +531,34 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      <KeyboardAvoidingView 
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#3B82F6" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Personalizar Perfil</Text>
-          <TouchableOpacity 
-            style={styles.saveButton}
-            onPress={handleSave}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.saveButtonText}>Guardar</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+    <View style={styles.container}>
+      {/* Header que llega hasta los límites de la cámara */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Personalizar Perfil</Text>
+        <TouchableOpacity 
+          style={styles.saveButton}
+          onPress={handleSave}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.saveButtonText}>Guardar</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <SafeAreaView style={styles.safeAreaContent}>
+        <KeyboardAvoidingView 
+          style={styles.keyboardView}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           {/* Información del Negocio */}
@@ -996,8 +998,9 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
             </View>
           </View>
         </Modal>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 };
 
@@ -1007,6 +1010,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   keyboardView: {
+    flex: 1,
+  },
+  safeAreaContent: {
     flex: 1,
   },
   loadingContainer: {
@@ -1031,6 +1037,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
   },
   headerTitle: {
     fontSize: 18,

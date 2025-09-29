@@ -184,10 +184,22 @@ const ProfileScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Header de navegación */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#000000" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Mi Perfil</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header del perfil */}
-        <View style={[styles.profileHeader, { paddingTop: insets.top + 16 }]}>
+        <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
             {userData?.imagenPerfil ? (
               <Image 
@@ -269,6 +281,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  headerSpacer: {
+    width: 40,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -284,6 +319,7 @@ const styles = StyleSheet.create({
   profileHeader: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
+    paddingTop: 24,
     paddingBottom: 16,
     alignItems: 'center',
     borderBottomWidth: 1,

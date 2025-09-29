@@ -138,22 +138,23 @@ const ReviewsScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
+    <View style={styles.container}>
+      {/* Header que llega hasta los límites de la cámara */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#000000" />
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {isCenter ? 'Reseñas del Centro' : 'Mis Reseñas'}
+          Reseñas del Centro
         </Text>
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <SafeAreaView style={styles.safeAreaContent}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Estadísticas de reseñas */}
         <View style={styles.statsContainer}>
           <View style={styles.ratingOverview}>
@@ -247,8 +248,9 @@ const ReviewsScreen = ({ navigation }) => {
             </View>
           ))}
         </View>
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 };
 
@@ -256,6 +258,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  safeAreaContent: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -269,6 +274,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
   },
   headerTitle: {
     fontSize: 18,
@@ -283,7 +290,9 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     backgroundColor: '#FFFFFF',
-    margin: 16,
+    marginHorizontal: 16,
+    marginTop: 0,
+    marginBottom: 16,
     padding: 20,
     borderRadius: 12,
     shadowColor: '#000',

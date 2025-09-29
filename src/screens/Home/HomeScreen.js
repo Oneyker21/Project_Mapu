@@ -7,6 +7,37 @@ import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
 
+// Paleta de colores para la aplicación
+const COLOR_PALETTE = {
+  primary: '#3B82F6',      // Azul principal
+  secondary: '#10B981',    // Verde
+  accent: '#F59E0B',       // Naranja
+  purple: '#8B5CF6',       // Morado
+  pink: '#EC4899',         // Rosa
+  red: '#EF4444',          // Rojo
+  gray: {
+    50: '#F9FAFB',
+    100: '#F3F4F6',
+    200: '#E5E7EB',
+    300: '#D1D5DB',
+    400: '#9CA3AF',
+    500: '#6B7280',
+    600: '#4B5563',
+    700: '#374151',
+    800: '#1F2937',
+    900: '#111827',
+  },
+  text: {
+    primary: '#1F2937',
+    secondary: '#6B7280',
+    light: '#9CA3AF',
+  },
+  background: {
+    primary: '#FFFFFF',
+    secondary: '#F9FAFB',
+  }
+};
+
 const INITIAL_REGION = {
   latitude: 12.136389,
   longitude: -86.251389,
@@ -295,7 +326,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Reservaciones',
           subtitle: 'Gestionar reservas de visitantes',
           icon: 'calendar',
-          color: '#F59E0B',
+          color: COLOR_PALETTE.accent,
           onPress: () => {
             setShowMenu(false);
             navigation.navigate('Reservations');
@@ -306,7 +337,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Estadísticas',
           subtitle: 'Ver métricas de visitas',
           icon: 'bar-chart',
-          color: '#8B5CF6',
+          color: COLOR_PALETTE.purple,
           onPress: () => {
             setShowMenu(false);
             navigation.navigate('Statistics');
@@ -317,7 +348,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Promociones',
           subtitle: 'Crear ofertas especiales',
           icon: 'megaphone',
-          color: '#EC4899',
+          color: COLOR_PALETTE.pink,
           onPress: () => {
             setShowMenu(false);
             navigation.navigate('Promotions');
@@ -328,7 +359,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Notificaciones',
           subtitle: 'Configurar alertas',
           icon: 'notifications',
-          color: '#10B981',
+          color: COLOR_PALETTE.secondary,
           onPress: () => {
             setShowMenu(false);
             navigation.navigate('Notifications');
@@ -342,7 +373,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Mis Favoritos',
           subtitle: 'Centros turísticos guardados',
           icon: 'heart',
-          color: '#EF4444',
+          color: COLOR_PALETTE.red,
           onPress: () => {
             setShowMenu(false);
             Alert.alert('Favoritos', 'Centros turísticos favoritos');
@@ -353,7 +384,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Buscar Cercanos',
           subtitle: 'Encontrar centros cerca de ti',
           icon: 'search',
-          color: '#3B82F6',
+          color: COLOR_PALETTE.primary,
           onPress: () => {
             setShowMenu(false);
             Alert.alert('Buscar', 'Buscar centros turísticos cercanos');
@@ -364,7 +395,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Mi Historial',
           subtitle: 'Centros que has visitado',
           icon: 'time',
-          color: '#10B981',
+          color: COLOR_PALETTE.secondary,
           onPress: () => {
             setShowMenu(false);
             Alert.alert('Historial', 'Centros que has visitado');
@@ -375,7 +406,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Mis Reseñas',
           subtitle: 'Tus reseñas y calificaciones',
           icon: 'star',
-          color: '#F59E0B',
+          color: COLOR_PALETTE.accent,
           onPress: () => {
             setShowMenu(false);
             Alert.alert('Mis Reseñas', 'Tus reseñas y calificaciones');
@@ -400,7 +431,7 @@ const HomeScreen = ({ navigation }) => {
   if (loadingUserData) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={COLOR_PALETTE.primary} />
         <Text style={{ marginTop: 8 }}>Cargando datos de usuario...</Text>
       </SafeAreaView>
     );
@@ -426,7 +457,7 @@ const HomeScreen = ({ navigation }) => {
                   <Ionicons 
                     name={(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'business' : 'person'} 
                     size={24} 
-                    color="#3B82F6" 
+                    color={COLOR_PALETTE.primary} 
                   />
                 </View>
               )}
@@ -443,38 +474,6 @@ const HomeScreen = ({ navigation }) => {
                   Propietario: {userData.nombrePropietario}
                 </Text>
               )}
-              {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') && (
-                <View style={styles.profileActionsContainer}>
-                  <TouchableOpacity 
-                    style={styles.refreshButton}
-                    onPress={() => {
-                      console.log('Refrescando datos...');
-                      loadUserData();
-                      loadCenters();
-                    }}
-                  >
-                    <Ionicons name="refresh" size={16} color="#10B981" />
-                    <Text style={styles.refreshButtonText}>Refrescar</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={[styles.refreshButton, { backgroundColor: '#FEF3C7' }]}
-                    onPress={() => {
-                      console.log('Debug - Datos del usuario:', userData);
-                      console.log('Debug - Latitud:', userData?.latitud || userData?.latitude);
-                      console.log('Debug - Longitud:', userData?.longitud || userData?.longitude);
-                      Alert.alert(
-                        'Debug Info',
-                        `Latitud: ${userData?.latitud || userData?.latitude || 'No encontrada'}\nLongitud: ${userData?.longitud || userData?.longitude || 'No encontrada'}`,
-                        [{ text: 'OK' }]
-                      );
-                    }}
-                  >
-                    <Ionicons name="bug" size={16} color="#F59E0B" />
-                    <Text style={[styles.refreshButtonText, { color: '#F59E0B' }]}>Debug</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
             </View>
           </View>
         </View>
@@ -487,8 +486,8 @@ const HomeScreen = ({ navigation }) => {
                 style={[styles.quickActionCard, { backgroundColor: '#EBF4FF' }]}
                 onPress={() => navigation.navigate('CentroTuristicoProfile')}
               >
-                <Ionicons name="business" size={24} color="#3B82F6" />
-                <Text style={[styles.quickActionText, { color: '#3B82F6' }]}>Mi Centro</Text>
+                <Ionicons name="business" size={24} color={COLOR_PALETTE.primary} />
+                <Text style={[styles.quickActionText, { color: COLOR_PALETTE.primary }]}>Mi Centro</Text>
               </TouchableOpacity>
               
                   <TouchableOpacity 
@@ -540,8 +539,8 @@ const HomeScreen = ({ navigation }) => {
                       }
                     }}
                   >
-                <Ionicons name="locate" size={24} color="#10B981" />
-                <Text style={[styles.quickActionText, { color: '#10B981' }]}>Ver Mi Centro</Text>
+                <Ionicons name="locate" size={24} color={COLOR_PALETTE.secondary} />
+                <Text style={[styles.quickActionText, { color: COLOR_PALETTE.secondary }]}>Ver Mi Centro</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -550,16 +549,16 @@ const HomeScreen = ({ navigation }) => {
                 style={[styles.quickActionCard, { backgroundColor: '#FEF2F2' }]}
                 onPress={() => Alert.alert('Favoritos', 'Centros turísticos favoritos')}
               >
-                <Ionicons name="heart" size={24} color="#EF4444" />
-                <Text style={[styles.quickActionText, { color: '#EF4444' }]}>Favoritos</Text>
+                <Ionicons name="heart" size={24} color={COLOR_PALETTE.red} />
+                <Text style={[styles.quickActionText, { color: COLOR_PALETTE.red }]}>Favoritos</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={[styles.quickActionCard, { backgroundColor: '#EBF4FF' }]}
                 onPress={() => Alert.alert('Buscar', 'Buscar centros turísticos cercanos')}
               >
-                <Ionicons name="search" size={24} color="#3B82F6" />
-                <Text style={[styles.quickActionText, { color: '#3B82F6' }]}>Buscar</Text>
+                <Ionicons name="search" size={24} color={COLOR_PALETTE.primary} />
+                <Text style={[styles.quickActionText, { color: COLOR_PALETTE.primary }]}>Buscar</Text>
               </TouchableOpacity>
             </>
           )}
@@ -622,7 +621,7 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.footerButton}
                 onPress={() => setShowMenu(true)}
               >
-                <Ionicons name="menu" size={24} color="#6B7280" />
+                 <Ionicons name="menu" size={22} color={COLOR_PALETTE.text.secondary} />
                 <Text style={styles.footerButtonText}>Menú</Text>
               </TouchableOpacity>
 
@@ -630,7 +629,7 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.footerButton}
                 onPress={() => navigation.navigate('Reviews')}
               >
-                <Ionicons name="star" size={24} color="#F59E0B" />
+                 <Ionicons name="star" size={22} color={COLOR_PALETTE.accent} />
                 <Text style={styles.footerButtonText}>Reseñas</Text>
               </TouchableOpacity>
 
@@ -639,7 +638,7 @@ const HomeScreen = ({ navigation }) => {
                   style={styles.footerButton}
                   onPress={() => navigation.navigate('Settings')}
                 >
-                  <Ionicons name="settings" size={24} color="#10B981" />
+                   <Ionicons name="settings" size={22} color={COLOR_PALETTE.secondary} />
                   <Text style={styles.footerButtonText}>Configurar</Text>
                 </TouchableOpacity>
               )}
@@ -795,26 +794,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 4,
   },
-  refreshButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0FDF4',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  refreshButtonText: {
-    fontSize: 11,
-    color: '#10B981',
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  profileActionsContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 6,
-  },
   menuButton: {
     padding: 8,
   },
@@ -851,10 +830,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlign: 'center',
   },
-  mapContainer: {
-    flex: 1,
-    marginBottom: 80, // Espacio para el footer personalizado
-  },
+   mapContainer: {
+     flex: 1,
+     marginBottom: 0, // Sin margen para que el mapa llegue hasta el footer
+   },
   map: {
     flex: 1,
   },
@@ -972,35 +951,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
   },
-  footerContainer: {
-    position: 'absolute',
-    bottom: '-15%',
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    paddingTop: 4,
-  },
-  footerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 4,
-  },
-  footerButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    minWidth: 60,
-  },
-  footerButtonText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginTop: 4,
-    textAlign: 'center',
-  },
+   footerContainer: {
+     position: 'absolute',
+     bottom: 0,
+     left: 0,
+     right: 0,
+     backgroundColor: 'rgba(255, 255, 255, 0.95)',
+     paddingTop: 8,
+     paddingBottom: 8,
+     borderTopWidth: 0,
+     backdropFilter: 'blur(10px)',
+   },
+   footerContent: {
+     flexDirection: 'row',
+     justifyContent: 'space-evenly',
+     alignItems: 'center',
+     paddingHorizontal: 16,
+     paddingVertical: 0,
+   },
+   footerButton: {
+     alignItems: 'center',
+     justifyContent: 'center',
+     paddingVertical: 6,
+     paddingHorizontal: 8,
+     minWidth: 50,
+     flex: 1,
+   },
+   footerButtonText: {
+     fontSize: 10,
+     fontWeight: '600',
+     color: '#6B7280',
+     marginTop: 2,
+     textAlign: 'center',
+   },
   // Estilos del menú deslizable
   modalOverlay: {
     flex: 1,

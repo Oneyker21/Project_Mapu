@@ -7,12 +7,13 @@ import {
   TouchableOpacity,
   Dimensions 
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
 const StatisticsScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [selectedPeriod, setSelectedPeriod] = useState('month');
 
   const stats = {
@@ -122,9 +123,9 @@ const StatisticsScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+    <View style={styles.container}>
+      {/* Header que llega hasta los límites de la cámara */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -136,6 +137,8 @@ const StatisticsScreen = ({ navigation }) => {
           <Ionicons name="download" size={24} color="#6B7280" />
         </TouchableOpacity>
       </View>
+
+      <SafeAreaView style={styles.safeAreaContent}>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Period Selector */}
@@ -198,7 +201,8 @@ const StatisticsScreen = ({ navigation }) => {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 };
 
@@ -206,6 +210,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  safeAreaContent: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -219,6 +226,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
   },
   headerTitle: {
     fontSize: 20,
@@ -233,7 +242,9 @@ const styles = StyleSheet.create({
   },
   periodSelector: {
     flexDirection: 'row',
-    margin: 16,
+    marginHorizontal: 16,
+    marginTop: 0,
+    marginBottom: 0,
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
     padding: 4,
