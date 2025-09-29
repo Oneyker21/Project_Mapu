@@ -78,7 +78,7 @@ const ProfileScreen = ({ navigation }) => {
           title: 'Mi Centro Turístico',
           icon: 'business',
           description: 'Editar información, horarios y servicios',
-          onPress: () => Alert.alert('Mi Centro', 'Editar información del centro turístico')
+          onPress: () => navigation.navigate('CentroTuristicoProfile')
         },
         {
           id: 'location',
@@ -195,10 +195,10 @@ const ProfileScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header del perfil */}
-        <View style={styles.profileHeader}>
+        <View style={[styles.profileHeader, { paddingTop: insets.top + 16 }]}>
           <View style={styles.avatarContainer}>
             {userData?.imagenPerfil ? (
               <Image 
@@ -294,7 +294,8 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     backgroundColor: '#FFFFFF',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
