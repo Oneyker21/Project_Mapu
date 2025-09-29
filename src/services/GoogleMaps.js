@@ -1,0 +1,93 @@
+// src/services/googleMaps.js
+// Servicio para consumir Google Maps APIs desde el cliente Expo/React Native.
+// Lee la API key desde variables de entorno expuestas al cliente.
+
+const API_KEY =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+
+if (!API_KEY) {
+  console.warn(
+    "[googleMaps] No se encontró EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ni GOOGLE_MAPS_API_KEY en variables de entorno."
+  );
+}
+
+const BASE_GEOCODE = "https://maps.googleapis.com/maps/api/geocode/json";
+const BASE_PLACES = "https://maps.googleapis.com/maps/api/place";
+
+async function handleResponse(res) {
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`HTTP ${res.status}: ${text}`);
+  }
+  const data = await res.json();
+  if (data.status && data.status !== "OK") {
+    throw new Error(`Google API status: ${data.status} - ${data.error_message || ""}`);
+  }
+  return data;
+}
+
+// Geocodificar una dirección a coordenadas
+export async function geocodeAddress(address) {
+  const url = `${BASE_GEOCODE}?address=${encodeURIComponent(address)}&key=${API_KEY}`;
+  const data = await handleResponse(await fetch(url));
+  return (data.results || []).map((r) => ({
+    formatted_address: r.formatted_address,
+    place_id: r.place_id,
+    location: r.geometry?.location, // { lat, lng }
+  }));
+}
+
+// Reverse geocoding de coordenadas a dirección
+export async function reverseGeocode(lat, lng) {
+  const url = `${BASE_GEOCODE}?latlng=${lat},${lng}&key=${API_KEY}`;
+  const data = await handleResponse(await fetch(url));
+  return (data.results || []).map((r) => ({
+    formatted_address: r.formatted_address,
+    place_id: r.place_id,
+    types: r.types,
+  }));
+}
+
+// Búsqueda de lugares por texto (Text Search)
+// location: { lat, lng } opcional para sesgar resultados; radius en metros
+export async function searchPlacesText(query, { location, radius } = {}) {
+  const params = new URLSearchParams({ query, key: API_KEY });
+  if (location && typeof location.lat === "number" && typeof location.lng === "number") {
+    params.set("location", `${location.lat},${location.lng}`);
+  }
+  if (radius) params.set("radius", String(radius));
+  const url = `${BASE_PLACES}/textsearch/json?${params.toString()}`;
+  const data = await handleResponse(await fetch(url));
+  return (data.results || []).map((p) => ({
+    name: p.name,
+    place_id: p.place_id,
+    address: p.formatted_address,
+    location: p.geometry?.location, // { lat, lng }
+    types: p.types,
+    rating: p.rating,
+  }));
+}
+
+// Detalles de un lugar
+export async function placeDetails(placeId, fields = [
+  "name",
+  "formatted_address",
+  "geometry",
+  "opening_hours",
+  "international_phone_number",
+  "website",
+  "rating",
+]) {
+  const params = new URLSearchParams({ place_id: placeId, key: API_KEY });
+  if (fields && fields.length) params.set("fields", fields.join(","));
+  const url = `${BASE_PLACES}/details/json?${params.toString()}`;
+  const data = await handleResponse(await fetch(url));
+  return data.result;
+}
+
+export default {
+  geocodeAddress,
+  reverseGeocode,
+  searchPlacesText,
+  placeDetails,
+};

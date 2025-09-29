@@ -1,25 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Alert,
   TouchableOpacity,
+  StyleSheet,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Input from '../../components/ui/Input';
-import Button from '../../components/ui/Button';
+import { Input, Button } from '../../components';
+import { loginUser } from '../../services/auth.js';
+import { getSavedCredentials } from '../../services/storage.js';
+import { useAuth } from '../../contexts/AuthContext';
 
 const LoginScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [rememberUser, setRememberUser] = useState(false);
+  const [loginError, setLoginError] = useState('');
+
+  // Cargar credenciales guardadas al montar el componente
+  useEffect(() => {
+    loadSavedCredentials();
+  }, []);
+
+  const loadSavedCredentials = async () => {
+    try {
+      const result = await getSavedCredentials();
+      if (result.success && result.rememberUser && result.credentials) {
+        setFormData({
+          email: result.credentials.email,
+          password: result.credentials.password,
+        });
+        setRememberUser(true);
+      }
+    } catch (error) {
+      console.error('Error al cargar credenciales:', error);
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -44,16 +73,18 @@ const LoginScreen = ({ navigation }) => {
     if (!validateForm()) return;
 
     setLoading(true);
+    setLoginError(''); // Limpiar error anterior
     try {
-      // Aquí iría la lógica de autenticación
-      // Por ahora simulamos un delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const result = await loginUser(formData.email, formData.password, rememberUser);
       
-      // Simulamos login exitoso
-      Alert.alert('Éxito', 'Inicio de sesión exitoso');
-      // navigation.navigate('Home'); // Descomenta cuando tengas navegación configurada
+      if (result.success) {
+        login(result.user);
+        // No mostrar alert, el AuthNavigator manejará la navegación automáticamente
+      } else {
+        setLoginError(result.error || 'Error al iniciar sesión. Inténtalo de nuevo.');
+      }
     } catch (error) {
-      Alert.alert('Error', 'Error al iniciar sesión. Inténtalo de nuevo.');
+      setLoginError('Error al iniciar sesión. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -61,27 +92,40 @@ const LoginScreen = ({ navigation }) => {
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Limpiar error cuando el usuario empiece a escribir
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+    // Limpiar error de login cuando el usuario empiece a escribir
+    if (loginError) {
+      setLoginError('');
     }
   };
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
+      
+      {/* Fondo para el sistema de navegación */}
+      <View style={[styles.systemNavBackground, { height: insets.bottom }]} />
+      
+      {/* Fondo para el área superior del sistema */}
+      <View style={[styles.systemTopBackground, { height: insets.top }]} />
+
       <KeyboardAvoidingView 
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <ScrollView 
-          contentContainerStyle={styles.scrollContainer}
+          contentContainerStyle={[styles.scrollContainer, { 
+            paddingTop: insets.top + 40,
+            paddingBottom: Math.max(insets.bottom + 20, 100) 
+          }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           bounces={false}
         >
-        <View style={styles.header}>
+        <View style={styles.contentHeader}>
           <Text style={styles.appName}>Mapu</Text>
           <Text style={styles.title}>¡Bienvenido!</Text>
           <Text style={styles.subtitle}>
@@ -92,7 +136,7 @@ const LoginScreen = ({ navigation }) => {
         <View style={styles.form}>
           <Input
             label="Email"
-            placeholder="tu@email.com"
+            placeholder="Ingresa tu email"
             value={formData.email}
             onChangeText={(value) => handleInputChange('email', value)}
             keyboardType="email-address"
@@ -111,7 +155,21 @@ const LoginScreen = ({ navigation }) => {
             error={errors.password}
           />
 
-          <TouchableOpacity style={styles.forgotPassword}>
+          <TouchableOpacity 
+            style={styles.rememberContainer}
+            onPress={() => setRememberUser(!rememberUser)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, rememberUser && styles.checkboxChecked]}>
+              {rememberUser && <Ionicons name="checkmark" size={16} color="white" />}
+            </View>
+            <Text style={styles.rememberText}>¿Desea recordar la contraseña?</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.forgotPassword}
+            onPress={() => navigation.navigate('ForgotPassword')}
+          >
             <Text style={styles.forgotPasswordText}>
               ¿Olvidaste tu contraseña?
             </Text>
@@ -123,6 +181,14 @@ const LoginScreen = ({ navigation }) => {
             loading={loading}
             style={styles.loginButton}
           />
+
+          {/* Mensaje de error de login */}
+          {loginError ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={16} color="#EF4444" />
+              <Text style={styles.errorText}>{loginError}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
@@ -143,7 +209,7 @@ const LoginScreen = ({ navigation }) => {
             ¿No tienes cuenta?{' '}
             <Text 
               style={styles.footerLink}
-              onPress={() => Alert.alert('Info', 'Registro pendiente')}
+              onPress={() => navigation.navigate('Register')}
               suppressHighlighting={true}
             >
               Regístrate aquí
@@ -156,10 +222,48 @@ const LoginScreen = ({ navigation }) => {
   );
 };
 
+// Estilos CSS integrados
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  systemNavBackground: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#F9FAFB',
+    zIndex: 1000,
+  },
+  systemTopBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#F9FAFB',
+    zIndex: 1000,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  headerSpacer: {
+    width: 40, // Same width as back button to center title
   },
   keyboardContainer: {
     flex: 1,
@@ -167,11 +271,9 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 40,
-    minHeight: '100%',
+    paddingBottom: 100,
   },
-  header: {
+  contentHeader: {
     alignItems: 'center',
     marginBottom: 48,
   },
@@ -199,6 +301,31 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
   },
+  rememberContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    borderRadius: 4,
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+  },
+  checkboxChecked: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  rememberText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
   forgotPassword: {
     alignSelf: 'flex-end',
     marginBottom: 32,
@@ -209,7 +336,24 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   loginButton: {
-    marginBottom: 24,
+    marginBottom: 16,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 14,
+    marginLeft: 8,
+    flex: 1,
   },
   divider: {
     flexDirection: 'row',
@@ -232,20 +376,15 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     marginTop: 16,
-    paddingBottom: 20,
-    minHeight: 40,
   },
   footerText: {
     color: '#6B7280',
     fontSize: 14,
     textAlign: 'center',
-    lineHeight: 20,
   },
   footerLink: {
     color: '#3B82F6',
     fontWeight: '600',
-    fontSize: 14,
-    lineHeight: 20,
   },
 });
 
