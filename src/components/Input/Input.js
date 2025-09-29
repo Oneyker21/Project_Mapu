@@ -60,15 +60,13 @@ const Input = ({
     left: 16,
     top: labelAnimation.interpolate({
       inputRange: [0, 1],
-      outputRange: [20, -8],
+      outputRange: [20, -6],
     }),
     fontSize: labelAnimation.interpolate({
       inputRange: [0, 1],
       outputRange: [16, 12],
     }),
-    color: isFocused ? '#3B82F6' : error ? '#EF4444' : '#6B7280',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 4,
+    color: isFocused ? '#4ADE80' : error ? '#F87171' : '#9CA3AF',
     zIndex: 1,
   };
 
@@ -90,7 +88,7 @@ const Input = ({
         <TextInput
           style={inputStyle}
           placeholder={isFocused ? placeholder : ''}
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor="#6B7280"
           value={value}
           onChangeText={handleTextChange}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
@@ -107,7 +105,7 @@ const Input = ({
             <Ionicons
               name={isPasswordVisible ? 'eye-off' : 'eye'}
               size={20}
-              color="#6B7280"
+              color="#A3A3A3"
             />
           </TouchableOpacity>
         )}
@@ -123,7 +121,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontWeight: '500',
-    color: '#111827',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   inputContainer: {
@@ -133,24 +131,24 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#374151',
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 16,
     fontSize: 16,
-    backgroundColor: '#FFFFFF',
-    color: '#111827',
+    backgroundColor: '#1A1A1A',
+    color: '#FFFFFF',
     height: 56,
   },
   inputWithIcon: {
     paddingRight: 50,
   },
   inputFocused: {
-    borderColor: '#3B82F6',
+    borderColor: '#4ADE80',
     borderWidth: 2,
   },
   inputError: {
-    borderColor: '#EF4444',
+    borderColor: '#F87171',
     borderWidth: 2,
   },
   eyeButton: {
@@ -163,7 +161,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   errorText: {
-    color: '#EF4444',
+    color: '#F87171',
     fontSize: 14,
     marginTop: 8,
   },

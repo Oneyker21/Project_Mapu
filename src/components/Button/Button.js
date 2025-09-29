@@ -33,7 +33,7 @@ const Button = ({
     >
       {loading ? (
         <ActivityIndicator 
-          color={variant === 'primary' ? '#FFFFFF' : '#3B82F6'} 
+          color={variant === 'primary' ? '#FFFFFF' : '#4ADE80'} 
           size="small" 
         />
       ) : (
@@ -53,12 +53,12 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   primary: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#4ADE80',
   },
   secondary: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#3B82F6',
+    borderColor: '#DAA621',
   },
   text: {
     fontSize: 16,
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   secondaryText: {
-    color: '#3B82F6',
+    color: '#DAA621',
   },
   disabled: {
     backgroundColor: '#D1D5DB',

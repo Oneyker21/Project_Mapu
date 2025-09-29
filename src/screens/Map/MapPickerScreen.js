@@ -17,6 +17,8 @@ const DEFAULT_REGION = {
 const MapPickerScreen = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
   const initial = route?.params?.initialCoords;
+  const onPick = route?.params?.onPick;
+  const onError = route?.params?.onError;
   
   console.log('MapPickerScreen - Parámetros recibidos:', route?.params);
 
@@ -24,7 +26,7 @@ const MapPickerScreen = ({ route, navigation }) => {
   // 🔑 Si hay ubicación guardada, arrancamos ahí. Si no, arrancamos con default.
   const [region, setRegion] = useState(
     initial
-      ? { ...initial, latitudeDelta: 0.02, longitudeDelta: 0.02 }
+      ? { ...initial, latitudeDelta: 0.01, longitudeDelta: 0.01 }
       : DEFAULT_REGION
   );
 
@@ -99,20 +101,49 @@ const MapPickerScreen = ({ route, navigation }) => {
     }
   }, []);
 
+  // Efecto para actualizar la región cuando cambien las coordenadas iniciales
+  useEffect(() => {
+    if (initial) {
+      const newRegion = {
+        ...initial,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01
+      };
+      // Deshabilitar animación al actualizar región
+      setIsAnimating(true);
+      setRegion(newRegion);
+      setMapReady(true);
+      // Rehabilitar después de un breve delay
+      setTimeout(() => setIsAnimating(false), 100);
+    }
+  }, [initial]);
+
   const requestLocationPermission = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
-          'Permisos de ubicación',
-          'Se necesitan permisos de ubicación para obtener tu posición actual.',
-          [{ text: 'OK' }]
-        );
+        const permissionError = new Error('Permission denied: Location permission not granted');
+        permissionError.code = 'PERMISSION_DENIED';
+        
+        if (onError) {
+          onError(permissionError);
+        } else {
+          Alert.alert(
+            'Permisos de ubicación',
+            'Se necesitan permisos de ubicación para obtener tu posición actual.',
+            [{ text: 'OK' }]
+          );
+        }
         return false;
       }
       return true;
     } catch (error) {
-      console.error('Error al solicitar permisos:', error);
+      // Solo logear para debugging interno, no mostrar al usuario
+      console.log('Error interno de permisos:', error.message);
+      
+      if (onError) {
+        onError(error);
+      }
       return false;
     }
   };
@@ -138,12 +169,19 @@ const MapPickerScreen = ({ route, navigation }) => {
       setRegion(newRegion);
       setShowUserLocation(true);
     } catch (error) {
-      console.error('Error al obtener ubicación:', error);
-      Alert.alert(
-        'Error de ubicación',
-        'No se pudo obtener tu ubicación actual. Usando ubicación por defecto.',
-        [{ text: 'OK' }]
-      );
+      // Solo logear para debugging interno, no mostrar al usuario
+      console.log('Error interno de ubicación:', error.message);
+      
+      // Usar callback personalizado si está disponible, sino mostrar alerta genérica
+      if (onError) {
+        onError(error);
+      } else {
+        Alert.alert(
+          'Error de ubicación',
+          'No se pudo obtener tu ubicación actual. Usando ubicación por defecto.',
+          [{ text: 'OK' }]
+        );
+      }
     } finally {
       setLoading(false);
       setMapReady(true);
@@ -152,7 +190,14 @@ const MapPickerScreen = ({ route, navigation }) => {
 
   const confirm = () => {
     if (route?.params?.onPick) {
-      route.params.onPick({ latitude: region.latitude, longitude: region.longitude });
+      // Usar las coordenadas exactas del centro de la pantalla (donde está la cruz)
+      const centerLatitude = region.latitude;
+      const centerLongitude = region.longitude;
+      
+      route.params.onPick({ 
+        latitude: Number(centerLatitude.toFixed(8)), 
+        longitude: Number(centerLongitude.toFixed(8)) 
+      });
     }
     navigation.goBack();
   };
@@ -179,10 +224,10 @@ const MapPickerScreen = ({ route, navigation }) => {
     if (lugar) {
       const coords = lugares[lugar];
       const newRegion = {
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
+        latitude: Number(coords.latitude.toFixed(8)),
+        longitude: Number(coords.longitude.toFixed(8)),
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
       };
       
       // Iniciar animación
@@ -306,15 +351,44 @@ const MapPickerScreen = ({ route, navigation }) => {
         followsUserLocation={false}
         onRegionChangeComplete={(r) => !isAnimating && setRegion(r)}
         onMapReady={() => setMapReady(true)}
-        animateToRegion={true}
-        animationDuration={1000}
-      />
+        animateToRegion={false}
+        animationDuration={0}
+        scrollEnabled={true}
+        zoomEnabled={true}
+        pitchEnabled={true}
+        rotateEnabled={true}
+      >
+        {/* Marcador estático para ubicación registrada */}
+        {initial && (
+          <Marker
+            coordinate={{
+              latitude: initial.latitude,
+              longitude: initial.longitude
+            }}
+            title="Ubicación Registrada"
+            description={`${initial.latitude.toFixed(6)}, ${initial.longitude.toFixed(6)}`}
+            pinColor="#10B981"
+          />
+        )}
+        
+        {/* Marcador del centro de la cruz en tiempo real - invisible pero preciso */}
+        <Marker
+          coordinate={{
+            latitude: region.latitude,
+            longitude: region.longitude
+          }}
+          title="Ubicación a Capturar"
+          description={`${region.latitude.toFixed(8)}, ${region.longitude.toFixed(8)}`}
+          pinColor="transparent"
+          opacity={0}
+        />
+      </MapView>
 
-      {/* Cruz de precisión - se centra sobre la ubicación del usuario si está disponible */}
+      {/* Cruz de precisión - centrada exactamente donde estaba el marcador rojo */}
       <View style={[
         styles.crosshairContainer,
-        showUserLocation && userLocation && {
-          top: '50%',
+        {
+          top: '41%',  // Ajuste mínimo para que la punta de arriba capture
           left: '50%',
           marginLeft: -15,
           marginTop: -15,
@@ -326,16 +400,15 @@ const MapPickerScreen = ({ route, navigation }) => {
         <View style={styles.crosshairVertical} />
         {/* Punto central */}
         <View style={styles.crosshairCenter} />
-        {showUserLocation && userLocation && (
-          <View style={styles.pinIndicator}>
-            <Text style={styles.pinText}>Capturar aquí</Text>
-          </View>
-        )}
+        <View style={styles.pinIndicator}>
+          <Text style={styles.pinText}>Capturar aquí</Text>
+        </View>
       </View>
+
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 20 }]}>
         <Text style={styles.coordsText}>
-          Lat: {region.latitude.toFixed(6)}, Lng: {region.longitude.toFixed(6)}
+          Lat: {region.latitude.toFixed(8)}, Lng: {region.longitude.toFixed(8)}
         </Text>
         <View style={styles.buttonContainer}>
           <TouchableOpacity
@@ -503,29 +576,55 @@ const styles = StyleSheet.create({
   crosshairHorizontal: {
     position: 'absolute',
     width: 30,
-    height: 2,
-    backgroundColor: '#3B82F6',
-    borderRadius: 1,
-    top: 14, // (30 - 2) / 2 = 14
+    height: 4,
+    backgroundColor: '#FF0000', // Rojo más brillante
+    borderRadius: 2,
+    top: 13, // (30 - 4) / 2 = 13 - PERFECTO CENTRO
     left: 0,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 3,
   },
   crosshairVertical: {
     position: 'absolute',
-    width: 2,
+    width: 4,
     height: 30,
-    backgroundColor: '#3B82F6',
-    borderRadius: 1,
+    backgroundColor: '#FF0000', // Rojo más brillante
+    borderRadius: 2,
     top: 0,
-    left: 14, // (30 - 2) / 2 = 14
+    left: 13, // (30 - 4) / 2 = 13 - PERFECTO CENTRO
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 3,
   },
   crosshairCenter: {
     position: 'absolute',
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#3B82F6',
-    top: 12, // (30 - 6) / 2 = 12
-    left: 12, // (30 - 6) / 2 = 12
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF0000', // Rojo más brillante
+    top: 11, // (30 - 8) / 2 = 11 - PERFECTO CENTRO
+    left: 11, // (30 - 8) / 2 = 11 - PERFECTO CENTRO
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.5,
+    shadowRadius: 3,
+    elevation: 5,
   },
   footer: {
     backgroundColor: '#FFFFFF',
