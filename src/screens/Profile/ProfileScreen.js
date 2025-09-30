@@ -69,15 +69,22 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const getMenuOptions = () => {
-    const isCenter = userData?.role === 'centro_turistico';
+    const isCenter = userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico';
     
     if (isCenter) {
       return [
         {
-          id: 'business_info',
-          title: 'Mi Centro Turístico',
+          id: 'services',
+          title: 'Mis Servicios',
+          icon: 'list',
+          description: 'Gestionar menús, habitaciones, entradas y servicios',
+          onPress: () => navigation.navigate('ServicesMain')
+        },
+        {
+          id: 'business_profile',
+          title: 'Perfil del Centro',
           icon: 'business',
-          description: 'Editar información, horarios y servicios',
+          description: 'Editar información, horarios y configuración',
           onPress: () => navigation.navigate('CentroTuristicoProfile')
         },
         {

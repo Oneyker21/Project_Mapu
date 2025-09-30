@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -19,7 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
-import { uploadImageToStorage } from '../../services/imageStorage.js';
+import { uploadImage, getStoragePaths } from '../../services/imageStorage.js';
 import { validatePhone, validateEmail } from '../../utils/validations.js';
 
 const CentroTuristicoProfileScreen = ({ navigation }) => {
@@ -48,6 +49,24 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
   const [imageType, setImageType] = useState(''); // 'logo' o 'portada'
   const [showLocationPermissionModal, setShowLocationPermissionModal] = useState(false);
   const [locationError, setLocationError] = useState(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleData, setScheduleData] = useState({
+    lunes: { open: '09:00', close: '18:00', enabled: true },
+    martes: { open: '09:00', close: '18:00', enabled: true },
+    miercoles: { open: '09:00', close: '18:00', enabled: true },
+    jueves: { open: '09:00', close: '18:00', enabled: true },
+    viernes: { open: '09:00', close: '18:00', enabled: true },
+    sabado: { open: '09:00', close: '18:00', enabled: true },
+    domingo: { open: '09:00', close: '18:00', enabled: false }
+  });
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [currentTimeField, setCurrentTimeField] = useState({ day: '', field: '', value: '' });
+  const [selectedHour, setSelectedHour] = useState(9);
+  const [selectedMinute, setSelectedMinute] = useState(0);
+  const [selectedAmPm, setSelectedAmPm] = useState('AM');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [originalFormData, setOriginalFormData] = useState(null);
+  const [originalScheduleData, setOriginalScheduleData] = useState(null);
 
   const categoriasNegocio = [
     'Hoteles',
@@ -69,6 +88,46 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
     loadUserData();
   }, []);
 
+  // Detectar cambios automáticamente
+  useEffect(() => {
+    if (originalFormData && originalScheduleData) {
+      const hasChanges = checkForChanges();
+      setHasUnsavedChanges(hasChanges);
+    }
+  }, [formData, scheduleData, originalFormData, originalScheduleData]);
+
+  // Guardia de navegación para prevenir pérdida de datos
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        if (hasUnsavedChanges) {
+          showUnsavedChangesAlert(() => {
+            navigation.navigate('Main');
+          });
+          return true; // Prevenir el comportamiento por defecto
+        }
+        return false; // Permitir navegación normal
+      };
+
+      // Agregar listener para el botón de atrás
+      const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+        if (!hasUnsavedChanges) {
+          return; // Si no hay cambios, permitir navegación normal
+        }
+
+        // Prevenir navegación por defecto
+        e.preventDefault();
+
+        // Mostrar alerta
+        showUnsavedChangesAlert(() => {
+          navigation.dispatch(e.data.action);
+        });
+      });
+
+      return unsubscribe;
+    }, [hasUnsavedChanges, navigation])
+  );
+
   const loadUserData = async () => {
     try {
       if (authUser) {
@@ -84,11 +143,35 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
             direccion: data.direccion || '',
             latitud: data.latitud ? Number(data.latitud).toFixed(8) : '',
             longitud: data.longitud ? Number(data.longitud).toFixed(8) : '',
-            horario: data.horario || '',
+            horario: data.horario ? convertScheduleTo12h(data.horario) : '',
             costo: data.costo || '',
             logotipo: data.logotipo || '',
             portada: data.portada || ''
           });
+
+          // Cargar datos estructurados del horario si existen
+          if (data.horarioDetallado) {
+            setScheduleData(data.horarioDetallado);
+            setOriginalScheduleData(data.horarioDetallado);
+          } else {
+            setOriginalScheduleData(scheduleData);
+          }
+
+          // Guardar datos originales para comparación
+          const originalData = {
+            nombreNegocio: data.nombreNegocio || '',
+            categoriaNegocio: data.categoriaNegocio || '',
+            emailNegocio: data.emailNegocio || '',
+            telefonoNegocio: data.telefonoNegocio || '',
+            direccion: data.direccion || '',
+            latitud: data.latitud ? Number(data.latitud).toFixed(8) : '',
+            longitud: data.longitud ? Number(data.longitud).toFixed(8) : '',
+            horario: data.horario ? convertScheduleTo12h(data.horario) : '',
+            costo: data.costo || '',
+            logotipo: data.logotipo || '',
+            portada: data.portada || ''
+          };
+          setOriginalFormData(originalData);
           
           // Cargar categorías seleccionadas
           if (data.categoriaNegocio) {
@@ -301,38 +384,289 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
 
       if (!result.canceled && result.assets[0]) {
         const imageUri = result.assets[0].uri;
-        await uploadImage(imageUri, imageType);
+        // Cerrar el modal inmediatamente después de seleccionar la imagen
+        setShowImagePicker(false);
+        // Subir la imagen (esto mostrará el indicador de carga)
+        await uploadImageToProfile(imageUri, imageType);
       }
     } catch (error) {
       console.error('Error seleccionando imagen:', error);
       Alert.alert('Error', 'No se pudo seleccionar la imagen');
     } finally {
-      setShowImagePicker(false);
+      // Solo cerrar el modal si no se canceló la selección
+      if (result && result.canceled) {
+        setShowImagePicker(false);
+      }
     }
   };
 
-  const uploadImage = async (imageUri, type) => {
+  const uploadImageToProfile = async (imageUri, type) => {
     try {
       setSaving(true);
-      const imageUrl = await uploadImageToStorage(
-        imageUri,
-        authUser.uid,
-        type === 'logo' ? 'logo' : 'business_cover',
-        'centro_turistico'
-      );
       
-      setFormData(prev => ({
-        ...prev,
-        [type === 'logo' ? 'logotipo' : 'portada']: imageUrl
-      }));
+      // Obtener las rutas de almacenamiento
+      const storagePaths = getStoragePaths(authUser.uid, 'centro_turistico');
       
-      Alert.alert('Éxito', 'Imagen subida correctamente');
+      // Determinar la ruta según el tipo de imagen
+      const path = type === 'logo' ? storagePaths.businessLogo : storagePaths.businessCover;
+      
+      // Subir la imagen
+      const result = await uploadImage(imageUri, path, authUser.uid);
+      
+      if (result.success) {
+        setFormData(prev => ({
+          ...prev,
+          [type === 'logo' ? 'logotipo' : 'portada']: result.url
+        }));
+        
+        Alert.alert('Éxito', 'Imagen subida correctamente');
+      } else {
+        throw new Error(result.error || 'Error al subir la imagen');
+      }
     } catch (error) {
       console.error('Error subiendo imagen:', error);
       Alert.alert('Error', 'No se pudo subir la imagen');
     } finally {
       setSaving(false);
     }
+  };
+
+  // Funciones para manejar el horario
+  const handleScheduleModal = () => {
+    setShowScheduleModal(true);
+  };
+
+  const updateScheduleDay = (day, field, value) => {
+    setScheduleData(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        [field]: value
+      }
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  const toggleDayEnabled = (day) => {
+    setScheduleData(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        enabled: !prev[day].enabled
+      }
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  const formatScheduleText = () => {
+    const days = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
+    const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    
+    let scheduleText = '';
+    let currentGroup = null;
+    let groupStart = null;
+    let groupEnd = null;
+    
+    for (let i = 0; i < days.length; i++) {
+      const day = days[i];
+      const dayData = scheduleData[day];
+      
+      if (dayData.enabled) {
+        const openTime12h = convert24To12Display(dayData.open);
+        const closeTime12h = convert24To12Display(dayData.close);
+        const timeRange = `${openTime12h} - ${closeTime12h}`;
+        
+        if (currentGroup && currentGroup === timeRange) {
+          groupEnd = dayNames[i];
+        } else {
+          // Finalizar grupo anterior si existe
+          if (currentGroup) {
+            if (groupStart === groupEnd) {
+              scheduleText += `${groupStart}: ${currentGroup}\n`;
+            } else {
+              scheduleText += `${groupStart} - ${groupEnd}: ${currentGroup}\n`;
+            }
+          }
+          
+          // Iniciar nuevo grupo
+          currentGroup = timeRange;
+          groupStart = dayNames[i];
+          groupEnd = dayNames[i];
+        }
+      } else {
+        // Finalizar grupo anterior si existe
+        if (currentGroup) {
+          if (groupStart === groupEnd) {
+            scheduleText += `${groupStart}: ${currentGroup}\n`;
+          } else {
+            scheduleText += `${groupStart} - ${groupEnd}: ${currentGroup}\n`;
+          }
+          currentGroup = null;
+        }
+      }
+    }
+    
+    // Finalizar último grupo si existe
+    if (currentGroup) {
+      if (groupStart === groupEnd) {
+        scheduleText += `${groupStart}: ${currentGroup}`;
+      } else {
+        scheduleText += `${groupStart} - ${groupEnd}: ${currentGroup}`;
+      }
+    }
+    
+    return scheduleText.trim();
+  };
+
+  const saveSchedule = () => {
+    const scheduleText = formatScheduleText();
+    setFormData(prev => ({
+      ...prev,
+      horario: scheduleText
+    }));
+    setShowScheduleModal(false);
+    // No mostrar alerta aquí, solo actualizar el texto
+  };
+
+  // Funciones para el TimePicker
+  const openTimePicker = (day, field) => {
+    const currentTime = scheduleData[day][field];
+    const [hour24, minute] = currentTime.split(':').map(Number);
+    
+    // Convertir de 24h a 12h
+    const { hour12, ampm } = convert24To12(hour24);
+    
+    setCurrentTimeField({ day, field, value: currentTime });
+    setSelectedHour(hour12);
+    setSelectedMinute(minute);
+    setSelectedAmPm(ampm);
+    setShowTimePicker(true);
+  };
+
+  const saveTime = () => {
+    // Convertir de 12h a 24h
+    const hour24 = convert12To24(selectedHour, selectedAmPm);
+    const timeString = `${hour24.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`;
+    
+    setScheduleData(prev => ({
+      ...prev,
+      [currentTimeField.day]: {
+        ...prev[currentTimeField.day],
+        [currentTimeField.field]: timeString
+      }
+    }));
+    
+    setHasUnsavedChanges(true);
+    setShowTimePicker(false);
+  };
+
+  // Convertir de formato 24h a 12h
+  const convert24To12 = (hour24) => {
+    if (hour24 === 0) {
+      return { hour12: 12, ampm: 'AM' };
+    } else if (hour24 < 12) {
+      return { hour12: hour24, ampm: 'AM' };
+    } else if (hour24 === 12) {
+      return { hour12: 12, ampm: 'PM' };
+    } else {
+      return { hour12: hour24 - 12, ampm: 'PM' };
+    }
+  };
+
+  // Convertir de formato 12h a 24h
+  const convert12To24 = (hour12, ampm) => {
+    if (ampm === 'AM') {
+      return hour12 === 12 ? 0 : hour12;
+    } else {
+      return hour12 === 12 ? 12 : hour12 + 12;
+    }
+  };
+
+  // Convertir de formato 24h a 12h para mostrar
+  const convert24To12Display = (time24) => {
+    const [hour, minute] = time24.split(':').map(Number);
+    const { hour12, ampm } = convert24To12(hour);
+    return `${hour12}:${minute.toString().padStart(2, '0')} ${ampm}`;
+  };
+
+  // Convertir horario completo de 24h a 12h
+  const convertScheduleTo12h = (scheduleText) => {
+    if (!scheduleText) return '';
+    
+    // Patrón para encontrar horarios en formato 24h (HH:MM - HH:MM)
+    const timePattern = /(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/g;
+    
+    return scheduleText.replace(timePattern, (match, openHour, openMinute, closeHour, closeMinute) => {
+      const openTime12h = convert24To12Display(`${openHour}:${openMinute}`);
+      const closeTime12h = convert24To12Display(`${closeHour}:${closeMinute}`);
+      return `${openTime12h} - ${closeTime12h}`;
+    });
+  };
+
+  const generateTimeOptions = (type) => {
+    const options = [];
+    if (type === 'hour') {
+      for (let i = 1; i <= 12; i++) {
+        options.push({ value: i, label: i.toString() });
+      }
+    } else if (type === 'minute') {
+      for (let i = 0; i < 60; i++) {
+        options.push({ value: i, label: i.toString().padStart(2, '0') });
+      }
+    } else if (type === 'ampm') {
+      options.push({ value: 'AM', label: 'AM' });
+      options.push({ value: 'PM', label: 'PM' });
+    }
+    return options;
+  };
+
+  // Función para detectar cambios
+  const checkForChanges = () => {
+    if (!originalFormData || !originalScheduleData) return false;
+
+    // Comparar datos del formulario
+    const formChanged = Object.keys(originalFormData).some(key => {
+      return originalFormData[key] !== formData[key];
+    });
+
+    // Comparar datos del horario
+    const scheduleChanged = JSON.stringify(originalScheduleData) !== JSON.stringify(scheduleData);
+
+    return formChanged || scheduleChanged;
+  };
+
+  // Función para mostrar alerta de cambios no guardados
+  const showUnsavedChangesAlert = (onConfirm) => {
+    Alert.alert(
+      'Cambios no guardados',
+      'Tienes cambios sin guardar. ¿Deseas guardar antes de salir?',
+      [
+        {
+          text: 'Descartar',
+          style: 'destructive',
+          onPress: () => {
+            setHasUnsavedChanges(false);
+            onConfirm();
+          }
+        },
+        {
+          text: 'Cancelar',
+          style: 'cancel'
+        },
+        {
+          text: 'Guardar',
+          onPress: async () => {
+            try {
+              await handleSave();
+              onConfirm();
+            } catch (error) {
+              console.error('Error al guardar:', error);
+              Alert.alert('Error', 'No se pudo guardar los cambios');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleLocationPicker = () => {
@@ -486,6 +820,7 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
         latitud: formData.latitud ? Number(formData.latitud).toFixed(8) : '',
         longitud: formData.longitud ? Number(formData.longitud).toFixed(8) : '',
         horario: formData.horario.trim(),
+        horarioDetallado: scheduleData, // Datos estructurados del horario
         costo: formData.costo.trim(),
         logotipo: formData.logotipo,
         portada: formData.portada,
@@ -494,13 +829,18 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
 
       await updateDoc(doc(db, 'centrosTuristicos', authUser.uid), updateData);
       
+      // Actualizar datos originales después de guardar
+      setOriginalFormData({ ...formData });
+      setOriginalScheduleData({ ...scheduleData });
+      setHasUnsavedChanges(false);
+      
       Alert.alert(
         'Éxito',
         'Perfil actualizado correctamente',
         [
           {
             text: 'OK',
-            onPress: () => navigation.goBack()
+            onPress: () => navigation.navigate('Main')
           }
         ]
       );
@@ -804,13 +1144,23 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
                   {' '}({getFieldStatus(formData.horario).text})
                 </Text>
               </Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.horario}
-                onChangeText={(value) => handleInputChange('horario', value)}
-                placeholder="Ej: 24/7, Lunes a Viernes 8:00-18:00"
-                placeholderTextColor="#9CA3AF"
-              />
+              <TouchableOpacity 
+                style={styles.scheduleButton}
+                onPress={handleScheduleModal}
+              >
+                <View style={styles.scheduleButtonContent}>
+                  <Ionicons name="time" size={20} color="#3B82F6" />
+                  <View style={styles.scheduleButtonText}>
+                    <Text style={styles.scheduleButtonTitle}>
+                      {formData.horario ? 'Horario Configurado' : 'Establecer Horario'}
+                    </Text>
+                    <Text style={styles.scheduleButtonSubtitle} numberOfLines={2}>
+                      {formData.horario || 'Configura los horarios de atención por día'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </View>
+              </TouchableOpacity>
             </View>
 
             {/* Costo */}
@@ -846,8 +1196,14 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
               <TouchableOpacity 
                 style={styles.imageButton}
                 onPress={() => handleImagePicker('logo')}
+                disabled={saving}
               >
-                {formData.logotipo ? (
+                {saving && imageType === 'logo' ? (
+                  <View style={styles.imagePlaceholder}>
+                    <ActivityIndicator size="large" color="#3B82F6" />
+                    <Text style={styles.imagePlaceholderText}>Cargando imagen...</Text>
+                  </View>
+                ) : formData.logotipo ? (
                   <Image source={{ uri: formData.logotipo }} style={styles.previewImage} />
                 ) : (
                   <View style={styles.imagePlaceholder}>
@@ -869,8 +1225,14 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
               <TouchableOpacity 
                 style={styles.imageButton}
                 onPress={() => handleImagePicker('portada')}
+                disabled={saving}
               >
-                {formData.portada ? (
+                {saving && imageType === 'portada' ? (
+                  <View style={styles.imagePlaceholder}>
+                    <ActivityIndicator size="large" color="#3B82F6" />
+                    <Text style={styles.imagePlaceholderText}>Cargando imagen...</Text>
+                  </View>
+                ) : formData.portada ? (
                   <Image source={{ uri: formData.portada }} style={styles.previewImage} />
                 ) : (
                   <View style={styles.imagePlaceholder}>
@@ -995,6 +1357,207 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
                   </>
                 );
               })()}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal de Horarios */}
+        <Modal
+          visible={showScheduleModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowScheduleModal(false)}
+        >
+          <View style={styles.scheduleModalOverlay}>
+            <View style={styles.scheduleModalContent}>
+              <View style={styles.scheduleModalHeader}>
+                <Text style={styles.scheduleModalTitle}>Horarios de Atención</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowScheduleModal(false)}
+                  style={styles.scheduleModalCloseButton}
+                >
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={styles.scheduleModalBody} contentContainerStyle={styles.scheduleModalBodyContent}>
+                {['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'].map((day) => {
+                  const data = scheduleData[day];
+                  return (
+                  <View key={day} style={styles.scheduleDayContainer}>
+                    <View style={styles.scheduleDayHeader}>
+                      <TouchableOpacity 
+                        style={styles.scheduleDayToggle}
+                        onPress={() => toggleDayEnabled(day)}
+                      >
+                        <Ionicons 
+                          name={data.enabled ? "checkbox" : "square-outline"} 
+                          size={24} 
+                          color={data.enabled ? "#3B82F6" : "#9CA3AF"} 
+                        />
+                        <Text style={[
+                          styles.scheduleDayName,
+                          { color: data.enabled ? '#1F2937' : '#9CA3AF' }
+                        ]}>
+                          {day.charAt(0).toUpperCase() + day.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    
+                    {data.enabled && (
+                      <View style={styles.scheduleTimeContainer}>
+                        <View style={styles.scheduleTimeInput}>
+                          <Text style={styles.scheduleTimeLabel}>Abre:</Text>
+                          <TouchableOpacity 
+                            style={styles.scheduleTimeButton}
+                            onPress={() => openTimePicker(day, 'open')}
+                          >
+                            <Text style={styles.scheduleTimeText}>{convert24To12Display(data.open)}</Text>
+                            <Ionicons name="chevron-down" size={16} color="#6B7280" />
+                          </TouchableOpacity>
+                        </View>
+                        
+                        <View style={styles.scheduleTimeInput}>
+                          <Text style={styles.scheduleTimeLabel}>Cierra:</Text>
+                          <TouchableOpacity 
+                            style={styles.scheduleTimeButton}
+                            onPress={() => openTimePicker(day, 'close')}
+                          >
+                            <Text style={styles.scheduleTimeText}>{convert24To12Display(data.close)}</Text>
+                            <Ionicons name="chevron-down" size={16} color="#6B7280" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                  );
+                })}
+              </ScrollView>
+              
+              <View style={styles.scheduleModalFooter}>
+                <TouchableOpacity 
+                  style={styles.scheduleCancelButton}
+                  onPress={() => setShowScheduleModal(false)}
+                >
+                  <Text style={styles.scheduleCancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.scheduleSaveButton}
+                  onPress={saveSchedule}
+                >
+                  <Text style={styles.scheduleSaveButtonText}>Guardar Horario</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal del TimePicker */}
+        <Modal
+          visible={showTimePicker}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowTimePicker(false)}
+        >
+          <View style={styles.timePickerOverlay}>
+            <View style={styles.timePickerContent}>
+              <View style={styles.timePickerHeader}>
+                <Text style={styles.timePickerTitle}>
+                  {currentTimeField.field === 'open' ? 'Hora de Apertura' : 'Hora de Cierre'}
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => setShowTimePicker(false)}
+                  style={styles.timePickerCloseButton}
+                >
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.timePickerBody}>
+                <View style={styles.timePickerRow}>
+                  <Text style={styles.timePickerLabel}>Hora:</Text>
+                  <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
+                    {generateTimeOptions('hour').map((option) => (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[
+                          styles.timePickerOption,
+                          selectedHour === option.value && styles.timePickerOptionSelected
+                        ]}
+                        onPress={() => setSelectedHour(option.value)}
+                      >
+                        <Text style={[
+                          styles.timePickerOptionText,
+                          selectedHour === option.value && styles.timePickerOptionTextSelected
+                        ]}>
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+                
+                <View style={styles.timePickerRow}>
+                  <Text style={styles.timePickerLabel}>Minutos:</Text>
+                  <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
+                    {generateTimeOptions('minute').map((option) => (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[
+                          styles.timePickerOption,
+                          selectedMinute === option.value && styles.timePickerOptionSelected
+                        ]}
+                        onPress={() => setSelectedMinute(option.value)}
+                      >
+                        <Text style={[
+                          styles.timePickerOptionText,
+                          selectedMinute === option.value && styles.timePickerOptionTextSelected
+                        ]}>
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+                
+                <View style={styles.timePickerRow}>
+                  <Text style={styles.timePickerLabel}>AM/PM:</Text>
+                  <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
+                    {generateTimeOptions('ampm').map((option) => (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[
+                          styles.timePickerOption,
+                          selectedAmPm === option.value && styles.timePickerOptionSelected
+                        ]}
+                        onPress={() => setSelectedAmPm(option.value)}
+                      >
+                        <Text style={[
+                          styles.timePickerOptionText,
+                          selectedAmPm === option.value && styles.timePickerOptionTextSelected
+                        ]}>
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+              
+              <View style={styles.timePickerFooter}>
+                <TouchableOpacity 
+                  style={styles.timePickerCancelButton}
+                  onPress={() => setShowTimePicker(false)}
+                >
+                  <Text style={styles.timePickerCancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.timePickerSaveButton}
+                  onPress={saveTime}
+                >
+                  <Text style={styles.timePickerSaveButtonText}>Guardar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </Modal>
@@ -1450,6 +2013,248 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#EF4444',
     fontWeight: '600',
+  },
+  
+  // Estilos para el botón de horario
+  scheduleButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 16,
+    marginTop: 8,
+  },
+  scheduleButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  scheduleButtonText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  scheduleButtonTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  scheduleButtonSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+  },
+  
+  // Estilos para el modal de horarios
+  scheduleModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  scheduleModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+  },
+  scheduleModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  scheduleModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  scheduleModalCloseButton: {
+    padding: 4,
+  },
+  scheduleModalBody: {
+    maxHeight: 400,
+  },
+  scheduleModalBodyContent: {
+    padding: 20,
+    paddingBottom: 40, // Espacio extra al final
+  },
+  scheduleDayContainer: {
+    marginBottom: 20,
+  },
+  scheduleDayHeader: {
+    marginBottom: 12,
+  },
+  scheduleDayToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  scheduleDayName: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  scheduleTimeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  scheduleTimeInput: {
+    flex: 1,
+  },
+  scheduleTimeLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  scheduleTimeButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  scheduleTimeText: {
+    fontSize: 16,
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  scheduleModalFooter: {
+    flexDirection: 'row',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    gap: 12,
+  },
+  scheduleCancelButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  scheduleCancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  scheduleSaveButton: {
+    flex: 1,
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  scheduleSaveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  
+  // Estilos para el TimePicker
+  timePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  timePickerContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  timePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  timePickerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  timePickerCloseButton: {
+    padding: 4,
+  },
+  timePickerBody: {
+    flexDirection: 'row',
+    padding: 20,
+    gap: 16,
+  },
+  timePickerRow: {
+    flex: 1,
+    minWidth: 80,
+  },
+  timePickerLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  timePickerScroll: {
+    maxHeight: 200,
+  },
+  timePickerOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 4,
+    alignItems: 'center',
+  },
+  timePickerOptionSelected: {
+    backgroundColor: '#3B82F6',
+  },
+  timePickerOptionText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  timePickerOptionTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  timePickerFooter: {
+    flexDirection: 'row',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    gap: 12,
+  },
+  timePickerCancelButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  timePickerCancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  timePickerSaveButton: {
+    flex: 1,
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  timePickerSaveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 

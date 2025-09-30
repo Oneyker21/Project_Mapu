@@ -484,10 +484,10 @@ const HomeScreen = ({ navigation }) => {
             <>
               <TouchableOpacity 
                 style={[styles.quickActionCard, { backgroundColor: '#EBF4FF' }]}
-                onPress={() => navigation.navigate('CentroTuristicoProfile')}
+                onPress={() => navigation.navigate('ServicesMain')}
               >
-                <Ionicons name="business" size={24} color={COLOR_PALETTE.primary} />
-                <Text style={[styles.quickActionText, { color: COLOR_PALETTE.primary }]}>Mi Centro</Text>
+                <Ionicons name="list" size={24} color={COLOR_PALETTE.primary} />
+                <Text style={[styles.quickActionText, { color: COLOR_PALETTE.primary }]}>Mis Servicios</Text>
               </TouchableOpacity>
               
                   <TouchableOpacity 
