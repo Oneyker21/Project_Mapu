@@ -67,7 +67,7 @@ Este proyecto fue desarrollado por el equipo **LegendsCode** en el **Hackathon N
 git clone https://github.com/Oneyker21/Project_Mapu.git
 
 # Entrar al proyecto
-cd mapu
+cd Project_Mapu
 
 # Instalar dependencias
 npm install
