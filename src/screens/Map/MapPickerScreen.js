@@ -367,8 +367,15 @@ const MapPickerScreen = ({ route, navigation }) => {
             }}
             title="Ubicación Registrada"
             description={`${initial.latitude.toFixed(6)}, ${initial.longitude.toFixed(6)}`}
-            pinColor="#10B981"
-          />
+            anchor={{ x: 0.5, y: 1 }}
+          >
+            <View style={styles.centerPinContainer}>
+              <View style={styles.centerPin}>
+                <Ionicons name="business" size={18} color="#FFFFFF" />
+              </View>
+              <View style={styles.centerPinTail} />
+            </View>
+          </Marker>
         )}
         
         {/* Marcador del centro de la cruz en tiempo real - invisible pero preciso */}
@@ -678,6 +685,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+  },
+  // Marcador tipo pin compacto (igual que HomeScreen)
+  centerPinContainer: {
+    alignItems: 'center',
+  },
+  centerPin: {
+    backgroundColor: '#10B981',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 6,
+  },
+  centerPinTail: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#10B981',
+    marginTop: -1,
   },
   pinIndicator: {
     position: 'absolute',

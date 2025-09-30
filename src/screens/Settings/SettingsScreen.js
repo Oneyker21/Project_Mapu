@@ -87,7 +87,7 @@ const SettingsScreen = ({ navigation }) => {
           icon: 'person-outline',
           title: 'Perfil',
           subtitle: 'Editar información personal',
-          onPress: () => navigation.navigate('Profile'),
+          onPress: () => navigation.navigate('CentroTuristicoProfile'),
         },
         {
           icon: 'shield-checkmark-outline',

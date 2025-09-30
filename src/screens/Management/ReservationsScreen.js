@@ -10,10 +10,11 @@ import {
   Modal,
   Alert
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 const ReservationsScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [selectedTab, setSelectedTab] = useState('pending');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -163,9 +164,9 @@ const ReservationsScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+    <View style={styles.container}>
+      {/* Header que llega hasta los límites de la cámara */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -178,8 +179,9 @@ const ReservationsScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Stats Cards and Tabs Container */}
-      <View style={styles.statsAndTabsContainer}>
+      <SafeAreaView style={styles.safeAreaContent}>
+        {/* Stats Cards and Tabs Container */}
+        <View style={styles.statsAndTabsContainer}>
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
@@ -272,7 +274,8 @@ const ReservationsScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 };
 
@@ -280,6 +283,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  safeAreaContent: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -293,6 +299,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
   },
   headerTitle: {
     fontSize: 20,
@@ -309,8 +317,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   statCard: {
     backgroundColor: '#FFFFFF',

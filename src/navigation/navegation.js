@@ -10,6 +10,7 @@ import RegisterScreen from '../screens/Register/RegisterScreen';
 import HomeScreen from '../screens/Home/HomeScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import CentroTuristicoProfileScreen from '../screens/Profile/CentroTuristicoProfileScreen';
+import ServicesMainScreen from '../screens/Services/ServicesMainScreen';
 import MapPickerScreen from '../screens/Map/MapPickerScreen';
 import ReviewsScreen from '../screens/Reviews/ReviewsScreen';
 import ReservationsScreen from '../screens/Management/ReservationsScreen';
@@ -93,6 +94,11 @@ export function AppNavigator() {
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="MapPicker" component={MapPickerScreen} />
       <Stack.Screen name="CentroTuristicoProfile" component={CentroTuristicoProfileScreen} />
+      <Stack.Screen 
+        name="ServicesMain" 
+        component={ServicesMainScreen}
+        options={{ headerShown: false }}
+      />
       <Stack.Screen name="Reviews" component={ReviewsScreen} />
       <Stack.Screen 
         name="Reservations" 

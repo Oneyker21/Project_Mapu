@@ -8,10 +8,11 @@ import {
   Switch,
   FlatList
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 const NotificationsScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [selectedTab, setSelectedTab] = useState('settings');
   const [settings, setSettings] = useState({
     newBookings: true,
@@ -224,9 +225,9 @@ const NotificationsScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+    <View style={styles.container}>
+      {/* Header que llega hasta los límites de la cámara */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -239,8 +240,9 @@ const NotificationsScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Tabs */}
-      <View style={styles.tabsContainer}>
+      <SafeAreaView style={styles.safeAreaContent}>
+        {/* Tabs */}
+        <View style={styles.tabsContainer}>
         {tabs.map((tab) => (
           <TouchableOpacity
             key={tab.key}
@@ -267,7 +269,8 @@ const NotificationsScreen = ({ navigation }) => {
 
       {/* Content */}
       {selectedTab === 'notifications' ? <NotificationsTab /> : <SettingsTab />}
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 };
 
@@ -275,6 +278,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  safeAreaContent: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -288,6 +294,8 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
   },
   headerTitle: {
     fontSize: 20,
@@ -308,7 +316,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   selectedTab: {
     borderBottomWidth: 2,
