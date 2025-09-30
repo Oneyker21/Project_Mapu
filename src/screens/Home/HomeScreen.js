@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Modal, ActivityIndicator, PanResponder, Animated } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
+import * as Location from 'expo-location';
+
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -146,6 +148,18 @@ const HomeScreen = ({ navigation }) => {
     loadUserData();
     loadCenters();
   }, []);
+
+  // Tras cargar datos de usuario, si es Turista, solicitar permiso y centrar en su ubicación
+  useEffect(() => {
+    if (!loadingUserData && userData) {
+      const isTourist = userData.role === 'tourist' || userData.tipoUsuario === 'Turista';
+      if (isTourist) {
+        centerToUserLocation();
+      }
+    }
+  }, [loadingUserData, userData]);
+
+  // (centerToUserLocation definido más abajo, usando requestLocationPermissionHome)
 
   // Refresh automático cada 30 segundos solo para centros turísticos
   useEffect(() => {
@@ -396,6 +410,38 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  // Solicitar permisos de ubicación y centrar el mapa en la ubicación del usuario (solo Turista)
+  const requestLocationPermissionHome = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      return status === 'granted';
+    } catch (e) {
+      console.log('Home - Error pidiendo permisos ubicación:', e?.message);
+      return false;
+    }
+  };
+
+  const centerToUserLocation = async () => {
+    try {
+      const hasPerm = await requestLocationPermissionHome();
+      if (!hasPerm) return;
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { latitude, longitude } = loc.coords;
+      const region = {
+        latitude,
+        longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      };
+      setMapRegion(region);
+      if (mapRef && mapRef.animateToRegion) {
+        mapRef.animateToRegion(region, 800);
+      }
+    } catch (e) {
+      console.log('Home - Error obteniendo ubicación actual:', e?.message);
+    }
+  };
+
   // Mientras carga userData, mostramos un loader pequeño (evita interacciones prematuras)
   if (loadingUserData) {
     return (
@@ -578,7 +624,6 @@ const HomeScreen = ({ navigation }) => {
           showsMyLocationButton
           showsPointsOfInterest={false}
           customMapStyle={GOOGLE_MAP_STYLE}
-          onPress={handleMapPress}
         >
           {/* Marcadores de centros turísticos registrados */}
           {centers.map((center) => (
@@ -601,17 +646,7 @@ const HomeScreen = ({ navigation }) => {
             </Marker>
           ))}
 
-          {/* Marcador temporal al tocar el mapa */}
-          {selectedLocation && (
-            <Marker
-              coordinate={selectedLocation}
-              title="Ubicación seleccionada"
-            >
-              <View style={styles.tempMarker}>
-                <Ionicons name="location" size={16} color="#FFFFFF" />
-              </View>
-            </Marker>
-          )}
+          {/* Marcador temporal eliminado: no mostrar nada al tocar el mapa */}
         </MapView>
 
         {/* Footer simplificado */}

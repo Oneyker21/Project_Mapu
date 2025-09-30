@@ -378,14 +378,12 @@ const MapPickerScreen = ({ route, navigation }) => {
           </Marker>
         )}
         
-        {/* Marcador del centro de la cruz en tiempo real - invisible pero preciso */}
+        {/* Marcador del centro de la cruz en tiempo real - invisible y sin callout */}
         <Marker
           coordinate={{
             latitude: region.latitude,
             longitude: region.longitude
           }}
-          title="Ubicación a Capturar"
-          description={`${region.latitude.toFixed(8)}, ${region.longitude.toFixed(8)}`}
           pinColor="transparent"
           opacity={0}
         />
