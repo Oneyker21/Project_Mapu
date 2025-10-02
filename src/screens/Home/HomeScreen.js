@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Modal, ActivityIndicator, PanResponder, Animated } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -131,6 +132,13 @@ const HomeScreen = ({ navigation }) => {
     loadUserData();
     loadCenters();
   }, []);
+
+  // Recargar datos de usuario cuando Home recobra foco (después de editar perfil)
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUserData();
+    }, [])
+  );
 
   // Refresh automático cada 30 segundos solo para centros turísticos
   useEffect(() => {
@@ -395,9 +403,16 @@ const HomeScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}> 
       {/* Header personalizado */}
       <View style={styles.headerContainer}>
-        {/* Información del perfil */}
+        {/* Información del perfil (tappable para visualizar perfil) */}
         <View style={styles.profileSection}>
-          <View style={styles.profileInfo}>
+          <TouchableOpacity
+            style={styles.profileInfo}
+            activeOpacity={0.9}
+            onPress={() => {
+              const isCenter = (userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico');
+              navigation.navigate(isCenter ? 'CentroTuristicoProfile' : 'TuristaProfile', { readOnly: true });
+            }}
+          >
             <View style={styles.profileContainer}>
               {userData?.imagenPerfil ? (
                 <Image 
@@ -418,7 +433,14 @@ const HomeScreen = ({ navigation }) => {
             </View>
             <View style={styles.userInfo}>
               <Text style={styles.userName}>
-                {userData?.nombreNegocio || userData?.businessName || userData?.firstName || authUser?.displayName || 'Usuario'}
+                {
+                  // Si es centro turístico mostrar nombre del negocio; si es turista, nombres + apellidos
+                  userData?.nombreNegocio || userData?.businessName ||
+                  [userData?.nombres || userData?.firstName, userData?.apellidos || userData?.lastName]
+                    .filter(Boolean)
+                    .join(' ') ||
+                  authUser?.displayName || 'Usuario'
+                }
               </Text>
               <Text style={styles.userRole}>
                 {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'Centro Turístico' : 'Turista'}
@@ -461,7 +483,7 @@ const HomeScreen = ({ navigation }) => {
                 </View>
               )}
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Acciones rápidas principales */}

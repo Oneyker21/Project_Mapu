@@ -66,6 +66,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
   const [saving, setSaving] = useState(false);
   const [userData, setUserData] = useState(null);
   const [errors, setErrors] = useState({});
+  const readOnly = route?.params?.readOnly === true;
   const [isEditing, setIsEditing] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -320,7 +321,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color={COLOR_PALETTE.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mi Perfil</Text>
-        {isEditing ? (
+        {!readOnly && isEditing ? (
           <TouchableOpacity 
             style={[styles.saveButton, saving && styles.saveButtonDisabled]}
             onPress={handleSave}
@@ -332,14 +333,16 @@ const TuristaProfileScreen = ({ navigation, route }) => {
               <Text style={styles.saveButtonText}>Guardar</Text>
             )}
           </TouchableOpacity>
-        ) : (
+        ) : (!readOnly ? (
           <TouchableOpacity 
             style={styles.editButton}
             onPress={() => setIsEditing(true)}
           >
             <Ionicons name="pencil" size={16} color={COLOR_PALETTE.primary} />
           </TouchableOpacity>
-        )}
+        ) : (
+          <View style={{ width: 32 }} />
+        ))}
       </View>
 
       <KeyboardAvoidingView 
@@ -357,8 +360,8 @@ const TuristaProfileScreen = ({ navigation, route }) => {
             <View style={styles.coverImageContainer}>
               <TouchableOpacity 
                 style={styles.coverImageButton} 
-                onPress={isEditing ? () => pickImage('cover') : undefined}
-                disabled={!isEditing}
+                onPress={!readOnly && isEditing ? () => pickImage('cover') : undefined}
+                disabled={readOnly || !isEditing}
               >
                 {formData.coverImage ? (
                   <Image source={{ uri: formData.coverImage.uri }} style={styles.coverImage} />
@@ -371,7 +374,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   </View>
                 )}
               </TouchableOpacity>
-              {formData.coverImage && isEditing && (
+              {formData.coverImage && isEditing && !readOnly && (
                 <TouchableOpacity 
                   style={styles.removeCoverButton} 
                   onPress={() => setFormData(prev => ({ ...prev, coverImage: null }))}
@@ -386,8 +389,8 @@ const TuristaProfileScreen = ({ navigation, route }) => {
             <View style={styles.profileImageContainer}>
               <TouchableOpacity 
                 style={styles.profileImageButton} 
-                onPress={isEditing ? () => pickImage('profile') : undefined}
-                disabled={!isEditing}
+                onPress={!readOnly && isEditing ? () => pickImage('profile') : undefined}
+                disabled={readOnly || !isEditing}
               >
                 {formData.profileImage ? (
                   <Image source={{ uri: formData.profileImage.uri }} style={styles.profileImage} />
@@ -400,7 +403,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   </View>
                 )}
               </TouchableOpacity>
-              {formData.profileImage && isEditing && (
+              {formData.profileImage && isEditing && !readOnly && (
                 <TouchableOpacity 
                   style={styles.removeImageButton} 
                   onPress={() => setFormData(prev => ({ ...prev, profileImage: null }))}
@@ -427,7 +430,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   autoCapitalize="words"
                   error={errors.firstName}
                   leftIcon="person"
-                  editable={isEditing}
+                  editable={isEditing && !readOnly}
                 />
                 <Text style={styles.characterCount}>
                   {(formData.firstName || '').length}/50
@@ -483,14 +486,14 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                 <View style={styles.pickerWrapper}>
                   <Picker
                     selectedValue={formData.documentType}
-                    style={[styles.picker, !isEditing && styles.pickerDisabled]}
-                    onValueChange={isEditing ? (value) => {
+                    style={[styles.picker, (!isEditing || readOnly) && styles.pickerDisabled]}
+                    onValueChange={isEditing && !readOnly ? (value) => {
                       handleInputChange('documentType', value);
                       if (value !== formData.documentType) {
                         setFormData(prev => ({ ...prev, documentNumber: '' }));
                       }
                     } : undefined}
-                    enabled={isEditing}
+                    enabled={isEditing && !readOnly}
                   >
                     <Picker.Item label="Selecciona un tipo de documento" value="" />
                     <Picker.Item label="Cédula de Identidad" value="cedula" />
@@ -552,7 +555,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
             </View>
 
             {/* Botón de editar información */}
-            {!isEditing && (
+            {!isEditing && !readOnly && (
               <View style={styles.editButtonContainer}>
                 <TouchableOpacity 
                   style={styles.editInfoButton}
@@ -565,7 +568,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
             )}
 
             {/* Botón de cancelar edición */}
-            {isEditing && (
+            {isEditing && !readOnly && (
               <View style={styles.cancelButtonContainer}>
                 <TouchableOpacity 
                   style={styles.cancelButton}
