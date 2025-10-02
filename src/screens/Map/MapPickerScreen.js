@@ -8,8 +8,8 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 const DEFAULT_REGION = {
-  latitude: 12.1167,
-  longitude: -85.3667,
+  latitude: 12.136389,
+  longitude: -86.251389,
   latitudeDelta: 0.02,
   longitudeDelta: 0.02,
 };
@@ -378,12 +378,14 @@ const MapPickerScreen = ({ route, navigation }) => {
           </Marker>
         )}
         
-        {/* Marcador del centro de la cruz en tiempo real - invisible y sin callout */}
+        {/* Marcador del centro de la cruz en tiempo real - invisible pero preciso */}
         <Marker
           coordinate={{
             latitude: region.latitude,
             longitude: region.longitude
           }}
+          title="Ubicación a Capturar"
+          description={`${region.latitude.toFixed(8)}, ${region.longitude.toFixed(8)}`}
           pinColor="transparent"
           opacity={0}
         />

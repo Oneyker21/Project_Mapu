@@ -1,44 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Modal, ActivityIndicator, PanResponder, Animated } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
-import * as Location from 'expo-location';
-
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
-
-// Paleta de colores para la aplicación
-const COLOR_PALETTE = {
-  primary: '#3B82F6',      // Azul principal
-  secondary: '#10B981',    // Verde
-  accent: '#F59E0B',       // Naranja
-  purple: '#8B5CF6',       // Morado
-  pink: '#EC4899',         // Rosa
-  red: '#EF4444',          // Rojo
-  gray: {
-    50: '#F9FAFB',
-    100: '#F3F4F6',
-    200: '#E5E7EB',
-    300: '#D1D5DB',
-    400: '#9CA3AF',
-    500: '#6B7280',
-    600: '#4B5563',
-    700: '#374151',
-    800: '#1F2937',
-    900: '#111827',
-  },
-  text: {
-    primary: '#1F2937',
-    secondary: '#6B7280',
-    light: '#9CA3AF',
-  },
-  background: {
-    primary: '#FFFFFF',
-    secondary: '#F9FAFB',
-  }
-};
 
 const INITIAL_REGION = {
   latitude: 12.136389,
@@ -47,24 +14,22 @@ const INITIAL_REGION = {
   longitudeDelta: 0.05,
 };
 
-// Estilo del mapa para limpiar POIs de Google (negocios, lugares, parques, etc.)
+// Estilo de Google Maps para ocultar Puntos de Interés (POIs), transporte y etiquetas no necesarias
+// con el objetivo de mostrar únicamente los centros turísticos registrados en Firestore
 const GOOGLE_MAP_STYLE = [
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road.local', elementType: 'labels', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road.arterial', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road.highway', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
   { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.park', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.government', stylers: [{ visibility: 'off' }] },
   { featureType: 'poi.medical', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.school', stylers: [{ visibility: 'off' }] },
   { featureType: 'poi.place_of_worship', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.school', stylers: [{ visibility: 'off' }] },
+  { featureType: 'poi.sports_complex', stylers: [{ visibility: 'off' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
 ];
 
 const HomeScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { user: authUser, logout } = useAuth();
+  const { user: authUser } = useAuth();
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [centers, setCenters] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -89,7 +54,6 @@ const HomeScreen = ({ navigation }) => {
 
   const loadUserData = async () => {
     try {
-      console.log('HomeScreen - loadUserData ejecutándose...');
       if (authUser) {
         // Determinar la colección según el rol del usuario
         let collectionName = 'turistas'; // Por defecto turistas
@@ -124,49 +88,36 @@ const HomeScreen = ({ navigation }) => {
 
   const loadCenters = async () => {
     try {
-      // Si es centro turístico, mostrar solo su propio centro
-      const isCenterUser = authUser && (authUser.role === 'centro_turistico' || authUser.tipoUsuario === 'CentroTuristico');
-      if (isCenterUser) {
-        const centerDoc = await getDoc(doc(db, 'centrosTuristicos', authUser.uid));
-        if (centerDoc.exists()) {
-          const data = centerDoc.data();
-          const lat = data.latitud || data.latitude;
-          const lng = data.longitud || data.longitude;
-          if (lat && lng) {
-            const onlyMine = [{
-              id: centerDoc.id,
-              ...data,
-              businessName: data.nombreNegocio || data.businessName,
-              category: data.categoriaNegocio || data.category,
-              coordinate: { latitude: parseFloat(lat), longitude: parseFloat(lng) },
-            }];
-            setCenters(onlyMine);
-          } else {
-            setCenters([]);
-          }
-        } else {
-          setCenters([]);
-        }
-        return;
-      }
-
-      // Si no es centro turístico (por ejemplo, turista), cargar todos (comportamiento anterior)
       const centersSnapshot = await getDocs(collection(db, 'centrosTuristicos'));
       const centersData = [];
+
       centersSnapshot.forEach((docSnap) => {
         const data = docSnap.data();
+
+        // Usar latitud/longitud (español) como prioridad, luego latitude/longitude (inglés)
         const lat = data.latitud || data.latitude;
         const lng = data.longitud || data.longitude;
+        
         if (lat && lng) {
           centersData.push({
             id: docSnap.id,
             ...data,
             businessName: data.nombreNegocio || data.businessName,
             category: data.categoriaNegocio || data.category,
-            coordinate: { latitude: parseFloat(lat), longitude: parseFloat(lng) },
+            coordinate: {
+              latitude: parseFloat(lat),
+              longitude: parseFloat(lng)
+            }
           });
         }
       });
+
+      console.log('Centros cargados:', centersData.map(c => ({ 
+        name: c.businessName, 
+        category: c.category,
+        categoriaNegocio: c.categoriaNegocio,
+        coordinate: c.coordinate
+      })));
       setCenters(centersData);
     } catch (error) {
       console.error('Error cargando centros:', error);
@@ -180,18 +131,6 @@ const HomeScreen = ({ navigation }) => {
     loadUserData();
     loadCenters();
   }, []);
-
-  // Tras cargar datos de usuario, si es Turista, solicitar permiso y centrar en su ubicación
-  useEffect(() => {
-    if (!loadingUserData && userData) {
-      const isTourist = userData.role === 'tourist' || userData.tipoUsuario === 'Turista';
-      if (isTourist) {
-        centerToUserLocation();
-      }
-    }
-  }, [loadingUserData, userData]);
-
-  // (centerToUserLocation definido más abajo, usando requestLocationPermissionHome)
 
   // Refresh automático cada 30 segundos solo para centros turísticos
   useEffect(() => {
@@ -341,7 +280,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Reservaciones',
           subtitle: 'Gestionar reservas de visitantes',
           icon: 'calendar',
-          color: COLOR_PALETTE.accent,
+          color: '#F59E0B',
           onPress: () => {
             setShowMenu(false);
             navigation.navigate('Reservations');
@@ -352,7 +291,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Estadísticas',
           subtitle: 'Ver métricas de visitas',
           icon: 'bar-chart',
-          color: COLOR_PALETTE.purple,
+          color: '#8B5CF6',
           onPress: () => {
             setShowMenu(false);
             navigation.navigate('Statistics');
@@ -363,7 +302,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Promociones',
           subtitle: 'Crear ofertas especiales',
           icon: 'megaphone',
-          color: COLOR_PALETTE.pink,
+          color: '#EC4899',
           onPress: () => {
             setShowMenu(false);
             navigation.navigate('Promotions');
@@ -374,7 +313,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Notificaciones',
           subtitle: 'Configurar alertas',
           icon: 'notifications',
-          color: COLOR_PALETTE.secondary,
+          color: '#10B981',
           onPress: () => {
             setShowMenu(false);
             navigation.navigate('Notifications');
@@ -384,28 +323,11 @@ const HomeScreen = ({ navigation }) => {
     } else {
       return [
         {
-          id: 'profile',
-          title: 'Mi Perfil',
-          subtitle: 'Ver y editar información personal',
-          icon: 'person-circle',
-          color: COLOR_PALETTE.primary,
-          onPress: () => {
-            setShowMenu(false);
-            navigation.navigate('TuristaProfile', {
-              onProfileUpdate: () => {
-                // Recargar datos del usuario cuando se actualice el perfil
-                console.log('HomeScreen - Callback onProfileUpdate ejecutado');
-                loadUserData();
-              }
-            });
-          }
-        },
-        {
           id: 'favorites',
           title: 'Mis Favoritos',
           subtitle: 'Centros turísticos guardados',
           icon: 'heart',
-          color: COLOR_PALETTE.red,
+          color: '#EF4444',
           onPress: () => {
             setShowMenu(false);
             Alert.alert('Favoritos', 'Centros turísticos favoritos');
@@ -416,7 +338,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Buscar Cercanos',
           subtitle: 'Encontrar centros cerca de ti',
           icon: 'search',
-          color: COLOR_PALETTE.primary,
+          color: '#3B82F6',
           onPress: () => {
             setShowMenu(false);
             Alert.alert('Buscar', 'Buscar centros turísticos cercanos');
@@ -427,7 +349,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Mi Historial',
           subtitle: 'Centros que has visitado',
           icon: 'time',
-          color: COLOR_PALETTE.secondary,
+          color: '#10B981',
           onPress: () => {
             setShowMenu(false);
             Alert.alert('Historial', 'Centros que has visitado');
@@ -438,7 +360,7 @@ const HomeScreen = ({ navigation }) => {
           title: 'Mis Reseñas',
           subtitle: 'Tus reseñas y calificaciones',
           icon: 'star',
-          color: COLOR_PALETTE.accent,
+          color: '#F59E0B',
           onPress: () => {
             setShowMenu(false);
             Alert.alert('Mis Reseñas', 'Tus reseñas y calificaciones');
@@ -454,70 +376,8 @@ const HomeScreen = ({ navigation }) => {
             setShowMenu(false);
             Alert.alert('Notificaciones', 'Configurar notificaciones');
           }
-        },
-        {
-          id: 'logout',
-          title: 'Cerrar Sesión',
-          subtitle: 'Salir de la aplicación',
-          icon: 'log-out-outline',
-          color: COLOR_PALETTE.red,
-          isLogout: true,
-          onPress: () => {
-            setShowMenu(false);
-            Alert.alert(
-              'Cerrar Sesión',
-              '¿Estás seguro de que quieres cerrar sesión?',
-              [
-                { text: 'Cancelar', style: 'cancel' },
-                { 
-                  text: 'Cerrar Sesión', 
-                  style: 'destructive',
-                  onPress: async () => {
-                    try {
-                      await logout();
-                      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-                    } catch (e) {
-                      console.log('Error al cerrar sesión:', e?.message);
-                    }
-                  }
-                }
-              ]
-            );
-          }
         }
       ];
-    }
-  };
-
-  // Solicitar permisos de ubicación y centrar el mapa en la ubicación del usuario (solo Turista)
-  const requestLocationPermissionHome = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      return status === 'granted';
-    } catch (e) {
-      console.log('Home - Error pidiendo permisos ubicación:', e?.message);
-      return false;
-    }
-  };
-
-  const centerToUserLocation = async () => {
-    try {
-      const hasPerm = await requestLocationPermissionHome();
-      if (!hasPerm) return;
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const { latitude, longitude } = loc.coords;
-      const region = {
-        latitude,
-        longitude,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
-      };
-      setMapRegion(region);
-      if (mapRef && mapRef.animateToRegion) {
-        mapRef.animateToRegion(region, 800);
-      }
-    } catch (e) {
-      console.log('Home - Error obteniendo ubicación actual:', e?.message);
     }
   };
 
@@ -525,7 +385,7 @@ const HomeScreen = ({ navigation }) => {
   if (loadingUserData) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLOR_PALETTE.primary} />
+        <ActivityIndicator size="large" color="#3B82F6" />
         <Text style={{ marginTop: 8 }}>Cargando datos de usuario...</Text>
       </SafeAreaView>
     );
@@ -536,23 +396,7 @@ const HomeScreen = ({ navigation }) => {
       {/* Header personalizado */}
       <View style={styles.headerContainer}>
         {/* Información del perfil */}
-        <TouchableOpacity 
-          style={styles.profileSection}
-          onPress={() => {
-            const isCenter = userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico';
-            if (isCenter) {
-              navigation.navigate('CentroTuristicoProfile');
-            } else {
-              navigation.navigate('TuristaProfile', {
-                onProfileUpdate: () => {
-                  console.log('HomeScreen - Callback onProfileUpdate ejecutado desde header');
-                  loadUserData();
-                }
-              });
-            }
-          }}
-          activeOpacity={0.7}
-        >
+        <View style={styles.profileSection}>
           <View style={styles.profileInfo}>
             <View style={styles.profileContainer}>
               {userData?.imagenPerfil ? (
@@ -567,16 +411,14 @@ const HomeScreen = ({ navigation }) => {
                   <Ionicons 
                     name={(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'business' : 'person'} 
                     size={24} 
-                    color={COLOR_PALETTE.primary} 
+                    color="#3B82F6" 
                   />
                 </View>
               )}
             </View>
             <View style={styles.userInfo}>
               <Text style={styles.userName}>
-                {userData?.nombreNegocio || userData?.businessName || 
-                 (userData?.nombres && userData?.apellidos ? `${userData.nombres} ${userData.apellidos}` : '') ||
-                 userData?.firstName || authUser?.displayName || 'Usuario'}
+                {userData?.nombreNegocio || userData?.businessName || userData?.firstName || authUser?.displayName || 'Usuario'}
               </Text>
               <Text style={styles.userRole}>
                 {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'Centro Turístico' : 'Turista'}
@@ -586,9 +428,41 @@ const HomeScreen = ({ navigation }) => {
                   Propietario: {userData.nombrePropietario}
                 </Text>
               )}
+              {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') && (
+                <View style={styles.profileActionsContainer}>
+                  <TouchableOpacity 
+                    style={styles.refreshButton}
+                    onPress={() => {
+                      console.log('Refrescando datos...');
+                      loadUserData();
+                      loadCenters();
+                    }}
+                  >
+                    <Ionicons name="refresh" size={16} color="#10B981" />
+                    <Text style={styles.refreshButtonText}>Refrescar</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[styles.refreshButton, { backgroundColor: '#FEF3C7' }]}
+                    onPress={() => {
+                      console.log('Debug - Datos del usuario:', userData);
+                      console.log('Debug - Latitud:', userData?.latitud || userData?.latitude);
+                      console.log('Debug - Longitud:', userData?.longitud || userData?.longitude);
+                      Alert.alert(
+                        'Debug Info',
+                        `Latitud: ${userData?.latitud || userData?.latitude || 'No encontrada'}\nLongitud: ${userData?.longitud || userData?.longitude || 'No encontrada'}`,
+                        [{ text: 'OK' }]
+                      );
+                    }}
+                  >
+                    <Ionicons name="bug" size={16} color="#F59E0B" />
+                    <Text style={[styles.refreshButtonText, { color: '#F59E0B' }]}>Debug</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
-        </TouchableOpacity>
+        </View>
 
         {/* Acciones rápidas principales */}
         <View style={styles.quickActionsSection}>
@@ -596,10 +470,10 @@ const HomeScreen = ({ navigation }) => {
             <>
               <TouchableOpacity 
                 style={[styles.quickActionCard, { backgroundColor: '#EBF4FF' }]}
-                onPress={() => navigation.navigate('ServicesMain')}
+                onPress={() => navigation.navigate('CentroTuristicoProfile')}
               >
-                <Ionicons name="list" size={24} color={COLOR_PALETTE.primary} />
-                <Text style={[styles.quickActionText, { color: COLOR_PALETTE.primary }]}>Mis Servicios</Text>
+                <Ionicons name="business" size={24} color="#3B82F6" />
+                <Text style={[styles.quickActionText, { color: '#3B82F6' }]}>Mi Centro</Text>
               </TouchableOpacity>
               
                   <TouchableOpacity 
@@ -651,8 +525,8 @@ const HomeScreen = ({ navigation }) => {
                       }
                     }}
                   >
-                <Ionicons name="locate" size={24} color={COLOR_PALETTE.secondary} />
-                <Text style={[styles.quickActionText, { color: COLOR_PALETTE.secondary }]}>Ver Mi Centro</Text>
+                <Ionicons name="locate" size={24} color="#10B981" />
+                <Text style={[styles.quickActionText, { color: '#10B981' }]}>Ver Mi Centro</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -661,16 +535,16 @@ const HomeScreen = ({ navigation }) => {
                 style={[styles.quickActionCard, { backgroundColor: '#FEF2F2' }]}
                 onPress={() => Alert.alert('Favoritos', 'Centros turísticos favoritos')}
               >
-                <Ionicons name="heart" size={24} color={COLOR_PALETTE.red} />
-                <Text style={[styles.quickActionText, { color: COLOR_PALETTE.red }]}>Favoritos</Text>
+                <Ionicons name="heart" size={24} color="#EF4444" />
+                <Text style={[styles.quickActionText, { color: '#EF4444' }]}>Favoritos</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={[styles.quickActionCard, { backgroundColor: '#EBF4FF' }]}
                 onPress={() => Alert.alert('Buscar', 'Buscar centros turísticos cercanos')}
               >
-                <Ionicons name="search" size={24} color={COLOR_PALETTE.primary} />
-                <Text style={[styles.quickActionText, { color: COLOR_PALETTE.primary }]}>Buscar</Text>
+                <Ionicons name="search" size={24} color="#3B82F6" />
+                <Text style={[styles.quickActionText, { color: '#3B82F6' }]}>Buscar</Text>
               </TouchableOpacity>
             </>
           )}
@@ -685,10 +559,12 @@ const HomeScreen = ({ navigation }) => {
           provider={PROVIDER_GOOGLE}
           initialRegion={mapRegion}
           region={mapRegion}
+          showsPointsOfInterest={false}
+          showsBuildings={true}
+          showsTraffic={false}
+          customMapStyle={GOOGLE_MAP_STYLE}
           showsUserLocation
           showsMyLocationButton
-          showsPointsOfInterest={false}
-          customMapStyle={GOOGLE_MAP_STYLE}
         >
           {/* Marcadores de centros turísticos registrados */}
           {centers.map((center) => (
@@ -696,7 +572,6 @@ const HomeScreen = ({ navigation }) => {
               key={center.id}
               coordinate={center.coordinate}
               anchor={{ x: 0.5, y: 1 }}
-              onPress={() => handleMarkerPress(center)}
             >
               {/* Marcador tipo pin compacto, manteniendo color e icono */}
               <View style={styles.centerPinContainer}>
@@ -712,7 +587,6 @@ const HomeScreen = ({ navigation }) => {
             </Marker>
           ))}
 
-          {/* Marcador temporal eliminado: no mostrar nada al tocar el mapa */}
         </MapView>
 
         {/* Footer simplificado */}
@@ -723,7 +597,7 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.footerButton}
                 onPress={() => setShowMenu(true)}
               >
-                 <Ionicons name="menu" size={22} color={COLOR_PALETTE.text.secondary} />
+                <Ionicons name="menu" size={24} color="#6B7280" />
                 <Text style={styles.footerButtonText}>Menú</Text>
               </TouchableOpacity>
 
@@ -731,19 +605,17 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.footerButton}
                 onPress={() => navigation.navigate('Reviews')}
               >
-                 <Ionicons name="star" size={22} color={COLOR_PALETTE.accent} />
+                <Ionicons name="star" size={24} color="#F59E0B" />
                 <Text style={styles.footerButtonText}>Reseñas</Text>
               </TouchableOpacity>
 
-              {(userData.role === 'centro_turistico' || userData.tipoUsuario === 'CentroTuristico') && (
-                <TouchableOpacity 
-                  style={styles.footerButton}
-                  onPress={() => navigation.navigate('Settings')}
-                >
-                   <Ionicons name="settings" size={22} color={COLOR_PALETTE.secondary} />
-                  <Text style={styles.footerButtonText}>Configurar</Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity 
+                style={styles.footerButton}
+                onPress={() => navigation.navigate('Settings')}
+              >
+                <Ionicons name="settings" size={24} color="#10B981" />
+                <Text style={styles.footerButtonText}>Configurar</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -790,42 +662,16 @@ const HomeScreen = ({ navigation }) => {
                 {getQuickActions().map((action) => (
                   <TouchableOpacity
                     key={action.id}
-                    style={[
-                      action.isLogout ? styles.logoutActionItem : styles.quickActionItem, 
-                      !action.isLogout && { borderLeftColor: action.color }
-                    ]}
+                    style={[styles.quickActionItem, { borderLeftColor: action.color }]}
                     onPress={action.onPress}
                   >
-                    {action.isLogout ? (
-                      <>
-                        <View style={styles.logoutActionIcon}>
-                          <Ionicons 
-                            name={action.icon} 
-                            size={18} 
-                            color={action.color} 
-                          />
-                        </View>
-                        <Text style={styles.logoutActionText}>
-                          {action.title}
-                        </Text>
-                      </>
-                    ) : (
-                      <>
-                        <View style={[styles.quickActionIcon, { backgroundColor: action.color + '20' }]}>
-                          <Ionicons 
-                            name={action.icon} 
-                            size={24} 
-                            color={action.color} 
-                          />
-                        </View>
-                        <View style={styles.quickActionTextContainer}>
-                          <Text style={styles.quickActionTitle}>
-                            {action.title}
-                          </Text>
-                          <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
-                        </View>
-                      </>
-                    )}
+                    <View style={[styles.quickActionIcon, { backgroundColor: action.color + '20' }]}>
+                      <Ionicons name={action.icon} size={24} color={action.color} />
+                    </View>
+                    <View style={styles.quickActionTextContainer}>
+                      <Text style={styles.quickActionTitle}>{action.title}</Text>
+                      <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -922,6 +768,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 4,
   },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  refreshButtonText: {
+    fontSize: 11,
+    color: '#10B981',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  profileActionsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+  },
   menuButton: {
     padding: 8,
   },
@@ -935,10 +801,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
-  markerRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-},
   quickActionCard: {
     flex: 1,
     alignItems: 'center',
@@ -962,10 +824,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlign: 'center',
   },
-   mapContainer: {
-     flex: 1,
-     marginBottom: 0, // Sin margen para que el mapa llegue hasta el footer
-   },
+  mapContainer: {
+    flex: 1,
+    marginBottom: 80, // Espacio para el footer personalizado
+  },
   map: {
     flex: 1,
   },
@@ -1083,39 +945,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
   },
-   footerContainer: {
-     position: 'absolute',
-     bottom: 0,
-     left: 0,
-     right: 0,
-     backgroundColor: 'rgba(255, 255, 255, 0.95)',
-     paddingTop: 8,
-     paddingBottom: 8,
-     borderTopWidth: 0,
-     backdropFilter: 'blur(10px)',
-   },
-   footerContent: {
-     flexDirection: 'row',
-     justifyContent: 'space-evenly',
-     alignItems: 'center',
-     paddingHorizontal: 16,
-     paddingVertical: 0,
-   },
-   footerButton: {
-     alignItems: 'center',
-     justifyContent: 'center',
-     paddingVertical: 6,
-     paddingHorizontal: 8,
-     minWidth: 50,
-     flex: 1,
-   },
-   footerButtonText: {
-     fontSize: 10,
-     fontWeight: '600',
-     color: '#6B7280',
-     marginTop: 2,
-     textAlign: 'center',
-   },
+  footerContainer: {
+    position: 'absolute',
+    bottom: '-15%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    paddingTop: 4,
+  },
+  footerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  footerButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    minWidth: 60,
+  },
+  footerButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 4,
+    textAlign: 'center',
+  },
   // Estilos del menú deslizable
   modalOverlay: {
     flex: 1,
@@ -1236,24 +1094,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     fontWeight: '400',
-  },
-  // Estilos específicos para el botón de cerrar sesión
-  logoutActionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 10,
-    marginBottom: 8,
-  },
-  logoutActionIcon: {
-    marginRight: 4,
-  },
-  logoutActionText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#000000',
   },
 });
 
