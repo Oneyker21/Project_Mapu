@@ -64,7 +64,7 @@ const GOOGLE_MAP_STYLE = [
 
 const HomeScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { user: authUser } = useAuth();
+  const { user: authUser, logout } = useAuth();
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [centers, setCenters] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -379,33 +379,6 @@ const HomeScreen = ({ navigation }) => {
             setShowMenu(false);
             navigation.navigate('Notifications');
           }
-        },
-        {
-          id: 'logout',
-          title: 'Cerrar Sesión',
-          subtitle: 'Salir de la aplicación',
-          icon: 'log-out-outline',
-          color: COLOR_PALETTE.red,
-          isLogout: true,
-          onPress: () => {
-            setShowMenu(false);
-            Alert.alert(
-              'Cerrar Sesión',
-              '¿Estás seguro de que quieres cerrar sesión?',
-              [
-                { text: 'Cancelar', style: 'cancel' },
-                { 
-                  text: 'Cerrar Sesión', 
-                  style: 'destructive',
-                  onPress: () => {
-                    console.log('Cerrando sesión...');
-                    // Aquí puedes agregar la lógica para cerrar sesión
-                    // navigation.navigate('Login');
-                  }
-                }
-              ]
-            );
-          }
         }
       ];
     } else {
@@ -499,10 +472,13 @@ const HomeScreen = ({ navigation }) => {
                 { 
                   text: 'Cerrar Sesión', 
                   style: 'destructive',
-                  onPress: () => {
-                    console.log('Cerrando sesión...');
-                    // Aquí puedes agregar la lógica para cerrar sesión
-                    // navigation.navigate('Login');
+                  onPress: async () => {
+                    try {
+                      await logout();
+                      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                    } catch (e) {
+                      console.log('Error al cerrar sesión:', e?.message);
+                    }
                   }
                 }
               ]
