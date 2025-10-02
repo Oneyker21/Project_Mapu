@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Modal, ActivityIndicator, PanResponder, Animated } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
+import * as Location from 'expo-location';
+
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -87,6 +89,7 @@ const HomeScreen = ({ navigation }) => {
 
   const loadUserData = async () => {
     try {
+      console.log('HomeScreen - loadUserData ejecutándose...');
       if (authUser) {
         // Determinar la colección según el rol del usuario
         let collectionName = 'turistas'; // Por defecto turistas
@@ -177,6 +180,18 @@ const HomeScreen = ({ navigation }) => {
     loadUserData();
     loadCenters();
   }, []);
+
+  // Tras cargar datos de usuario, si es Turista, solicitar permiso y centrar en su ubicación
+  useEffect(() => {
+    if (!loadingUserData && userData) {
+      const isTourist = userData.role === 'tourist' || userData.tipoUsuario === 'Turista';
+      if (isTourist) {
+        centerToUserLocation();
+      }
+    }
+  }, [loadingUserData, userData]);
+
+  // (centerToUserLocation definido más abajo, usando requestLocationPermissionHome)
 
   // Refresh automático cada 30 segundos solo para centros turísticos
   useEffect(() => {
@@ -364,10 +379,54 @@ const HomeScreen = ({ navigation }) => {
             setShowMenu(false);
             navigation.navigate('Notifications');
           }
+        },
+        {
+          id: 'logout',
+          title: 'Cerrar Sesión',
+          subtitle: 'Salir de la aplicación',
+          icon: 'log-out-outline',
+          color: COLOR_PALETTE.red,
+          isLogout: true,
+          onPress: () => {
+            setShowMenu(false);
+            Alert.alert(
+              'Cerrar Sesión',
+              '¿Estás seguro de que quieres cerrar sesión?',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                { 
+                  text: 'Cerrar Sesión', 
+                  style: 'destructive',
+                  onPress: () => {
+                    console.log('Cerrando sesión...');
+                    // Aquí puedes agregar la lógica para cerrar sesión
+                    // navigation.navigate('Login');
+                  }
+                }
+              ]
+            );
+          }
         }
       ];
     } else {
       return [
+        {
+          id: 'profile',
+          title: 'Mi Perfil',
+          subtitle: 'Ver y editar información personal',
+          icon: 'person-circle',
+          color: COLOR_PALETTE.primary,
+          onPress: () => {
+            setShowMenu(false);
+            navigation.navigate('TuristaProfile', {
+              onProfileUpdate: () => {
+                // Recargar datos del usuario cuando se actualice el perfil
+                console.log('HomeScreen - Callback onProfileUpdate ejecutado');
+                loadUserData();
+              }
+            });
+          }
+        },
         {
           id: 'favorites',
           title: 'Mis Favoritos',
@@ -422,8 +481,67 @@ const HomeScreen = ({ navigation }) => {
             setShowMenu(false);
             Alert.alert('Notificaciones', 'Configurar notificaciones');
           }
+        },
+        {
+          id: 'logout',
+          title: 'Cerrar Sesión',
+          subtitle: 'Salir de la aplicación',
+          icon: 'log-out-outline',
+          color: COLOR_PALETTE.red,
+          isLogout: true,
+          onPress: () => {
+            setShowMenu(false);
+            Alert.alert(
+              'Cerrar Sesión',
+              '¿Estás seguro de que quieres cerrar sesión?',
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                { 
+                  text: 'Cerrar Sesión', 
+                  style: 'destructive',
+                  onPress: () => {
+                    console.log('Cerrando sesión...');
+                    // Aquí puedes agregar la lógica para cerrar sesión
+                    // navigation.navigate('Login');
+                  }
+                }
+              ]
+            );
+          }
         }
       ];
+    }
+  };
+
+  // Solicitar permisos de ubicación y centrar el mapa en la ubicación del usuario (solo Turista)
+  const requestLocationPermissionHome = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      return status === 'granted';
+    } catch (e) {
+      console.log('Home - Error pidiendo permisos ubicación:', e?.message);
+      return false;
+    }
+  };
+
+  const centerToUserLocation = async () => {
+    try {
+      const hasPerm = await requestLocationPermissionHome();
+      if (!hasPerm) return;
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { latitude, longitude } = loc.coords;
+      const region = {
+        latitude,
+        longitude,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      };
+      setMapRegion(region);
+      if (mapRef && mapRef.animateToRegion) {
+        mapRef.animateToRegion(region, 800);
+      }
+    } catch (e) {
+      console.log('Home - Error obteniendo ubicación actual:', e?.message);
     }
   };
 
@@ -442,7 +560,23 @@ const HomeScreen = ({ navigation }) => {
       {/* Header personalizado */}
       <View style={styles.headerContainer}>
         {/* Información del perfil */}
-        <View style={styles.profileSection}>
+        <TouchableOpacity 
+          style={styles.profileSection}
+          onPress={() => {
+            const isCenter = userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico';
+            if (isCenter) {
+              navigation.navigate('CentroTuristicoProfile');
+            } else {
+              navigation.navigate('TuristaProfile', {
+                onProfileUpdate: () => {
+                  console.log('HomeScreen - Callback onProfileUpdate ejecutado desde header');
+                  loadUserData();
+                }
+              });
+            }
+          }}
+          activeOpacity={0.7}
+        >
           <View style={styles.profileInfo}>
             <View style={styles.profileContainer}>
               {userData?.imagenPerfil ? (
@@ -464,7 +598,9 @@ const HomeScreen = ({ navigation }) => {
             </View>
             <View style={styles.userInfo}>
               <Text style={styles.userName}>
-                {userData?.nombreNegocio || userData?.businessName || userData?.firstName || authUser?.displayName || 'Usuario'}
+                {userData?.nombreNegocio || userData?.businessName || 
+                 (userData?.nombres && userData?.apellidos ? `${userData.nombres} ${userData.apellidos}` : '') ||
+                 userData?.firstName || authUser?.displayName || 'Usuario'}
               </Text>
               <Text style={styles.userRole}>
                 {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'Centro Turístico' : 'Turista'}
@@ -476,7 +612,7 @@ const HomeScreen = ({ navigation }) => {
               )}
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Acciones rápidas principales */}
         <View style={styles.quickActionsSection}>
@@ -577,7 +713,6 @@ const HomeScreen = ({ navigation }) => {
           showsMyLocationButton
           showsPointsOfInterest={false}
           customMapStyle={GOOGLE_MAP_STYLE}
-          onPress={handleMapPress}
         >
           {/* Marcadores de centros turísticos registrados */}
           {centers.map((center) => (
@@ -585,6 +720,7 @@ const HomeScreen = ({ navigation }) => {
               key={center.id}
               coordinate={center.coordinate}
               anchor={{ x: 0.5, y: 1 }}
+              onPress={() => handleMarkerPress(center)}
             >
               {/* Marcador tipo pin compacto, manteniendo color e icono */}
               <View style={styles.centerPinContainer}>
@@ -600,17 +736,7 @@ const HomeScreen = ({ navigation }) => {
             </Marker>
           ))}
 
-          {/* Marcador temporal al tocar el mapa */}
-          {selectedLocation && (
-            <Marker
-              coordinate={selectedLocation}
-              title="Ubicación seleccionada"
-            >
-              <View style={styles.tempMarker}>
-                <Ionicons name="location" size={16} color="#FFFFFF" />
-              </View>
-            </Marker>
-          )}
+          {/* Marcador temporal eliminado: no mostrar nada al tocar el mapa */}
         </MapView>
 
         {/* Footer simplificado */}
@@ -688,16 +814,42 @@ const HomeScreen = ({ navigation }) => {
                 {getQuickActions().map((action) => (
                   <TouchableOpacity
                     key={action.id}
-                    style={[styles.quickActionItem, { borderLeftColor: action.color }]}
+                    style={[
+                      action.isLogout ? styles.logoutActionItem : styles.quickActionItem, 
+                      !action.isLogout && { borderLeftColor: action.color }
+                    ]}
                     onPress={action.onPress}
                   >
-                    <View style={[styles.quickActionIcon, { backgroundColor: action.color + '20' }]}>
-                      <Ionicons name={action.icon} size={24} color={action.color} />
-                    </View>
-                    <View style={styles.quickActionTextContainer}>
-                      <Text style={styles.quickActionTitle}>{action.title}</Text>
-                      <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
-                    </View>
+                    {action.isLogout ? (
+                      <>
+                        <View style={styles.logoutActionIcon}>
+                          <Ionicons 
+                            name={action.icon} 
+                            size={18} 
+                            color={action.color} 
+                          />
+                        </View>
+                        <Text style={styles.logoutActionText}>
+                          {action.title}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <View style={[styles.quickActionIcon, { backgroundColor: action.color + '20' }]}>
+                          <Ionicons 
+                            name={action.icon} 
+                            size={24} 
+                            color={action.color} 
+                          />
+                        </View>
+                        <View style={styles.quickActionTextContainer}>
+                          <Text style={styles.quickActionTitle}>
+                            {action.title}
+                          </Text>
+                          <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
+                        </View>
+                      </>
+                    )}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -807,6 +959,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
+  markerRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
   quickActionCard: {
     flex: 1,
     alignItems: 'center',
@@ -1104,6 +1260,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     fontWeight: '400',
+  },
+  // Estilos específicos para el botón de cerrar sesión
+  logoutActionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  logoutActionIcon: {
+    marginRight: 4,
+  },
+  logoutActionText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#000000',
   },
 });
 

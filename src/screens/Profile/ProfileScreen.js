@@ -137,7 +137,12 @@ const ProfileScreen = ({ navigation }) => {
           title: 'Mi Perfil',
           icon: 'person',
           description: 'Editar información personal',
-          onPress: () => Alert.alert('Perfil', 'Editar información personal')
+          onPress: () => navigation.navigate('TuristaProfile', {
+            onProfileUpdate: () => {
+              // Recargar datos del usuario cuando se actualice el perfil
+              loadUserData();
+            }
+          })
         },
         {
           id: 'favorites',

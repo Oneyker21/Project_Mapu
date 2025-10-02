@@ -10,6 +10,7 @@ import RegisterScreen from '../screens/Register/RegisterScreen';
 import HomeScreen from '../screens/Home/HomeScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import CentroTuristicoProfileScreen from '../screens/Profile/CentroTuristicoProfileScreen';
+import TuristaProfileScreen from '../screens/Profile/TuristaProfileScreen';
 import ServicesMainScreen from '../screens/Services/ServicesMainScreen';
 import MapPickerScreen from '../screens/Map/MapPickerScreen';
 import ReviewsScreen from '../screens/Reviews/ReviewsScreen';
@@ -94,6 +95,7 @@ export function AppNavigator() {
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="MapPicker" component={MapPickerScreen} />
       <Stack.Screen name="CentroTuristicoProfile" component={CentroTuristicoProfileScreen} />
+      <Stack.Screen name="TuristaProfile" component={TuristaProfileScreen} />
       <Stack.Screen 
         name="ServicesMain" 
         component={ServicesMainScreen}
