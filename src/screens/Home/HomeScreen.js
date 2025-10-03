@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Modal, ActivityIndicator, PanResponder, Animated } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Modal, ActivityIndicator, PanResponder, Animated, TextInput } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,6 +45,11 @@ const HomeScreen = ({ navigation }) => {
   const [showNotification, setShowNotification] = useState(false);
   const [notificationText, setNotificationText] = useState('');
   const [hasCenteredOnUser, setHasCenteredOnUser] = useState(false);
+  // Estado para búsqueda (turista)
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchingNearby, setSearchingNearby] = useState(false);
   // Determinar si el usuario es centro turístico (usa userData o, como fallback, authUser)
   const isCenterUser = (userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') || (authUser?.role === 'centro_turistico');
   
@@ -292,6 +297,26 @@ const HomeScreen = ({ navigation }) => {
     return icon;
   };
 
+  // Calcular distancia en KM entre dos coordenadas (Haversine)
+  const getDistanceInKm = (lat1, lon1, lat2, lon2) => {
+    if (
+      typeof lat1 !== 'number' || typeof lon1 !== 'number' ||
+      typeof lat2 !== 'number' || typeof lon2 !== 'number'
+    ) {
+      return Infinity;
+    }
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const R = 6371; // Radio de la Tierra en km
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
   const handleMarkerPress = (center) => {
     Alert.alert(
       center.businessName || 'Centro Turístico',
@@ -455,7 +480,7 @@ const HomeScreen = ({ navigation }) => {
           color: '#3B82F6',
           onPress: () => {
             setShowMenu(false);
-            Alert.alert('Buscar', 'Buscar centros turísticos cercanos');
+            setTimeout(() => setShowSearch(true), 200);
           }
         },
         {
@@ -660,7 +685,7 @@ const HomeScreen = ({ navigation }) => {
               
               <TouchableOpacity 
                 style={[styles.quickActionCard, { backgroundColor: '#EBF4FF' }]}
-                onPress={() => Alert.alert('Buscar', 'Buscar centros turísticos cercanos')}
+                onPress={() => setShowSearch(true)}
               >
                 <Ionicons name="search" size={24} color="#3B82F6" />
                 <Text style={[styles.quickActionText, { color: '#3B82F6' }]}>Buscar</Text>
@@ -684,7 +709,8 @@ const HomeScreen = ({ navigation }) => {
           showsTraffic={false}
           customMapStyle={GOOGLE_MAP_STYLE}
           showsUserLocation={!isCenterUser}
-          showsMyLocationButton={false}
+          // Botón nativo de Google para centrar en mi ubicación (Android)
+          showsMyLocationButton={!isCenterUser}
         >
           {/* Marcadores de centros turísticos registrados */}
           {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico'
@@ -802,6 +828,202 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
+
+{/* Modal de Búsqueda (Turista) */}
+<Modal
+  visible={showSearch}
+  transparent={true}
+  animationType="slide"
+  onRequestClose={() => setShowSearch(false)}
+>
+  <View style={styles.modalOverlay}>
+    <TouchableOpacity 
+      style={styles.modalBackground}
+      activeOpacity={1}
+      onPress={() => setShowSearch(false)}
+    />
+
+    <View style={[styles.menuContainer, { height: '85%' }]}>
+      <View style={styles.dragHandleContainer}>
+        <View style={styles.dragHandle} />
+      </View>
+
+      <View style={styles.menuHeader}>
+        <Text style={styles.menuTitle}>Buscar Centros Turísticos</Text>
+        <TouchableOpacity style={styles.closeButton} onPress={() => setShowSearch(false)}>
+          <Ionicons name="close" size={24} color="#6B7280" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Barra de búsqueda */}
+      <View style={{ paddingHorizontal: 20, paddingBottom: 12 }}>
+        <View style={{
+          backgroundColor: '#FFFFFF',
+          borderWidth: 1,
+          borderColor: '#E5E7EB',
+          borderRadius: 10,
+          paddingHorizontal: 12,
+          paddingVertical: 10,
+        }}>
+          <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>
+            Buscar por nombre, categoría o dirección
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="search" size={20} color="#6B7280" />
+            <Text style={{ width: 8 }} />
+            <TextInput
+              placeholder="Ej. Hotel, Museo, Granada"
+              placeholderTextColor="#9CA3AF"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              onSubmitEditing={() => {
+                const q = (searchQuery || '').toLowerCase().trim();
+                const results = (centers || []).filter((c) => {
+                  const name = (c?.businessName || c?.nombreNegocio || '').toLowerCase();
+                  const cat = (c?.category || c?.categoriaNegocio || '').toLowerCase();
+                  const addr = (c?.address || c?.direccion || '').toLowerCase();
+                  return q && (name.includes(q) || cat.includes(q) || addr.includes(q));
+                });
+                setSearchResults(results);
+              }}
+              style={{ flex: 1, color: '#111827', paddingVertical: 6 }}
+            />
+          </View>
+        </View>
+
+        {/* Botones de acción */}
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+          <TouchableOpacity
+            onPress={() => {
+              setSearchingNearby(true);
+              // Buscar cercanos: filtrar por distancia al centro del mapa
+              const results = (centers || [])
+                .map((c) => {
+                  const d = getDistanceInKm(
+                    mapRegion?.latitude,
+                    mapRegion?.longitude,
+                    c?.coordinate?.latitude,
+                    c?.coordinate?.longitude
+                  );
+                  return { ...c, _distanceKm: d };
+                })
+                .filter((c) => Number.isFinite(c._distanceKm))
+                .filter((c) => c._distanceKm <= 15) // radio de 15 km
+                .sort((a, b) => a._distanceKm - b._distanceKm);
+              setSearchResults(results);
+              setSearchingNearby(false);
+            }}
+            style={{
+              flex: 1,
+              backgroundColor: '#EBF4FF',
+              paddingVertical: 10,
+              borderRadius: 10,
+              alignItems: 'center'
+            }}
+          >
+            <Text style={{ color: '#3B82F6', fontWeight: '600' }}>Buscar cercanos (15 km)</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              // Filtrar por texto
+              const q = (searchQuery || '').toLowerCase().trim();
+              const results = (centers || []).filter((c) => {
+                const name = (c?.businessName || c?.nombreNegocio || '').toLowerCase();
+                const cat = (c?.category || c?.categoriaNegocio || '').toLowerCase();
+                const addr = (c?.address || c?.direccion || '').toLowerCase();
+                return (
+                  (q && (name.includes(q) || cat.includes(q) || addr.includes(q)))
+                );
+              });
+              setSearchResults(results);
+            }}
+            style={{
+              flex: 1,
+              backgroundColor: '#F0FDF4',
+              paddingVertical: 10,
+              borderRadius: 10,
+              alignItems: 'center'
+            }}
+          >
+            <Text style={{ color: '#10B981', fontWeight: '600' }}>Buscar por texto</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Lista de resultados */}
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+          {searchingNearby ? (
+            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+              <ActivityIndicator size="small" color="#3B82F6" />
+              <Text style={{ marginTop: 8, color: '#6B7280' }}>Buscando cercanos...</Text>
+            </View>
+          ) : (
+            (searchResults || []).map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={{
+                  backgroundColor: '#F9FAFB',
+                  padding: 12,
+                  borderRadius: 12,
+                  marginBottom: 10,
+                  borderLeftWidth: 4,
+                  borderLeftColor: '#3B82F6'
+                }}
+                onPress={() => {
+                  const target = {
+                    latitude: item?.coordinate?.latitude,
+                    longitude: item?.coordinate?.longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  };
+                  if (target.latitude && target.longitude) {
+                    setMapRegion(target);
+                    if (mapRef) {
+                      mapRef.animateToRegion(target, 1000);
+                    }
+                    setShowSearch(false);
+                    showFloatingNotification(`Centrado en ${item.businessName || item.nombreNegocio}`);
+                  }
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: '#EBF4FF',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginRight: 12
+                  }}>
+                    <Ionicons name={getCategoryIcon(item.category || item.categoriaNegocio)} size={20} color="#3B82F6" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontWeight: '700', color: '#111827' }}>
+                      {item.businessName || item.nombreNegocio || 'Centro Turístico'}
+                    </Text>
+                    <Text style={{ color: '#6B7280', fontSize: 12 }}>
+                      {item.category || item.categoriaNegocio || 'Sin categoría'}
+                    </Text>
+                    {Number.isFinite(item._distanceKm) && (
+                      <Text style={{ color: '#10B981', fontSize: 12, marginTop: 2 }}>
+                        {item._distanceKm.toFixed(1)} km
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </View>
+  </View>
+</Modal>
+
 
       {/* Notificación flotante personalizada */}
       {showNotification && (

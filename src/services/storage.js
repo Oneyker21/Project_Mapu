@@ -6,6 +6,17 @@ const STORAGE_KEYS = {
   USER_DATA: 'user_data'
 };
 
+// Obtener flag de "Recordarme"
+export const getRememberUserFlag = async () => {
+  try {
+    const rememberUser = await AsyncStorage.getItem(STORAGE_KEYS.REMEMBER_USER);
+    return rememberUser === 'true';
+  } catch (error) {
+    console.error('Error al obtener flag RememberUser:', error);
+    return false;
+  }
+};
+
 // Guardar credenciales del usuario
 export const saveUserCredentials = async (email, password, rememberUser = false) => {
   try {
@@ -85,6 +96,11 @@ export const clearStoredData = async () => {
 // Verificar si hay una sesión guardada
 export const hasStoredSession = async () => {
   try {
+    // Solo considerar sesión válida si el usuario eligió "Recordarme"
+    const rememberUser = await AsyncStorage.getItem(STORAGE_KEYS.REMEMBER_USER);
+    if (rememberUser !== 'true') {
+      return false;
+    }
     const userData = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
     return !!userData;
   } catch (error) {
