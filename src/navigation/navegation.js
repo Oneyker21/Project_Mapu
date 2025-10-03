@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createDrawerNavigator } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
 
 import LoginScreen from '../screens/Auth/LoginScreen';
@@ -24,7 +23,6 @@ import TermsAndConditionsScreen from '../screens/Legal/TermsAndConditionsScreen'
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-const Drawer = createDrawerNavigator();
 
 function TabsNavigator() {
   return (
@@ -78,19 +76,12 @@ function TabsNavigator() {
   );
 }
 
-function MainDrawer() {
-  return (
-    <Drawer.Navigator screenOptions={{ headerShown: false }}>
-      <Drawer.Screen name="Inicio" component={TabsNavigator} />
-      <Drawer.Screen name="Perfil" component={ProfileScreen} />
-    </Drawer.Navigator>
-  );
-}
+// Drawer eliminado para evitar panel lateral por deslizamiento
 
 export function AppNavigator() {
   return (
     <Stack.Navigator initialRouteName="Main" screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Main" component={MainDrawer} />
+      <Stack.Screen name="Main" component={TabsNavigator} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="MapPicker" component={MapPickerScreen} />

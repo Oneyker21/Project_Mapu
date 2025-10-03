@@ -4,13 +4,14 @@ import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Mod
 import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
 
 const INITIAL_REGION = {
-  latitude: 12.136389,
-  longitude: -86.251389,
+  latitude: 12.1167,
+  longitude: -85.3667,
   latitudeDelta: 0.05,
   longitudeDelta: 0.05,
 };
@@ -43,6 +44,7 @@ const HomeScreen = ({ navigation }) => {
   
   const [showNotification, setShowNotification] = useState(false);
   const [notificationText, setNotificationText] = useState('');
+  const [hasCenteredOnUser, setHasCenteredOnUser] = useState(false);
   
   // Función para mostrar notificación flotante
   const showFloatingNotification = (text) => {
@@ -89,29 +91,52 @@ const HomeScreen = ({ navigation }) => {
 
   const loadCenters = async () => {
     try {
-      const centersSnapshot = await getDocs(collection(db, 'centrosTuristicos'));
+      const isCenterUser = (
+        userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico' ||
+        authUser?.role === 'centro_turistico'
+      );
       const centersData = [];
-
-      centersSnapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-
-        // Usar latitud/longitud (español) como prioridad, luego latitude/longitude (inglés)
-        const lat = data.latitud || data.latitude;
-        const lng = data.longitud || data.longitude;
-        
-        if (lat && lng) {
-          centersData.push({
-            id: docSnap.id,
-            ...data,
-            businessName: data.nombreNegocio || data.businessName,
-            category: data.categoriaNegocio || data.category,
-            coordinate: {
-              latitude: parseFloat(lat),
-              longitude: parseFloat(lng)
-            }
-          });
+      if (isCenterUser && authUser?.uid) {
+        // Solo cargar el propio centro
+        const docSnap = await getDoc(doc(db, 'centrosTuristicos', authUser.uid));
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const lat = data.latitud || data.latitude;
+          const lng = data.longitud || data.longitude;
+          if (lat && lng) {
+            centersData.push({
+              id: docSnap.id,
+              ...data,
+              businessName: data.nombreNegocio || data.businessName,
+              category: data.categoriaNegocio || data.category,
+              coordinate: {
+                latitude: parseFloat(lat),
+                longitude: parseFloat(lng)
+              }
+            });
+          }
         }
-      });
+      } else {
+        // Turista u otro: cargar todos los centros
+        const centersSnapshot = await getDocs(collection(db, 'centrosTuristicos'));
+        centersSnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const lat = data.latitud || data.latitude;
+          const lng = data.longitud || data.longitude;
+          if (lat && lng) {
+            centersData.push({
+              id: docSnap.id,
+              ...data,
+              businessName: data.nombreNegocio || data.businessName,
+              category: data.categoriaNegocio || data.category,
+              coordinate: {
+                latitude: parseFloat(lat),
+                longitude: parseFloat(lng)
+              }
+            });
+          }
+        });
+      }
 
       console.log('Centros cargados:', centersData.map(c => ({ 
         name: c.businessName, 
@@ -132,6 +157,13 @@ const HomeScreen = ({ navigation }) => {
     loadUserData();
     loadCenters();
   }, []);
+
+  // Re-cargar centros cuando se determine el rol/datos del usuario
+  useEffect(() => {
+    if (!loadingUserData) {
+      loadCenters();
+    }
+  }, [loadingUserData, userData]);
 
   // Recargar datos de usuario cuando Home recobra foco (después de editar perfil)
   useFocusEffect(
@@ -181,6 +213,56 @@ const HomeScreen = ({ navigation }) => {
     }
   }, [userData, authUser, hasShownWelcome]);
 
+  // Efecto para turistas: solicitar permisos y centrar en ubicación actual SOLO UNA VEZ al entrar por primera vez al Home.
+  useEffect(() => {
+    // Solo ejecutar cuando ya no estamos cargando datos del usuario
+    if (loadingUserData) return;
+
+    const isCenter = userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico';
+
+    if (!isCenter) {
+      // Si ya centramos una vez al usuario, no volver a hacerlo al regresar al Home
+      if (hasCenteredOnUser) return;
+      (async () => {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') {
+            console.log('Permiso de ubicación no concedido para turista, usando ubicación por defecto (Juigalpa).');
+            // Asegurar que el mapa tenga la ubicación por defecto (Juigalpa)
+            setMapRegion((prev) => prev || INITIAL_REGION);
+            setHasCenteredOnUser(true);
+            return;
+          }
+
+          const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+          const newRegion = {
+            latitude: current.coords.latitude,
+            longitude: current.coords.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          };
+          setMapRegion(newRegion);
+          if (mapRef) {
+            mapRef.animateToRegion(newRegion, 1000);
+          }
+          showFloatingNotification('Ubicación actual detectada');
+          setHasCenteredOnUser(true);
+        } catch (e) {
+          console.log('Error obteniendo ubicación del turista:', e?.message || e);
+          setMapRegion((prev) => prev || INITIAL_REGION);
+          setHasCenteredOnUser(true);
+        }
+      })();
+    } else {
+      // Si es centro turístico pero no tiene coordenadas, asegurar fallback a Juigalpa
+      const userLat = userData?.latitud || userData?.latitude;
+      const userLng = userData?.longitud || userData?.longitude;
+      if (!userLat || !userLng) {
+        setMapRegion((prev) => prev || INITIAL_REGION);
+      }
+    }
+  }, [loadingUserData, userData, mapRef, hasCenteredOnUser]);
+
   const handleMapPress = (e) => {
     setSelectedLocation(e.nativeEvent.coordinate);
   };
@@ -217,6 +299,28 @@ const HomeScreen = ({ navigation }) => {
         { text: 'Cerrar', style: 'cancel' }
       ]
     );
+  };
+
+  // Centrar el mapa en el centro turístico del usuario (si existe)
+  const centerToMyCenter = () => {
+    const userLat = userData?.latitud || userData?.latitude;
+    const userLng = userData?.longitud || userData?.longitude;
+    if (userLat && userLng && userLat !== '' && userLng !== '') {
+      const centerCoords = {
+        latitude: parseFloat(userLat),
+        longitude: parseFloat(userLng),
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      if (mapRef) {
+        mapRef.animateToRegion(centerCoords, 1000);
+      }
+      setMapRegion(centerCoords);
+      showFloatingNotification(`Mostrando la ubicación de ${userData?.nombreNegocio || userData?.businessName || 'tu centro'}`);
+    } else {
+      // Sin alert intrusivo: notificación ligera
+      showFloatingNotification('No tienes una ubicación registrada. Ve a Mi Centro para agregarla.');
+    }
   };
 
   // Funcion reusable para abrir MapPicker con la ubicacion guardada y acción de guardado
@@ -531,12 +635,8 @@ const HomeScreen = ({ navigation }) => {
                         
                         // También actualizar el estado
                         setMapRegion(centerCoords);
-                        
-                        Alert.alert(
-                          'Ubicación del Centro',
-                          `Te hemos dirigido a la ubicación registrada de ${userData.nombreNegocio || userData.businessName || 'tu centro'}.\n\nCoordenadas: ${userLat}, ${userLng}`,
-                          [{ text: 'Perfecto' }]
-                        );
+                        // Notificación no intrusiva
+                        showFloatingNotification(`Mostrando la ubicación de ${userData.nombreNegocio || userData.businessName || 'tu centro'}`);
                       } else {
                         console.log('Ver Mi Centro - No se encontraron coordenadas válidas');
                         Alert.alert(
@@ -585,11 +685,14 @@ const HomeScreen = ({ navigation }) => {
           showsBuildings={true}
           showsTraffic={false}
           customMapStyle={GOOGLE_MAP_STYLE}
-          showsUserLocation
-          showsMyLocationButton
+          showsUserLocation={!(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico')}
+          showsMyLocationButton={!(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico')}
         >
           {/* Marcadores de centros turísticos registrados */}
-          {centers.map((center) => (
+          {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico'
+            ? centers.filter(c => c.id === authUser?.uid)
+            : centers
+           ).map((center) => (
             <Marker
               key={center.id}
               coordinate={center.coordinate}
@@ -610,6 +713,13 @@ const HomeScreen = ({ navigation }) => {
           ))}
 
         </MapView>
+
+        {/* Botón flotante para CENTRO TURÍSTICO: "Ver mi centro" */}
+        {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') && (
+          <TouchableOpacity style={styles.locateCenterButton} onPress={centerToMyCenter} activeOpacity={0.8}>
+            <Ionicons name="locate" size={20} color="#374151" />
+          </TouchableOpacity>
+        )}
 
         {/* Footer simplificado */}
         {authUser && userData && (
@@ -767,6 +877,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     fontWeight: '500',
+  },
+  locateCenterButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   propietarioName: {
     fontSize: 12,
