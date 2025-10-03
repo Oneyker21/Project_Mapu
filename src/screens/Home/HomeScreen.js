@@ -45,6 +45,8 @@ const HomeScreen = ({ navigation }) => {
   const [showNotification, setShowNotification] = useState(false);
   const [notificationText, setNotificationText] = useState('');
   const [hasCenteredOnUser, setHasCenteredOnUser] = useState(false);
+  // Determinar si el usuario es centro turístico (usa userData o, como fallback, authUser)
+  const isCenterUser = (userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') || (authUser?.role === 'centro_turistico');
   
   // Función para mostrar notificación flotante
   const showFloatingNotification = (text) => {
@@ -676,6 +678,7 @@ const HomeScreen = ({ navigation }) => {
       {/* Contenido del mapa */}
       <View style={styles.mapContainer}>
         <MapView
+          key={isCenterUser ? 'center-map' : 'tourist-map'}
           ref={setMapRef}
           style={styles.map}
           provider={PROVIDER_GOOGLE}
@@ -685,8 +688,8 @@ const HomeScreen = ({ navigation }) => {
           showsBuildings={true}
           showsTraffic={false}
           customMapStyle={GOOGLE_MAP_STYLE}
-          showsUserLocation={!(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico')}
-          showsMyLocationButton={!(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico')}
+          showsUserLocation={!isCenterUser}
+          showsMyLocationButton={false}
         >
           {/* Marcadores de centros turísticos registrados */}
           {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico'
@@ -713,13 +716,6 @@ const HomeScreen = ({ navigation }) => {
           ))}
 
         </MapView>
-
-        {/* Botón flotante para CENTRO TURÍSTICO: "Ver mi centro" */}
-        {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') && (
-          <TouchableOpacity style={styles.locateCenterButton} onPress={centerToMyCenter} activeOpacity={0.8}>
-            <Ionicons name="locate" size={20} color="#374151" />
-          </TouchableOpacity>
-        )}
 
         {/* Footer simplificado */}
         {authUser && userData && (
@@ -877,24 +873,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     fontWeight: '500',
-  },
-  locateCenterButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    width: 42,
-    height: 42,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   propietarioName: {
     fontSize: 12,

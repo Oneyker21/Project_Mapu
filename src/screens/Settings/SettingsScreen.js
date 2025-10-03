@@ -87,8 +87,8 @@ const SettingsScreen = ({ navigation }) => {
       items: [
         {
           icon: 'person-outline',
-          title: 'Perfil',
-          subtitle: 'Editar información personal',
+          title: isCenter ? 'Mi centro' : 'Perfil',
+          subtitle: isCenter ? 'Editar centro turístico' : 'Editar información personal',
           onPress: () => navigation.navigate(isCenter ? 'CentroTuristicoProfile' : 'TuristaProfile'),
         },
         {
