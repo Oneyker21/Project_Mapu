@@ -80,8 +80,8 @@ function TabsNavigator() {
 
 export function AppNavigator() {
   return (
-    <Stack.Navigator initialRouteName="Main" screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Main" component={TabsNavigator} />
+    <Stack.Navigator initialRouteName="Tabs" screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Tabs" component={TabsNavigator} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="MapPicker" component={MapPickerScreen} />

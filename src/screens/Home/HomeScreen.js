@@ -511,13 +511,8 @@ const HomeScreen = ({ navigation }) => {
       <View style={styles.headerContainer}>
         {/* Información del perfil (tappable para visualizar perfil) */}
         <View style={styles.profileSection}>
-          <TouchableOpacity
+          <View
             style={styles.profileInfo}
-            activeOpacity={0.9}
-            onPress={() => {
-              const isCenter = (userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico');
-              navigation.navigate(isCenter ? 'CentroTuristicoProfile' : 'TuristaProfile', { readOnly: true });
-            }}
           >
             <View style={styles.profileContainer}>
               {userData?.imagenPerfil ? (
@@ -589,7 +584,7 @@ const HomeScreen = ({ navigation }) => {
                 </View>
               )}
             </View>
-          </TouchableOpacity>
+          </View>
         </View>
 
         {/* Acciones rápidas principales */}
