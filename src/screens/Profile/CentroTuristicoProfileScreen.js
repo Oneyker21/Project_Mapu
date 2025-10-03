@@ -102,7 +102,7 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
       const onBackPress = () => {
         if (hasUnsavedChanges) {
           showUnsavedChangesAlert(() => {
-            navigation.navigate('Main');
+            navigation.navigate('Tabs');
           });
           return true; // Prevenir el comportamiento por defecto
         }
@@ -840,7 +840,7 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
         [
           {
             text: 'OK',
-            onPress: () => navigation.navigate('Main')
+            onPress: () => navigation.navigate('Tabs')
           }
         ]
       );
@@ -880,7 +880,7 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
         >
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Personalizar Perfil</Text>
+        <Text style={styles.headerTitle}>Editar Mi Centro</Text>
         <TouchableOpacity 
           style={styles.saveButton}
           onPress={handleSave}

@@ -8,7 +8,7 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 const DEFAULT_REGION = {
-  latitude: 12.1167,
+  latitude: 12.1167, // Juigalpa
   longitude: -85.3667,
   latitudeDelta: 0.02,
   longitudeDelta: 0.02,

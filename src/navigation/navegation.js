@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createDrawerNavigator } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
 
 import LoginScreen from '../screens/Auth/LoginScreen';
@@ -10,6 +9,7 @@ import RegisterScreen from '../screens/Register/RegisterScreen';
 import HomeScreen from '../screens/Home/HomeScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import CentroTuristicoProfileScreen from '../screens/Profile/CentroTuristicoProfileScreen';
+import TuristaProfileScreen from '../screens/Profile/TuristaProfileScreen';
 import ServicesMainScreen from '../screens/Services/ServicesMainScreen';
 import MapPickerScreen from '../screens/Map/MapPickerScreen';
 import ReviewsScreen from '../screens/Reviews/ReviewsScreen';
@@ -23,7 +23,6 @@ import TermsAndConditionsScreen from '../screens/Legal/TermsAndConditionsScreen'
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-const Drawer = createDrawerNavigator();
 
 function TabsNavigator() {
   return (
@@ -77,23 +76,17 @@ function TabsNavigator() {
   );
 }
 
-function MainDrawer() {
-  return (
-    <Drawer.Navigator screenOptions={{ headerShown: false }}>
-      <Drawer.Screen name="Inicio" component={TabsNavigator} />
-      <Drawer.Screen name="Perfil" component={ProfileScreen} />
-    </Drawer.Navigator>
-  );
-}
+// Drawer eliminado para evitar panel lateral por deslizamiento
 
 export function AppNavigator() {
   return (
-    <Stack.Navigator initialRouteName="Main" screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Main" component={MainDrawer} />
+    <Stack.Navigator initialRouteName="Tabs" screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Tabs" component={TabsNavigator} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="MapPicker" component={MapPickerScreen} />
       <Stack.Screen name="CentroTuristicoProfile" component={CentroTuristicoProfileScreen} />
+      <Stack.Screen name="TuristaProfile" component={TuristaProfileScreen} />
       <Stack.Screen 
         name="ServicesMain" 
         component={ServicesMainScreen}

@@ -79,15 +79,17 @@ const SettingsScreen = ({ navigation }) => {
     );
   };
 
+  const isCenter = user?.role === 'centro_turistico' || user?.tipoUsuario === 'CentroTuristico';
+
   const settingsSections = [
     {
       title: 'Cuenta',
       items: [
         {
           icon: 'person-outline',
-          title: 'Perfil',
-          subtitle: 'Editar información personal',
-          onPress: () => navigation.navigate('CentroTuristicoProfile'),
+          title: isCenter ? 'Mi centro' : 'Perfil',
+          subtitle: isCenter ? 'Editar centro turístico' : 'Editar información personal',
+          onPress: () => navigation.navigate(isCenter ? 'CentroTuristicoProfile' : 'TuristaProfile'),
         },
         {
           icon: 'shield-checkmark-outline',
