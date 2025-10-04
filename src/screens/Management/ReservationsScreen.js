@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,165 +8,257 @@ import {
   FlatList,
   Image,
   Modal,
-  Alert
+  Alert,
+  ActivityIndicator,
+  RefreshControl
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../contexts/AuthContext';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  doc,
+  orderBy,
+  onSnapshot
+} from 'firebase/firestore';
+import { db } from '../../../database/FirebaseConfig';
 
 const ReservationsScreen = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
+  const { user: authUser } = useAuth();
   const [selectedTab, setSelectedTab] = useState('pending');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [reservations, setReservations] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const reservationOptions = [
-    { id: 1, name: 'Reservación Individual', icon: 'person', color: '#3B82F6' },
-    { id: 2, name: 'Reservación Grupal', icon: 'people', color: '#10B981' },
-    { id: 3, name: 'Reservación Recurrente', icon: 'repeat', color: '#F59E0B' },
-    { id: 4, name: 'Reservación Express', icon: 'flash', color: '#EF4444' },
+  const tabs = [
+    { key: 'pending', label: 'Pendientes', count: 0 },
+    { key: 'confirmed', label: 'Confirmadas', count: 0 },
+    { key: 'completed', label: 'Completadas', count: 0 },
+    { key: 'cancelled', label: 'Canceladas', count: 0 },
   ];
 
-  const reservations = {
-    pending: [
-      {
-        id: 1,
-        customerName: 'María González',
-        date: '2024-03-15',
-        time: '10:00 AM',
-        people: 4,
-        service: 'Tour Guiado',
-        avatar: 'https://via.placeholder.com/50',
-        phone: '+505 8888-8888'
-      },
-      {
-        id: 2,
-        customerName: 'Carlos Mendoza',
-        date: '2024-03-16',
-        time: '2:00 PM',
-        people: 2,
-        service: 'Degustación',
-        avatar: 'https://via.placeholder.com/50',
-        phone: '+505 7777-7777'
-      },
-    ],
-    confirmed: [
-      {
-        id: 3,
-        customerName: 'Ana López',
-        date: '2024-03-14',
-        time: '9:00 AM',
-        people: 6,
-        service: 'Evento Privado',
-        avatar: 'https://via.placeholder.com/50',
-        phone: '+505 6666-6666'
-      },
-    ],
-    completed: [
-      {
-        id: 4,
-        customerName: 'Roberto Silva',
-        date: '2024-03-10',
-        time: '11:00 AM',
-        people: 3,
-        service: 'Tour Fotográfico',
-        avatar: 'https://via.placeholder.com/50',
-        phone: '+505 5555-5555'
-      },
-    ]
+  useEffect(() => {
+    loadReservations();
+  }, []);
+
+  const loadReservations = async () => {
+    try {
+      setLoading(true);
+      const reservationsRef = collection(db, 'reservaciones');
+      const q = query(
+        reservationsRef,
+        where('centroId', '==', authUser?.uid)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      const reservationsData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      // Ordenar client-side para evitar el error de índice
+      reservationsData.sort((a, b) => {
+        const dateA = new Date(a.fechaCreacion || 0);
+        const dateB = new Date(b.fechaCreacion || 0);
+        return dateB - dateA; // Descendente
+      });
+      
+      setReservations(reservationsData);
+    } catch (error) {
+      console.error('Error cargando reservaciones:', error);
+      Alert.alert('Error', 'No se pudieron cargar las reservaciones');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const tabs = [
-    { key: 'pending', title: 'Pendientes', count: reservations.pending.length, color: '#F59E0B' },
-    { key: 'confirmed', title: 'Confirmadas', count: reservations.confirmed.length, color: '#10B981' },
-    { key: 'completed', title: 'Completadas', count: reservations.completed.length, color: '#6B7280' },
-  ];
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadReservations();
+    setRefreshing(false);
+  };
 
-  const renderReservationOption = (option) => (
-    <TouchableOpacity 
-      key={option.id} 
-      style={styles.optionCard}
-      onPress={() => {
-        setShowCreateModal(false);
-        // Aquí iría la lógica para crear la reservación
-        Alert.alert('Crear Reservación', `Creando ${option.name}...`);
-      }}
-    >
-      <View style={[styles.optionIcon, { backgroundColor: option.color }]}>
-        <Ionicons name={option.icon} size={24} color="#FFFFFF" />
-      </View>
-      <Text style={styles.optionText}>{option.name}</Text>
-    </TouchableOpacity>
-  );
+  const getFilteredReservations = () => {
+    return reservations.filter(reservation => {
+      switch (selectedTab) {
+        case 'pending':
+          return reservation.estado === 'pendiente';
+        case 'confirmed':
+          return reservation.estado === 'confirmada';
+        case 'completed':
+          return reservation.estado === 'completada';
+        case 'cancelled':
+          return reservation.estado === 'cancelada' || reservation.estado === 'rechazada';
+        default:
+          return true;
+      }
+    });
+  };
 
-  const renderReservation = ({ item }) => (
-    <View style={styles.reservationCard}>
+  const handleStatusChange = async (reservationId, newStatus) => {
+    try {
+      const reservationRef = doc(db, 'reservaciones', reservationId);
+      await updateDoc(reservationRef, {
+        estado: newStatus,
+        fechaActualizacion: new Date().toISOString()
+      });
+      
+      Alert.alert('Éxito', `Reservación ${newStatus} correctamente`);
+      loadReservations();
+    } catch (error) {
+      console.error('Error actualizando reservación:', error);
+      Alert.alert('Error', 'No se pudo actualizar la reservación');
+    }
+  };
+
+  const getStatusColor = (estado) => {
+    switch (estado) {
+      case 'confirmada': return '#10B981';
+      case 'pendiente': return '#F59E0B';
+      case 'rechazada': return '#EF4444';
+      case 'cancelada': return '#6B7280';
+      case 'completada': return '#3B82F6';
+      default: return '#6B7280';
+    }
+  };
+
+  const getStatusText = (estado) => {
+    switch (estado) {
+      case 'confirmada': return 'Confirmada';
+      case 'pendiente': return 'Pendiente';
+      case 'rechazada': return 'Rechazada';
+      case 'cancelada': return 'Cancelada';
+      case 'completada': return 'Completada';
+      default: return 'Desconocido';
+    }
+  };
+
+  const renderReservationCard = (reservation) => (
+    <View key={reservation.id} style={styles.reservationCard}>
       <View style={styles.reservationHeader}>
         <View style={styles.customerInfo}>
-          <Image source={{ uri: item.avatar }} style={styles.avatar} />
+          <View style={styles.avatarContainer}>
+            <Ionicons name="person" size={24} color="#6B7280" />
+          </View>
           <View style={styles.customerDetails}>
-            <Text style={styles.customerName}>{item.customerName}</Text>
-            <Text style={styles.customerPhone}>{item.phone}</Text>
+            <Text style={styles.customerName}>{reservation.turistaNombre || 'Turista'}</Text>
+            <Text style={styles.customerPhone}>{reservation.turistaTelefono || 'Sin teléfono'}</Text>
           </View>
         </View>
-        <View style={styles.reservationActions}>
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="call" size={20} color="#10B981" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Ionicons name="chatbubble" size={20} color="#3B82F6" />
-          </TouchableOpacity>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(reservation.estado) }]}>
+          <Text style={styles.statusText}>{getStatusText(reservation.estado)}</Text>
         </View>
       </View>
 
-      <View style={[styles.reservationDetails, selectedTab !== 'pending' && styles.reservationDetailsNoActions]}>
+      <View style={styles.reservationDetails}>
+        <Text style={styles.serviceName}>{reservation.servicioNombre}</Text>
+        
         <View style={styles.detailRow}>
           <Ionicons name="calendar" size={16} color="#6B7280" />
-          <Text style={styles.detailText}>{item.date} - {item.time}</Text>
+          <Text style={styles.detailText}>{reservation.fecha}</Text>
         </View>
+        
+        <View style={styles.detailRow}>
+          <Ionicons name="time" size={16} color="#6B7280" />
+          <Text style={styles.detailText}>{reservation.hora}</Text>
+        </View>
+        
         <View style={styles.detailRow}>
           <Ionicons name="people" size={16} color="#6B7280" />
-          <Text style={styles.detailText}>{item.people} personas</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Ionicons name="star" size={16} color="#6B7280" />
-          <Text style={styles.detailText}>{item.service}</Text>
+          <Text style={styles.detailText}>{reservation.personas} persona{reservation.personas !== '1' ? 's' : ''}</Text>
         </View>
       </View>
 
-      {selectedTab === 'pending' && (
-        <View style={styles.pendingActions}>
-          <TouchableOpacity style={styles.rejectButton}>
-            <Text style={styles.rejectButtonText}>Rechazar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.confirmButton}>
-            <Text style={styles.confirmButtonText}>Confirmar</Text>
-          </TouchableOpacity>
+      {reservation.notas && (
+        <View style={styles.notesContainer}>
+          <Text style={styles.notesLabel}>Notas:</Text>
+          <Text style={styles.notesText}>{reservation.notas}</Text>
         </View>
       )}
 
-      {selectedTab === 'confirmed' && (
-        <View style={styles.statusContainer}>
-          <View style={[styles.statusBadge, styles.confirmedBadge]}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-            <Text style={styles.confirmedText}>Confirmada</Text>
-          </View>
-        </View>
-      )}
-
-      {selectedTab === 'completed' && (
-        <View style={styles.statusContainer}>
-          <View style={[styles.statusBadge, styles.completedBadge]}>
-            <Ionicons name="checkmark-done-circle" size={16} color="#6B7280" />
-            <Text style={styles.completedText}>Completada</Text>
-          </View>
-        </View>
-      )}
+      <View style={styles.reservationActions}>
+        <TouchableOpacity style={styles.messageButton}>
+          <Ionicons name="chatbubble" size={16} color="#4ADE80" />
+          <Text style={styles.actionText}>Mensaje</Text>
+        </TouchableOpacity>
+        
+        {reservation.estado === 'pendiente' && (
+          <>
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.confirmButton]}
+              onPress={() => handleStatusChange(reservation.id, 'confirmada')}
+            >
+              <Ionicons name="checkmark" size={16} color="white" />
+              <Text style={[styles.actionText, styles.confirmText]}>Confirmar</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.rejectButton]}
+              onPress={() => handleStatusChange(reservation.id, 'rechazada')}
+            >
+              <Ionicons name="close" size={16} color="white" />
+              <Text style={[styles.actionText, styles.rejectText]}>Rechazar</Text>
+            </TouchableOpacity>
+          </>
+        )}
+        
+        {reservation.estado === 'confirmada' && (
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.completeButton]}
+            onPress={() => handleStatusChange(reservation.id, 'completada')}
+          >
+            <Ionicons name="checkmark-circle" size={16} color="white" />
+            <Text style={[styles.actionText, styles.completeText]}>Completar</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="calendar-outline" size={64} color="#9CA3AF" />
+      <Text style={styles.emptyStateTitle}>No hay reservaciones</Text>
+      <Text style={styles.emptyStateText}>
+        {selectedTab === 'pending' && 'No tienes reservaciones pendientes'}
+        {selectedTab === 'confirmed' && 'No tienes reservaciones confirmadas'}
+        {selectedTab === 'completed' && 'No tienes reservaciones completadas'}
+        {selectedTab === 'cancelled' && 'No tienes reservaciones canceladas'}
+      </Text>
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Reservaciones</Text>
+          <View style={styles.headerRight} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4ADE80" />
+          <Text style={styles.loadingText}>Cargando reservaciones...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const filteredReservations = getFilteredReservations();
+
   return (
-    <View style={styles.container}>
-      {/* Header que llega hasta los límites de la cámara */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => navigation.goBack()}
@@ -174,108 +266,55 @@ const ReservationsScreen = ({ navigation }) => {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Reservaciones</Text>
-        <TouchableOpacity style={styles.filterButton}>
-          <Ionicons name="filter" size={24} color="#6B7280" />
-        </TouchableOpacity>
+        <View style={styles.headerRight} />
       </View>
 
-      <SafeAreaView style={styles.safeAreaContent}>
-        {/* Stats Cards and Tabs Container */}
-        <View style={styles.statsAndTabsContainer}>
-        {/* Stats Cards */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>12</Text>
-            <Text style={styles.statLabel}>Este Mes</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>3</Text>
-            <Text style={styles.statLabel}>Hoy</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>85%</Text>
-            <Text style={styles.statLabel}>Confirmadas</Text>
-          </View>
-        </View>
-
+      <ScrollView
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[
-              styles.tab,
-              selectedTab === tab.key && { borderBottomColor: tab.color }
-            ]}
-            onPress={() => setSelectedTab(tab.key)}
-          >
-            <Text style={[
-              styles.tabText,
-              selectedTab === tab.key && { color: tab.color }
-            ]}>
-              {tab.title}
-            </Text>
-            {tab.count > 0 && (
-              <View style={[styles.badge, { backgroundColor: tab.color }]}>
-                <Text style={styles.badgeText}>{tab.count}</Text>
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[
+                styles.tab,
+                selectedTab === tab.key && styles.activeTab
+              ]}
+              onPress={() => setSelectedTab(tab.key)}
+            >
+              <Text style={[
+                styles.tabText,
+                selectedTab === tab.key && styles.activeTabText
+              ]}>
+                {tab.label}
+              </Text>
+              <View style={[
+                styles.tabBadge,
+                selectedTab === tab.key && styles.activeTabBadge
+              ]}>
+                <Text style={[
+                  styles.tabBadgeText,
+                  selectedTab === tab.key && styles.activeTabBadgeText
+                ]}>
+                  {filteredReservations.length}
+                </Text>
               </View>
-            )}
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          ))}
         </View>
-      </View>
 
-      {/* Reservations List */}
-      <FlatList
-        data={reservations[selectedTab]}
-        renderItem={renderReservation}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-        style={{ flex: 1 }}
-      />
-
-      {/* Floating Action Button */}
-      <TouchableOpacity 
-        style={styles.fab}
-        onPress={() => setShowCreateModal(true)}
-      >
-        <Ionicons name="add" size={24} color="#FFFFFF" />
-      </TouchableOpacity>
-
-      {/* Create Reservation Modal */}
-      <Modal
-        visible={showCreateModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowCreateModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Crear Reservación</Text>
-              <TouchableOpacity onPress={() => setShowCreateModal(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalBody}>
-              <Text style={styles.sectionTitle}>Tipos de Reservación</Text>
-              <View style={styles.optionsGrid}>
-                {reservationOptions.map(renderReservationOption)}
-              </View>
-
-              <Text style={styles.sectionTitle}>O crea desde cero</Text>
-              <TouchableOpacity style={styles.customButton}>
-                <Ionicons name="add-circle" size={24} color="#4ADE80" />
-                <Text style={styles.customButtonText}>Crear Reservación Personalizada</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-      </SafeAreaView>
-    </View>
+        {/* Reservations List */}
+        {filteredReservations.length > 0 ? (
+          filteredReservations.map(renderReservationCard)
+        ) : (
+          renderEmptyState()
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -284,337 +323,245 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  safeAreaContent: {
-    flex: 1,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    paddingVertical: 8,
+    backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   backButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#1F2937',
+    marginLeft: 8,
   },
-  filterButton: {
-    padding: 8,
+  headerRight: {
+    flex: 1,
   },
-  statsAndTabsContainer: {
-    backgroundColor: '#FFFFFF',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  content: {
+    flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 0,
-    paddingBottom: 0,
-  },
-  statCard: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 85,
-    height: 70,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
-    lineHeight: 22,
-  },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginTop: 2,
-    textAlign: 'center',
   },
   tabsContainer: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    marginTop: 20,
+    marginBottom: 16,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   tab: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    marginHorizontal: 2,
+  },
+  activeTab: {
+    backgroundColor: '#4ADE80',
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  activeTabText: {
+    color: 'white',
+  },
+  tabBadge: {
+    backgroundColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  activeTabBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  tabBadgeText: {
+    fontSize: 10,
     fontWeight: '600',
     color: '#6B7280',
   },
-  badge: {
-    marginLeft: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  listContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
+  activeTabBadgeText: {
+    color: 'white',
   },
   reservationCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
   reservationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   customerInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    marginRight: 10,
+  avatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   customerDetails: {
     flex: 1,
-    justifyContent: 'center',
   },
   customerName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
-    lineHeight: 20,
+    marginBottom: 2,
   },
   customerPhone: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6B7280',
-    marginTop: 2,
-    lineHeight: 16,
   },
-  reservationActions: {
-    flexDirection: 'row',
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  actionButton: {
-    padding: 8,
-    marginLeft: 8,
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'white',
   },
   reservationDetails: {
     marginBottom: 12,
   },
-  reservationDetailsNoActions: {
-    marginBottom: 0,
+  serviceName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
-    paddingVertical: 1,
   },
   detailText: {
     fontSize: 14,
-    color: '#4B5563',
+    color: '#6B7280',
     marginLeft: 8,
   },
-  pendingActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginTop: 8,
-  },
-  rejectButton: {
-    flex: 1,
-    backgroundColor: '#FEF2F2',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+  notesContainer: {
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#FECACA',
   },
-  rejectButtonText: {
-    color: '#DC2626',
-    fontWeight: '700',
+  notesLabel: {
     fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  notesText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  reservationActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    flexWrap: 'wrap',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginVertical: 4,
+  },
+  messageButton: {
+    backgroundColor: '#F0FDF4',
   },
   confirmButton: {
-    flex: 1,
     backgroundColor: '#10B981',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  confirmButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+  rejectButton: {
+    backgroundColor: '#EF4444',
+  },
+  completeButton: {
+    backgroundColor: '#3B82F6',
+  },
+  actionText: {
     fontSize: 14,
-  },
-  statusContainer: {
-    alignItems: 'flex-end',
-    marginTop: 6,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  confirmedBadge: {
-    backgroundColor: '#ECFDF5',
-  },
-  confirmedText: {
-    color: '#10B981',
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  completedBadge: {
-    backgroundColor: '#F9FAFB',
-  },
-  completedText: {
-    color: '#6B7280',
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 80,
-    right: 20,
-    width: 56,
-    height: 56,
-    backgroundColor: '#4ADE80',
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
     color: '#1F2937',
+    marginLeft: 4,
   },
-  modalBody: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+  confirmText: {
+    color: 'white',
   },
-  sectionTitle: {
-    fontSize: 16,
+  rejectText: {
+    color: 'white',
+  },
+  completeText: {
+    color: 'white',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
     fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
-  },
-  optionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  optionCard: {
-    width: '48%',
-    backgroundColor: '#F9FAFB',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  optionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
+    color: '#1F2937',
+    marginTop: 16,
     marginBottom: 8,
   },
-  optionText: {
+  emptyStateText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    color: '#6B7280',
     textAlign: 'center',
   },
-  customButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
-    backgroundColor: '#F0FDF4',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
+    alignItems: 'center',
   },
-  customButtonText: {
+  loadingText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#16A34A',
-    marginLeft: 8,
+    color: '#6B7280',
+    marginTop: 16,
   },
 });
 

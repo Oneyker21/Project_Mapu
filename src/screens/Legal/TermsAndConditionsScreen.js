@@ -328,6 +328,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
+    marginLeft: 12,
+    flex: 1,
   },
   headerRight: {
     width: 40,

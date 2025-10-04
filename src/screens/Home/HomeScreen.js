@@ -1,46 +1,68 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Modal, ActivityIndicator, PanResponder, Animated } from 'react-native';
-import MapView, { PROVIDER_GOOGLE, Marker } from 'react-native-maps';
+import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Modal, ActivityIndicator, PanResponder, Animated, Linking } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
 
-const INITIAL_REGION = {
-  latitude: 12.1167,
-  longitude: -85.3667,
-  latitudeDelta: 0.05,
-  longitudeDelta: 0.05,
-};
-
-// Estilo de Google Maps para ocultar Puntos de Interés (POIs), transporte y etiquetas no necesarias
-// con el objetivo de mostrar únicamente los centros turísticos registrados en Firestore
-const GOOGLE_MAP_STYLE = [
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.business', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.government', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.medical', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.place_of_worship', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.school', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.sports_complex', stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-];
 
 const HomeScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { user: authUser } = useAuth();
-  const [selectedLocation, setSelectedLocation] = useState(null);
   const [centers, setCenters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
-  const [mapRegion, setMapRegion] = useState(INITIAL_REGION);
-  const [mapRef, setMapRef] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [loadingUserData, setLoadingUserData] = useState(true);
   const [hasShownWelcome, setHasShownWelcome] = useState(false);
+  const [centerStatus, setCenterStatus] = useState('abierto'); // 'abierto' o 'cerrado'
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [sliderAnimation] = useState(new Animated.Value(0));
+  const [isDragging, setIsDragging] = useState(false);
+  const [sliderWidth, setSliderWidth] = useState(300); // Ancho por defecto
+  
+  // PanResponder para el deslizamiento del slider
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => !updatingStatus,
+    onMoveShouldSetPanResponder: (evt, gestureState) => {
+      return Math.abs(gestureState.dx) > 5 && !updatingStatus;
+    },
+    onPanResponderGrant: () => {
+      setIsDragging(true);
+    },
+    onPanResponderMove: (evt, gestureState) => {
+      if (!updatingStatus) {
+        const maxDistance = sliderWidth - 110;
+        // Lógica corregida: deslizar hacia la izquierda va a abierto (0), hacia la derecha va a cerrado (1)
+        const currentValue = centerStatus === 'abierto' ? 0 : 1;
+        const newValue = Math.max(0, Math.min(1, currentValue - (gestureState.dx / maxDistance)));
+        sliderAnimation.setValue(newValue);
+      }
+    },
+    onPanResponderRelease: (evt, gestureState) => {
+      setIsDragging(false);
+      
+      if (updatingStatus) return;
+      
+      const threshold = (sliderWidth - 110) / 2;
+      // Lógica corregida: deslizar hacia la izquierda va a abierto (0), hacia la derecha va a cerrado (1)
+      const newStatus = gestureState.dx < -threshold ? 'abierto' : gestureState.dx > threshold ? 'cerrado' : centerStatus;
+      
+      // Actualizar estado
+      if (newStatus !== centerStatus) {
+        updateCenterStatus(newStatus);
+      } else {
+        // Regresar a la posición original
+        Animated.timing(sliderAnimation, {
+          toValue: centerStatus === 'abierto' ? 0 : 1,
+          duration: 200,
+          useNativeDriver: false,
+        }).start();
+      }
+    },
+  });
   
   const [showNotification, setShowNotification] = useState(false);
   const [notificationText, setNotificationText] = useState('');
@@ -55,6 +77,36 @@ const HomeScreen = ({ navigation }) => {
     setTimeout(() => {
       setShowNotification(false);
     }, 2500);
+  };
+
+  const updateCenterStatus = async (newStatus) => {
+    if (!authUser || !isCenterUser || updatingStatus) return;
+    
+    console.log('Actualizando estado del centro:', newStatus);
+    setUpdatingStatus(true);
+    
+    // Convertir string a boolean para Firebase
+    const estadoBoolean = newStatus === 'abierto';
+    
+    // Actualizar estado local inmediatamente para feedback visual
+    setCenterStatus(newStatus);
+    
+    try {
+      await updateDoc(doc(db, 'centrosTuristicos', authUser.uid), {
+        estado: estadoBoolean, // Guardar como boolean en Firebase
+        ultimaActualizacion: new Date().toISOString(),
+      });
+      
+      console.log('Estado guardado en Firebase:', estadoBoolean);
+      showFloatingNotification(`Centro ${newStatus} correctamente`);
+    } catch (error) {
+      console.error('Error actualizando estado del centro:', error);
+      // Revertir el estado si hay error
+      setCenterStatus(centerStatus === 'abierto' ? 'cerrado' : 'abierto');
+      Alert.alert('Error', 'No se pudo actualizar el estado del centro');
+    } finally {
+      setUpdatingStatus(false);
+    }
   };
 
   const loadUserData = async () => {
@@ -80,6 +132,16 @@ const HomeScreen = ({ navigation }) => {
           console.log('HomeScreen - TipoUsuario del usuario:', data.tipoUsuario);
           console.log('HomeScreen - RoleId del usuario:', data.roleId);
           setUserData(data);
+          
+          // Cargar estado del centro si es centro turístico
+          if (isCenterUser && data.estado !== undefined) {
+            console.log('Estado cargado desde Firebase:', data.estado, 'Tipo:', typeof data.estado);
+            // Convertir boolean a string para la UI
+            const estado = data.estado ? 'abierto' : 'cerrado';
+            setCenterStatus(estado);
+            // Inicializar animación según el estado
+            sliderAnimation.setValue(estado === 'abierto' ? 0 : 1); // Abierto=0 (izquierda), Cerrado=1 (derecha)
+          }
         } else {
           console.log('HomeScreen - No se encontraron datos en la colección:', collectionName);
         }
@@ -188,8 +250,8 @@ const HomeScreen = ({ navigation }) => {
     if (userData && authUser && !hasShownWelcome) {
       const isCenter = userData.role === 'centro_turistico' || userData.tipoUsuario === 'CentroTuristico';
       // Usar latitud/longitud (español) como prioridad, luego latitude/longitude (inglés)
-      const userLat = userData.latitud || userData.latitude;
-      const userLng = userData.longitud || userData.longitude;
+      const userLat = userData?.latitud || userData?.latitude;
+      const userLng = userData?.longitud || userData?.longitude;
       
       if (isCenter && userLat && userLng) {
         const centerCoords = {
@@ -199,12 +261,6 @@ const HomeScreen = ({ navigation }) => {
           longitudeDelta: 0.01,
         };
         console.log('Centrando mapa en coordenadas del usuario:', centerCoords);
-        setMapRegion(centerCoords);
-        
-        // Usar animateToRegion si el mapa está disponible
-        if (mapRef) {
-          mapRef.animateToRegion(centerCoords, 1000);
-        }
         
         // Mostrar notificación flotante solo la primera vez
         setTimeout(() => {
@@ -243,10 +299,6 @@ const HomeScreen = ({ navigation }) => {
             latitudeDelta: 0.01,
             longitudeDelta: 0.01,
           };
-          setMapRegion(newRegion);
-          if (mapRef) {
-            mapRef.animateToRegion(newRegion, 1000);
-          }
           showFloatingNotification('Ubicación actual detectada');
           setHasCenteredOnUser(true);
         } catch (e) {
@@ -263,11 +315,8 @@ const HomeScreen = ({ navigation }) => {
         setMapRegion((prev) => prev || INITIAL_REGION);
       }
     }
-  }, [loadingUserData, userData, mapRef, hasCenteredOnUser]);
+  }, [loadingUserData, userData, hasCenteredOnUser]);
 
-  const handleMapPress = (e) => {
-    setSelectedLocation(e.nativeEvent.coordinate);
-  };
 
   // Función para obtener el icono según la categoría
   const getCategoryIcon = (category) => {
@@ -314,14 +363,11 @@ const HomeScreen = ({ navigation }) => {
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       };
-      if (mapRef) {
-        mapRef.animateToRegion(centerCoords, 1000);
-      }
       setMapRegion(centerCoords);
       showFloatingNotification(`Mostrando la ubicación de ${userData?.nombreNegocio || userData?.businessName || 'tu centro'}`);
     } else {
       // Sin alert intrusivo: notificación ligera
-      showFloatingNotification('No tienes una ubicación registrada. Ve a Mi Centro para agregarla.');
+      showFloatingNotification('No tienes una ubicación registrada. Ve a Mis Servicios para agregarla.');
     }
   };
 
@@ -330,7 +376,7 @@ const HomeScreen = ({ navigation }) => {
     if (closeMenu) setShowMenu(false);
 
     const initialCoords = userData?.latitude && userData?.longitude
-      ? { latitude: parseFloat(userData.latitude), longitude: parseFloat(userData.longitude) }
+      ? { latitude: parseFloat(userData?.latitude), longitude: parseFloat(userData?.longitude) }
       : { latitude: mapRegion.latitude, longitude: mapRegion.longitude };
 
     navigation.navigate('MapPicker', {
@@ -368,10 +414,6 @@ const HomeScreen = ({ navigation }) => {
           };
           setMapRegion(newRegion);
           
-          // Usar animateToRegion para mover el mapa
-          if (mapRef) {
-            mapRef.animateToRegion(newRegion, 1000);
-          }
 
           await loadCenters();
 
@@ -384,7 +426,58 @@ const HomeScreen = ({ navigation }) => {
     });
   };
 
-  const getQuickActions = () => {
+  // Función para obtener las acciones de turista optimizadas
+  const getTouristQuickActions = () => {
+    return [
+      {
+        id: 'explore_centers',
+        title: 'Explorar',
+        subtitle: 'Buscar centros turísticos',
+        icon: 'search',
+        color: '#3B82F6',
+        onPress: () => {
+          setShowMenu(false);
+          navigation.navigate('UnifiedSearch', { initialTab: 'all' });
+        }
+      },
+      {
+        id: 'nearby_centers',
+        title: 'Cercanos',
+        subtitle: 'Lugares cerca de ti',
+        icon: 'compass',
+        color: '#EC4899',
+        onPress: () => {
+          setShowMenu(false);
+          navigation.navigate('UnifiedSearch', { initialTab: 'nearby' });
+        }
+      },
+      {
+        id: 'share_routes',
+        title: 'Compartir',
+        subtitle: 'Rutas y experiencias',
+        icon: 'share-social',
+        color: '#10B981',
+        onPress: () => {
+          setShowMenu(false);
+          Alert.alert('Compartir', 'Comparte tus rutas y experiencias');
+        }
+      },
+      {
+        id: 'photo_albums',
+        title: 'Álbumes',
+        subtitle: 'Fotos de tus viajes',
+        icon: 'camera',
+        color: '#8B5CF6',
+        onPress: () => {
+          setShowMenu(false);
+          Alert.alert('Álbumes', 'Gestiona tus fotos de viajes');
+        }
+      }
+    ];
+  };
+
+  // Función para opciones del menú (diferentes a las opciones principales)
+  const getMenuActions = () => {
     const isCenter = userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico';
 
     if (isCenter) {
@@ -437,36 +530,47 @@ const HomeScreen = ({ navigation }) => {
     } else {
       return [
         {
+          id: 'group_tours',
+          title: 'Giras Grupales',
+          subtitle: 'Únete a tours con otros turistas',
+          icon: 'people',
+          color: '#10B981',
+          onPress: () => {
+            setShowMenu(false);
+            openWhatsAppGroup();
+          }
+        },
+        {
+          id: 'share_routes',
+          title: 'Compartir Rutas',
+          subtitle: 'Comparte tus rutas favoritas',
+          icon: 'share-social',
+          color: '#3B82F6',
+          onPress: () => {
+            setShowMenu(false);
+            Alert.alert('Compartir Rutas', 'Comparte tus rutas con otros turistas');
+          }
+        },
+        {
+          id: 'photo_albums',
+          title: 'Álbumes de Fotos',
+          subtitle: 'Crea álbumes de tus viajes',
+          icon: 'camera',
+          color: '#8B5CF6',
+          onPress: () => {
+            setShowMenu(false);
+            Alert.alert('Álbumes', 'Gestiona tus fotos de viajes');
+          }
+        },
+        {
           id: 'favorites',
-          title: 'Mis Favoritos',
-          subtitle: 'Centros turísticos guardados',
+          title: 'Favoritos',
+          subtitle: 'Centros guardados',
           icon: 'heart',
           color: '#EF4444',
           onPress: () => {
             setShowMenu(false);
             Alert.alert('Favoritos', 'Centros turísticos favoritos');
-          }
-        },
-        {
-          id: 'search',
-          title: 'Buscar Cercanos',
-          subtitle: 'Encontrar centros cerca de ti',
-          icon: 'search',
-          color: '#3B82F6',
-          onPress: () => {
-            setShowMenu(false);
-            Alert.alert('Buscar', 'Buscar centros turísticos cercanos');
-          }
-        },
-        {
-          id: 'history',
-          title: 'Mi Historial',
-          subtitle: 'Centros que has visitado',
-          icon: 'time',
-          color: '#10B981',
-          onPress: () => {
-            setShowMenu(false);
-            Alert.alert('Historial', 'Centros que has visitado');
           }
         },
         {
@@ -477,22 +581,45 @@ const HomeScreen = ({ navigation }) => {
           color: '#F59E0B',
           onPress: () => {
             setShowMenu(false);
-            Alert.alert('Mis Reseñas', 'Tus reseñas y calificaciones');
+            navigation.navigate('Reviews');
           }
         },
         {
-          id: 'notifications',
-          title: 'Notificaciones',
-          subtitle: 'Configurar alertas',
-          icon: 'notifications',
-          color: '#8B5CF6',
+          id: 'settings',
+          title: 'Configuración',
+          subtitle: 'Ajustes de la aplicación',
+          icon: 'settings',
+          color: '#6B7280',
           onPress: () => {
             setShowMenu(false);
-            Alert.alert('Notificaciones', 'Configurar notificaciones');
+            navigation.navigate('Settings');
           }
         }
       ];
     }
+  };
+
+  // Función para abrir WhatsApp para giras grupales
+  const openWhatsAppGroup = () => {
+    const phoneNumber = '+1234567890'; // Número de ejemplo
+    const message = 'Hola! Me interesa unirme a una gira grupal. ¿Podrían ayudarme?';
+    const url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+    
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          Alert.alert('Error', 'WhatsApp no está instalado en tu dispositivo');
+        }
+      })
+      .catch((err) => {
+        Alert.alert('Error', 'No se pudo abrir WhatsApp');
+      });
+  };
+
+  const getQuickActions = () => {
+    return getMenuActions();
   };
 
   // Mientras carga userData, mostramos un loader pequeño (evita interacciones prematuras)
@@ -506,7 +633,7 @@ const HomeScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}> 
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]} edges={[]}> 
       {/* Header personalizado */}
       <View style={styles.headerContainer}>
         {/* Información del perfil (tappable para visualizar perfil) */}
@@ -515,9 +642,9 @@ const HomeScreen = ({ navigation }) => {
             style={styles.profileInfo}
           >
             <View style={styles.profileContainer}>
-              {userData?.imagenPerfil ? (
+              {userData?.imagenPerfil || userData?.logotipo ? (
                 <Image 
-                  source={{ uri: userData.imagenPerfil }} 
+                  source={{ uri: userData.imagenPerfil || userData.logotipo }} 
                   style={styles.profileImage}
                   onError={(error) => console.log('Error cargando imagen en Home:', error)}
                   onLoad={() => console.log('Imagen cargada exitosamente en Home')}
@@ -533,55 +660,41 @@ const HomeScreen = ({ navigation }) => {
               )}
             </View>
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>
-                {
-                  // Si es centro turístico mostrar nombre del negocio; si es turista, nombres + apellidos
-                  userData?.nombreNegocio || userData?.businessName ||
-                  [userData?.nombres || userData?.firstName, userData?.apellidos || userData?.lastName]
-                    .filter(Boolean)
-                    .join(' ') ||
-                  authUser?.displayName || 'Usuario'
-                }
-              </Text>
+              <View style={styles.userTitleContainer}>
+                <Text style={styles.userName}>
+                  {
+                    // Si es centro turístico mostrar nombre del negocio; si es turista, nombres + apellidos
+                    userData?.nombreNegocio || userData?.businessName ||
+                    [userData?.nombres || userData?.firstName, userData?.apellidos || userData?.lastName]
+                      .filter(Boolean)
+                      .join(' ') ||
+                    authUser?.displayName || 'Usuario'
+                  }
+                </Text>
+                {isCenterUser && (
+                  <TouchableOpacity 
+                    style={styles.notificationIcon}
+                    onPress={() => navigation.navigate('Notifications')}
+                  >
+                    <Ionicons name="notifications" size={24} color="#3B82F6" />
+                  </TouchableOpacity>
+                )}
+              </View>
               <Text style={styles.userRole}>
                 {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'Centro Turístico' : 'Turista'}
               </Text>
+              {isCenterUser && userData?.calificacion && (
+                <View style={styles.ratingContainer}>
+                  <Ionicons name="star" size={16} color="#F59E0B" />
+                  <Text style={styles.ratingText}>
+                    {userData.calificacion.toFixed(1)} ({userData.totalResenas || 0} reseñas)
+                  </Text>
+                </View>
+              )}
               {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') && userData?.nombrePropietario && (
                 <Text style={styles.propietarioName}>
                   Propietario: {userData.nombrePropietario}
                 </Text>
-              )}
-              {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') && (
-                <View style={styles.profileActionsContainer}>
-                  <TouchableOpacity 
-                    style={styles.refreshButton}
-                    onPress={() => {
-                      console.log('Refrescando datos...');
-                      loadUserData();
-                      loadCenters();
-                    }}
-                  >
-                    <Ionicons name="refresh" size={16} color="#10B981" />
-                    <Text style={styles.refreshButtonText}>Refrescar</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={[styles.refreshButton, { backgroundColor: '#FEF3C7' }]}
-                    onPress={() => {
-                      console.log('Debug - Datos del usuario:', userData);
-                      console.log('Debug - Latitud:', userData?.latitud || userData?.latitude);
-                      console.log('Debug - Longitud:', userData?.longitud || userData?.longitude);
-                      Alert.alert(
-                        'Debug Info',
-                        `Latitud: ${userData?.latitud || userData?.latitude || 'No encontrada'}\nLongitud: ${userData?.longitud || userData?.longitude || 'No encontrada'}`,
-                        [{ text: 'OK' }]
-                      );
-                    }}
-                  >
-                    <Ionicons name="bug" size={16} color="#F59E0B" />
-                    <Text style={[styles.refreshButtonText, { color: '#F59E0B' }]}>Debug</Text>
-                  </TouchableOpacity>
-                </View>
               )}
             </View>
           </View>
@@ -593,59 +706,18 @@ const HomeScreen = ({ navigation }) => {
             <>
               <TouchableOpacity 
                 style={[styles.quickActionCard, { backgroundColor: '#EBF4FF' }]}
-                onPress={() => navigation.navigate('CentroTuristicoProfile')}
+                onPress={() => navigation.navigate('MisServicios')}
               >
-                <Ionicons name="business" size={24} color="#3B82F6" />
-                <Text style={[styles.quickActionText, { color: '#3B82F6' }]}>Mi Centro</Text>
+                <Ionicons name="analytics" size={24} color="#3B82F6" />
+                <Text style={[styles.quickActionText, { color: '#3B82F6' }]}>Mis Servicios</Text>
               </TouchableOpacity>
               
-                  <TouchableOpacity 
-                    style={[styles.quickActionCard, { backgroundColor: '#F0FDF4' }]}
-                    onPress={() => {
-                      // Usar latitud/longitud (español) como prioridad, luego latitude/longitude (inglés)
-                      const userLat = userData?.latitud || userData?.latitude;
-                      const userLng = userData?.longitud || userData?.longitude;
-                      
-                      console.log('=== VER MI CENTRO DEBUG ===');
-                      console.log('userData completo:', JSON.stringify(userData, null, 2));
-                      console.log('userData.latitud:', userData?.latitud);
-                      console.log('userData.longitud:', userData?.longitud);
-                      console.log('userData.latitude:', userData?.latitude);
-                      console.log('userData.longitude:', userData?.longitude);
-                      console.log('userLat final:', userLat);
-                      console.log('userLng final:', userLng);
-                      console.log('========================');
-                      
-                      if (userLat && userLng && userLat !== '' && userLng !== '') {
-                        const centerCoords = {
-                          latitude: parseFloat(userLat),
-                          longitude: parseFloat(userLng),
-                          latitudeDelta: 0.01,
-                          longitudeDelta: 0.01,
-                        };
-                        console.log('Ver Mi Centro - Coordenadas calculadas:', centerCoords);
-                        
-                        // Usar animateToRegion para mover el mapa
-                        if (mapRef) {
-                          mapRef.animateToRegion(centerCoords, 1000); // 1 segundo de animación
-                        }
-                        
-                        // También actualizar el estado
-                        setMapRegion(centerCoords);
-                        // Notificación no intrusiva
-                        showFloatingNotification(`Mostrando la ubicación de ${userData.nombreNegocio || userData.businessName || 'tu centro'}`);
-                      } else {
-                        console.log('Ver Mi Centro - No se encontraron coordenadas válidas');
-                        Alert.alert(
-                          'Ubicación No Registrada',
-                          'No tienes una ubicación registrada. Ve a "Mi Centro" para agregar la ubicación.\n\nCoordenadas encontradas:\nLatitud: ' + (userLat || 'No encontrada') + '\nLongitud: ' + (userLng || 'No encontrada'),
-                          [{ text: 'Entendido' }]
-                        );
-                      }
-                    }}
-                  >
-                <Ionicons name="locate" size={24} color="#10B981" />
-                <Text style={[styles.quickActionText, { color: '#10B981' }]}>Ver Mi Centro</Text>
+              <TouchableOpacity 
+                style={[styles.quickActionCard, { backgroundColor: '#F0FDF4' }]}
+                onPress={() => Alert.alert('Asistente Virtual', 'Próximamente: Chat con IA para gestión del centro')}
+              >
+                <Ionicons name="chatbubble-ellipses" size={24} color="#10B981" />
+                <Text style={[styles.quickActionText, { color: '#10B981' }]}>Asistente Virtual</Text>
               </TouchableOpacity>
             </>
           ) : (
@@ -668,60 +740,201 @@ const HomeScreen = ({ navigation }) => {
             </>
           )}
         </View>
-      </View>
 
-      {/* Contenido del mapa */}
-      <View style={styles.mapContainer}>
-        <MapView
-          key={isCenterUser ? 'center-map' : 'tourist-map'}
-          ref={setMapRef}
-          style={styles.map}
-          provider={PROVIDER_GOOGLE}
-          initialRegion={mapRegion}
-          region={mapRegion}
-          showsPointsOfInterest={false}
-          showsBuildings={true}
-          showsTraffic={false}
-          customMapStyle={GOOGLE_MAP_STYLE}
-          showsUserLocation={!isCenterUser}
-          showsMyLocationButton={false}
-        >
-          {/* Marcadores de centros turísticos registrados */}
-          {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico'
-            ? centers.filter(c => c.id === authUser?.uid)
-            : centers
-           ).map((center) => (
-            <Marker
-              key={center.id}
-              coordinate={center.coordinate}
-              anchor={{ x: 0.5, y: 1 }}
-            >
-              {/* Marcador tipo pin compacto, manteniendo color e icono */}
-              <View style={styles.centerPinContainer}>
-                <View style={styles.centerPin}>
-                  <Ionicons
-                    name={getCategoryIcon(center.category || center.categoriaNegocio)}
-                    size={18}
-                    color="#FFFFFF"
-                  />
+        {/* Estado del Centro - Solo para centros turísticos */}
+          {isCenterUser && (
+            <View style={styles.centerStatusSection}>
+              <Text style={styles.statusSectionTitle}>Estado del Centro</Text>
+              
+              <View style={styles.statusContainer}>
+                {/* Botones de Estado */}
+                <View style={styles.statusButtonsContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.statusButton,
+                      {
+                        backgroundColor: centerStatus === 'abierto' ? '#10B981' : '#F3F4F6',
+                        borderColor: centerStatus === 'abierto' ? '#10B981' : '#D1D5DB',
+                      }
+                    ]}
+                    onPress={() => updateCenterStatus('abierto')}
+                    disabled={updatingStatus}
+                  >
+                    {updatingStatus && centerStatus === 'abierto' ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <Ionicons 
+                          name="checkmark-circle" 
+                          size={20} 
+                          color={centerStatus === 'abierto' ? '#FFFFFF' : '#6B7280'} 
+                        />
+                        <Text style={[
+                          styles.statusButtonText,
+                          {
+                            color: centerStatus === 'abierto' ? '#FFFFFF' : '#6B7280',
+                          }
+                        ]}>
+                          Abierto
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.statusButton,
+                      {
+                        backgroundColor: centerStatus === 'cerrado' ? '#EF4444' : '#F3F4F6',
+                        borderColor: centerStatus === 'cerrado' ? '#EF4444' : '#D1D5DB',
+                      }
+                    ]}
+                    onPress={() => updateCenterStatus('cerrado')}
+                    disabled={updatingStatus}
+                  >
+                    {updatingStatus && centerStatus === 'cerrado' ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <Ionicons 
+                          name="close-circle" 
+                          size={20} 
+                          color={centerStatus === 'cerrado' ? '#FFFFFF' : '#6B7280'} 
+                        />
+                        <Text style={[
+                          styles.statusButtonText,
+                          {
+                            color: centerStatus === 'cerrado' ? '#FFFFFF' : '#6B7280',
+                          }
+                        ]}>
+                          Cerrado
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.centerPinTail} />
               </View>
-            </Marker>
-          ))}
+            </View>
+          )}
 
-        </MapView>
+          {/* Promociones - Solo para centros turísticos */}
+          {isCenterUser && (
+            <View style={styles.promotionsSection}>
+              <TouchableOpacity 
+                style={styles.promotionCard}
+                onPress={() => navigation.navigate('Promotions')}
+              >
+                <View style={styles.promotionContent}>
+                  <Ionicons name="gift" size={24} color="#F59E0B" />
+                  <View style={styles.promotionText}>
+                    <Text style={styles.promotionTitle}>Promociones</Text>
+                    <Text style={styles.promotionSubtitle}>Gestiona tus ofertas especiales</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
-        {/* Footer simplificado */}
-        {authUser && userData && (
-          <View style={[styles.footerContainer, { paddingBottom: insets.bottom }]}>
-            <View style={styles.footerContent}>
+      {/* Contenido principal con scroll */}
+      <ScrollView 
+        style={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContentContainer}
+      >
+        {/* Sección "¿Qué quieres hacer hoy?" para turistas */}
+      {!(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') && (
+        <View style={styles.touristSection}>
+          <View style={styles.touristSectionHeader}>
+            <Text style={styles.touristSectionTitle}>¿Qué quieres hacer hoy?</Text>
+            <Text style={styles.touristSectionSubtitle}>Explora y descubre nuevos lugares</Text>
+          </View>
+          
+          {/* Botón principal de iniciar ruta */}
+          <TouchableOpacity 
+            style={styles.startRouteButton}
+            onPress={() => navigation.navigate('RouteCreation')}
+          >
+            <View style={styles.startRouteContent}>
+              <View style={styles.startRouteIcon}>
+                <Ionicons name="map" size={32} color="#FFFFFF" />
+              </View>
+              <View style={styles.startRouteText}>
+                <Text style={styles.startRouteTitle}>Iniciar Ruta</Text>
+                <Text style={styles.startRouteSubtitle}>Crea tu recorrido personalizado</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
+          
+          <View style={styles.touristActionsGrid}>
+            {getTouristQuickActions().map((action) => (
+              <TouchableOpacity
+                key={action.id}
+                style={[styles.touristActionCard, { borderLeftColor: action.color }]}
+                onPress={action.onPress}
+              >
+                <View style={[styles.touristActionIcon, { backgroundColor: action.color + '20' }]}>
+                  <Ionicons name={action.icon} size={24} color={action.color} />
+                </View>
+                <Text style={styles.touristActionTitle}>{action.title}</Text>
+                <Text style={styles.touristActionSubtitle}>{action.subtitle}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
+      </ScrollView>
+
+      {/* Footer de navegación fijo */}
+      <View style={[styles.footerContainer, { paddingBottom: insets.bottom }]}>
+        <View style={styles.footerContent}>
+          {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? (
+            // Footer para centros turísticos
+            <>
+              <TouchableOpacity 
+                style={styles.footerButton}
+                onPress={() => navigation.navigate('Reservations')}
+              >
+                <Ionicons name="calendar" size={24} color="#F59E0B" />
+                <Text style={styles.footerButtonText}>Reservas</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.footerButton}
+                onPress={() => navigation.navigate('Statistics')}
+              >
+                <Ionicons name="bar-chart" size={24} color="#8B5CF6" />
+                <Text style={styles.footerButtonText}>Estadísticas</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.footerButton}
+                onPress={() => navigation.navigate('Settings')}
+              >
+                <Ionicons name="settings" size={24} color="#10B981" />
+                <Text style={styles.footerButtonText}>Configurar</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            // Footer para turistas
+            <>
               <TouchableOpacity 
                 style={styles.footerButton}
                 onPress={() => setShowMenu(true)}
               >
                 <Ionicons name="menu" size={24} color="#6B7280" />
                 <Text style={styles.footerButtonText}>Menú</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.footerButton}
+                onPress={() => navigation.navigate('UnifiedSearch', { initialTab: 'nearby' })}
+              >
+                <Ionicons name="search" size={24} color="#10B981" />
+                <Text style={styles.footerButtonText}>Buscar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -739,9 +952,9 @@ const HomeScreen = ({ navigation }) => {
                 <Ionicons name="settings" size={24} color="#10B981" />
                 <Text style={styles.footerButtonText}>Configurar</Text>
               </TouchableOpacity>
-            </View>
-          </View>
-        )}
+            </>
+          )}
+        </View>
       </View>
 
       {/* Menú simple */}
@@ -766,7 +979,7 @@ const HomeScreen = ({ navigation }) => {
             
             <View style={styles.menuHeader}>
               <Text style={styles.menuTitle}>
-                {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'Herramientas del Centro' : 'Acciones Rápidas'}
+                {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'Herramientas del Centro' : 'Más Opciones'}
               </Text>
               <TouchableOpacity 
                 style={styles.closeButton}
@@ -817,6 +1030,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  scrollContent: {
+    flex: 1,
+  },
+  scrollContentContainer: {
+    flexGrow: 1,
+    paddingBottom: 0,
   },
   headerContainer: {
     backgroundColor: '#FFFFFF',
@@ -949,7 +1169,7 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     flex: 1,
-    marginBottom: 80, // Espacio para el footer personalizado
+    height: 300, // Altura fija para el mapa
   },
   map: {
     flex: 1,
@@ -1069,19 +1289,18 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   footerContainer: {
-    position: 'absolute',
-    bottom: '-15%',
-    left: 0,
-    right: 0,
     backgroundColor: '#FFFFFF',
-    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   footerContent: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingVertical: 8,
   },
   footerButton: {
     alignItems: 'center',
@@ -1217,6 +1436,273 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     fontWeight: '400',
+  },
+  
+  // Estilos para la sección de turistas
+  touristSection: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  touristSectionHeader: {
+    marginBottom: 12,
+  },
+  touristSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  touristSectionSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  startRouteButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  startRouteContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+  },
+  startRouteIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  startRouteText: {
+    flex: 1,
+  },
+  startRouteTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  startRouteSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  touristActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  touristActionCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    width: '48%',
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  touristActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  touristActionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  touristActionSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 16,
+  },
+  centerStatusSection: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statusSectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  statusContainer: {
+    alignItems: 'center',
+  },
+  statusButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    width: '100%',
+  },
+  statusButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statusButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  userTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  notificationIcon: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#EBF4FF',
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  ratingText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  promotionsSection: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  promotionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  promotionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  promotionText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  promotionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  promotionSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  sliderContainer: {
+    alignItems: 'center',
+  },
+  sliderLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  sliderTrack: {
+    width: '100%',
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginHorizontal: 16,
+    paddingHorizontal: 5,
+    borderWidth: 0, // Removed border
+  },
+  sliderThumb: {
+    position: 'absolute',
+    width: 80,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  sliderThumbText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1F2937',
+    textAlign: 'center',
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 15,
+    position: 'absolute',
+    zIndex: 10, // Increased zIndex to ensure visibility
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+  },
+  sliderLabelText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 

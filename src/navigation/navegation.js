@@ -10,6 +10,7 @@ import HomeScreen from '../screens/Home/HomeScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import CentroTuristicoProfileScreen from '../screens/Profile/CentroTuristicoProfileScreen';
 import TuristaProfileScreen from '../screens/Profile/TuristaProfileScreen';
+import MisServiciosScreen from '../screens/Management/MisServiciosScreen';
 import ServicesMainScreen from '../screens/Services/ServicesMainScreen';
 import MapPickerScreen from '../screens/Map/MapPickerScreen';
 import ReviewsScreen from '../screens/Reviews/ReviewsScreen';
@@ -20,6 +21,19 @@ import NotificationsScreen from '../screens/Management/NotificationsScreen';
 import SettingsScreen from '../screens/Settings/SettingsScreen';
 import PrivacyPolicyScreen from '../screens/Legal/PrivacyPolicyScreen';
 import TermsAndConditionsScreen from '../screens/Legal/TermsAndConditionsScreen';
+import { 
+  SearchByDepartmentScreen, 
+  SearchByCategoryScreen, 
+  CreateRouteScreen, 
+  NearbyCentersScreen,
+  UnifiedSearchScreen,
+  CenterDetailScreen
+} from '../screens/Search';
+import { 
+  RouteCreationScreen,
+  RouteNavigationScreen,
+  RouteSummaryScreen
+} from '../screens/Route';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -87,6 +101,7 @@ export function AppNavigator() {
       <Stack.Screen name="MapPicker" component={MapPickerScreen} />
       <Stack.Screen name="CentroTuristicoProfile" component={CentroTuristicoProfileScreen} />
       <Stack.Screen name="TuristaProfile" component={TuristaProfileScreen} />
+      <Stack.Screen name="MisServicios" component={MisServiciosScreen} />
       <Stack.Screen 
         name="ServicesMain" 
         component={ServicesMainScreen}
@@ -126,6 +141,51 @@ export function AppNavigator() {
       <Stack.Screen 
         name="TermsAndConditions" 
         component={TermsAndConditionsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="SearchByDepartment" 
+        component={SearchByDepartmentScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="SearchByCategory" 
+        component={SearchByCategoryScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="CreateRoute" 
+        component={CreateRouteScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="NearbyCenters" 
+        component={NearbyCentersScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="UnifiedSearch" 
+        component={UnifiedSearchScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="CenterDetail" 
+        component={CenterDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="RouteCreation" 
+        component={RouteCreationScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="RouteNavigation" 
+        component={RouteNavigationScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="RouteSummary" 
+        component={RouteSummaryScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

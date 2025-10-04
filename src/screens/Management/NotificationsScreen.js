@@ -301,6 +301,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#1F2937',
+    marginLeft: 12,
+    flex: 1,
   },
   moreButton: {
     padding: 8,

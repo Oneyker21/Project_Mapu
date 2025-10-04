@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -67,7 +68,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
   const [userData, setUserData] = useState(null);
   const [errors, setErrors] = useState({});
   const readOnly = route?.params?.readOnly === true;
-  const [isEditing, setIsEditing] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -80,10 +81,71 @@ const TuristaProfileScreen = ({ navigation, route }) => {
     profileImage: null,
     coverImage: null,
   });
+  const [showCityPicker, setShowCityPicker] = useState(false);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+
+  // Lista de ciudades principales de Nicaragua
+  const nicaraguaCities = [
+    'Managua', 'León', 'Chinandega', 'Masaya', 'Granada', 'Estelí', 
+    'Matagalpa', 'Jinotega', 'Rivas', 'Boaco', 'Carazo', 'Chontales',
+    'Madriz', 'Nueva Segovia', 'Río San Juan', 'Bluefields', 'Puerto Cabezas',
+    'San Carlos', 'Ocotal', 'Somoto', 'Jinotepe', 'Diriamba', 'Masatepe',
+    'Nandaime', 'Ticuantepe', 'Tipitapa', 'Ciudad Sandino', 'El Crucero'
+  ];
+
+  // Lista de países de Centroamérica y otros
+  const countries = [
+    'Nicaragua', 'Costa Rica', 'Honduras', 'El Salvador', 'Guatemala', 
+    'Belice', 'Panamá', 'México', 'Estados Unidos', 'Canadá', 'España',
+    'Colombia', 'Venezuela', 'Argentina', 'Chile', 'Perú', 'Brasil',
+    'Ecuador', 'Uruguay', 'Paraguay', 'Bolivia', 'República Dominicana',
+    'Cuba', 'Puerto Rico', 'Jamaica', 'Haití', 'Otro'
+  ];
 
   useEffect(() => {
     loadUserData();
   }, []);
+
+  // Detectar cambios en el formulario
+  useEffect(() => {
+    if (userData) {
+      const hasFormChanges = 
+        formData.firstName !== (userData.nombres || userData.firstName || '') ||
+        formData.lastName !== (userData.apellidos || userData.lastName || '') ||
+        formData.phone !== (userData.telefono || userData.phone || '') ||
+        formData.documentType !== (userData.tipoDocumento || userData.documentType || '') ||
+        formData.documentNumber !== (userData.numeroDocumento || userData.documentNumber || '') ||
+        formData.city !== (userData.ciudad || userData.city || '') ||
+        formData.country !== (userData.pais || userData.country || '') ||
+        (formData.profileImage?.uri && formData.profileImage.uri !== userData.imagenPerfil) ||
+        (formData.coverImage?.uri && formData.coverImage.uri !== userData.imagenPortada);
+      
+      setHasChanges(hasFormChanges);
+    }
+  }, [formData, userData]);
+
+  // Función para manejar el botón atrás
+  const handleBackPress = () => {
+    if (hasChanges) {
+      Alert.alert(
+        'Cambios sin guardar',
+        'Tienes cambios sin guardar. ¿Estás seguro de que quieres salir?',
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+          },
+          {
+            text: 'Salir',
+            style: 'destructive',
+            onPress: () => navigation.goBack(),
+          },
+        ]
+      );
+    } else {
+      navigation.goBack();
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -193,6 +255,11 @@ const TuristaProfileScreen = ({ navigation, route }) => {
       return;
     }
 
+    if (!authUser?.uid) {
+      Alert.alert('Error', 'No se pudo obtener la información del usuario');
+      return;
+    }
+
     setSaving(true);
     try {
       let profileImageUrl = userData?.imagenPerfil || null;
@@ -201,7 +268,10 @@ const TuristaProfileScreen = ({ navigation, route }) => {
       // Subir imagen de perfil si es nueva
       if (formData.profileImage && !formData.profileImage.uri?.startsWith('http')) {
         try {
-          profileImageUrl = await uploadImage(formData.profileImage.uri, `profiles/${authUser.uid}/profile`);
+          const profileResult = await uploadImage(formData.profileImage.uri, `turistas/${authUser.uid}/profile`, authUser.uid);
+          if (profileResult.success) {
+            profileImageUrl = profileResult.url;
+          }
         } catch (error) {
           console.error('Error subiendo imagen de perfil:', error);
         }
@@ -210,7 +280,10 @@ const TuristaProfileScreen = ({ navigation, route }) => {
       // Subir imagen de portada si es nueva
       if (formData.coverImage && !formData.coverImage.uri?.startsWith('http')) {
         try {
-          coverImageUrl = await uploadImage(formData.coverImage.uri, `profiles/${authUser.uid}/cover`);
+          const coverResult = await uploadImage(formData.coverImage.uri, `turistas/${authUser.uid}/cover`, authUser.uid);
+          if (coverResult.success) {
+            coverImageUrl = coverResult.url;
+          }
         } catch (error) {
           console.error('Error subiendo imagen de portada:', error);
         }
@@ -232,8 +305,9 @@ const TuristaProfileScreen = ({ navigation, route }) => {
       };
 
       await updateDoc(doc(db, 'turistas', authUser.uid), updateData);
-
-      setIsEditing(false);
+      
+      // Resetear el estado de cambios después de guardar exitosamente
+      setHasChanges(false);
       
       // Notificar al HomeScreen que se actualizaron los datos
       if (route?.params?.onProfileUpdate) {
@@ -316,33 +390,42 @@ const TuristaProfileScreen = ({ navigation, route }) => {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={handleBackPress}
         >
           <Ionicons name="arrow-back" size={24} color={COLOR_PALETTE.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mi Perfil</Text>
-        {!readOnly && isEditing ? (
-          <TouchableOpacity 
-            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-            onPress={handleSave}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color={COLOR_PALETTE.primary} />
-            ) : (
-              <Text style={styles.saveButtonText}>Guardar</Text>
-            )}
-          </TouchableOpacity>
-        ) : (!readOnly ? (
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={() => setIsEditing(true)}
-          >
-            <Ionicons name="pencil" size={16} color={COLOR_PALETTE.primary} />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 32 }} />
-        ))}
+        <View style={styles.headerButtons}>
+          {!readOnly && (
+            <TouchableOpacity 
+              style={[
+                styles.saveButton, 
+                !hasChanges && styles.saveButtonDisabled,
+                saving && styles.saveButtonSaving
+              ]}
+              onPress={handleSave}
+              disabled={!hasChanges || saving}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={COLOR_PALETTE.background.primary} />
+              ) : (
+                <>
+                  <Ionicons 
+                    name="checkmark" 
+                    size={16} 
+                    color={hasChanges ? COLOR_PALETTE.background.primary : '#9CA3AF'} 
+                  />
+                  <Text style={[
+                    styles.saveButtonText,
+                    !hasChanges && styles.saveButtonTextDisabled
+                  ]}>
+                    Guardar
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       <KeyboardAvoidingView 
@@ -351,6 +434,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
       >
         <ScrollView 
           style={styles.scrollView} 
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -360,21 +444,24 @@ const TuristaProfileScreen = ({ navigation, route }) => {
             <View style={styles.coverImageContainer}>
               <TouchableOpacity 
                 style={styles.coverImageButton} 
-                onPress={!readOnly && isEditing ? () => pickImage('cover') : undefined}
-                disabled={readOnly || !isEditing}
+                onPress={!readOnly ? () => pickImage('cover') : undefined}
+                disabled={readOnly}
               >
                 {formData.coverImage ? (
-                  <Image source={{ uri: formData.coverImage.uri }} style={styles.coverImage} />
+                  <Image 
+                    source={{ uri: typeof formData.coverImage.uri === 'string' ? formData.coverImage.uri : String(formData.coverImage.uri) }} 
+                    style={styles.coverImage} 
+                  />
                 ) : (
                   <View style={styles.coverImagePlaceholder}>
                     <Ionicons name="image" size={32} color={COLOR_PALETTE.text.light} />
                     <Text style={styles.coverImageText}>
-                      {isEditing ? 'Agregar portada' : 'Sin portada'}
+                      {'Agregar portada'}
                     </Text>
                   </View>
                 )}
               </TouchableOpacity>
-              {formData.coverImage && isEditing && !readOnly && (
+              {formData.coverImage && !readOnly && (
                 <TouchableOpacity 
                   style={styles.removeCoverButton} 
                   onPress={() => setFormData(prev => ({ ...prev, coverImage: null }))}
@@ -389,21 +476,24 @@ const TuristaProfileScreen = ({ navigation, route }) => {
             <View style={styles.profileImageContainer}>
               <TouchableOpacity 
                 style={styles.profileImageButton} 
-                onPress={!readOnly && isEditing ? () => pickImage('profile') : undefined}
-                disabled={readOnly || !isEditing}
+                onPress={!readOnly ? () => pickImage('profile') : undefined}
+                disabled={readOnly}
               >
                 {formData.profileImage ? (
-                  <Image source={{ uri: formData.profileImage.uri }} style={styles.profileImage} />
+                  <Image 
+                    source={{ uri: typeof formData.profileImage.uri === 'string' ? formData.profileImage.uri : String(formData.profileImage.uri) }} 
+                    style={styles.profileImage} 
+                  />
                 ) : (
                   <View style={styles.profileImagePlaceholder}>
                     <Ionicons name="camera" size={24} color={COLOR_PALETTE.text.light} />
                     <Text style={styles.profileImageText}>
-                      {isEditing ? 'Foto' : 'Sin foto'}
+                      {'Foto'}
                     </Text>
                   </View>
                 )}
               </TouchableOpacity>
-              {formData.profileImage && isEditing && !readOnly && (
+              {formData.profileImage && !readOnly && (
                 <TouchableOpacity 
                   style={styles.removeImageButton} 
                   onPress={() => setFormData(prev => ({ ...prev, profileImage: null }))}
@@ -426,11 +516,11 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   label="Nombres"
                   placeholder="Tus nombres"
                   value={formData.firstName}
-                  onChangeText={isEditing ? (value) => handleInputChange('firstName', value) : undefined}
+                  onChangeText={(value) => handleInputChange('firstName', value)}
                   autoCapitalize="words"
                   error={errors.firstName}
                   leftIcon="person"
-                  editable={isEditing && !readOnly}
+                  editable={!readOnly}
                 />
                 <Text style={styles.characterCount}>
                   {(formData.firstName || '').length}/50
@@ -442,11 +532,11 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   label="Apellidos"
                   placeholder="Tus apellidos"
                   value={formData.lastName}
-                  onChangeText={isEditing ? (value) => handleInputChange('lastName', value) : undefined}
+                  onChangeText={(value) => handleInputChange('lastName', value)}
                   autoCapitalize="words"
                   error={errors.lastName}
                   leftIcon="person"
-                  editable={isEditing}
+                  editable={!readOnly}
                 />
                 <Text style={styles.characterCount}>
                   {(formData.lastName || '').length}/50
@@ -464,11 +554,11 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   label="Número de Teléfono"
                   placeholder="#### ####"
                   value={formData.phone}
-                  onChangeText={isEditing ? (value) => handleInputChange('phone', value) : undefined}
+                  onChangeText={(value) => handleInputChange('phone', value)}
                   keyboardType="phone-pad"
                   error={errors.phone}
                   leftIcon="call"
-                  editable={isEditing}
+                  editable={!readOnly}
                 />
                 <Text style={styles.characterCount}>
                   {(formData.phone || '').replace(/\s/g, '').length}/8
@@ -486,14 +576,14 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                 <View style={styles.pickerWrapper}>
                   <Picker
                     selectedValue={formData.documentType}
-                    style={[styles.picker, (!isEditing || readOnly) && styles.pickerDisabled]}
-                    onValueChange={isEditing && !readOnly ? (value) => {
+                    style={[styles.picker, readOnly && styles.pickerDisabled]}
+                    onValueChange={!readOnly ? (value) => {
                       handleInputChange('documentType', value);
                       if (value !== formData.documentType) {
                         setFormData(prev => ({ ...prev, documentNumber: '' }));
                       }
                     } : undefined}
-                    enabled={isEditing && !readOnly}
+                    enabled={!readOnly}
                   >
                     <Picker.Item label="Selecciona un tipo de documento" value="" />
                     <Picker.Item label="Cédula de Identidad" value="cedula" />
@@ -509,10 +599,10 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   label="Número de Documento"
                   placeholder={formData.documentType === 'cedula' ? "Ej. 001-080800-0000A" : "Ej. A1234567"}
                   value={formData.documentNumber}
-                  onChangeText={isEditing ? (value) => handleInputChange('documentNumber', value) : undefined}
+                  onChangeText={(value) => handleInputChange('documentNumber', value)}
                   error={errors.documentNumber}
                   leftIcon="card"
-                  editable={isEditing}
+                  editable={!readOnly}
                 />
               </View>
             </View>
@@ -524,69 +614,145 @@ const TuristaProfileScreen = ({ navigation, route }) => {
               <View style={styles.sectionUnderline} />
               
               <View style={styles.inputContainer}>
-                <Input
-                  label="Ciudad"
-                  placeholder="Ej. Managua, Granada, León..."
-                  value={formData.city}
-                  onChangeText={isEditing ? (value) => handleInputChange('city', value) : undefined}
-                  error={errors.city}
-                  leftIcon="location"
-                  editable={isEditing}
-                />
-                <Text style={styles.characterCount}>
-                  {(formData.city || '').length}/30
-                </Text>
+                <Text style={styles.label}>Ciudad *</Text>
+                <TouchableOpacity 
+                  style={[styles.selectorButton, errors.city && styles.selectorButtonError]}
+                  onPress={() => !readOnly && setShowCityPicker(true)}
+                  disabled={readOnly}
+                >
+                  <View style={styles.selectorContent}>
+                    <Ionicons name="location" size={20} color="#6B7280" />
+                    <Text style={[styles.selectorText, !formData.city && styles.selectorPlaceholder]}>
+                      {formData.city || 'Seleccionar ciudad'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                  </View>
+                </TouchableOpacity>
+                {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
               </View>
               
               <View style={styles.inputContainer}>
-                <Input
-                  label="País"
-                  placeholder="Ej. Nicaragua, Costa Rica, Honduras..."
-                  value={formData.country}
-                  onChangeText={isEditing ? (value) => handleInputChange('country', value) : undefined}
-                  error={errors.country}
-                  leftIcon="globe"
-                  editable={isEditing}
-                />
-                <Text style={styles.characterCount}>
-                  {(formData.country || '').length}/30
-                </Text>
+                <Text style={styles.label}>País *</Text>
+                <TouchableOpacity 
+                  style={[styles.selectorButton, errors.country && styles.selectorButtonError]}
+                  onPress={() => !readOnly && setShowCountryPicker(true)}
+                  disabled={readOnly}
+                >
+                  <View style={styles.selectorContent}>
+                    <Ionicons name="globe" size={20} color="#6B7280" />
+                    <Text style={[styles.selectorText, !formData.country && styles.selectorPlaceholder]}>
+                      {formData.country || 'Seleccionar país'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                  </View>
+                </TouchableOpacity>
+                {errors.country && <Text style={styles.errorText}>{errors.country}</Text>}
               </View>
             </View>
 
-            {/* Botón de editar información */}
-            {!isEditing && !readOnly && (
-              <View style={styles.editButtonContainer}>
-                <TouchableOpacity 
-                  style={styles.editInfoButton}
-                  onPress={() => setIsEditing(true)}
-                >
-                  <Ionicons name="pencil" size={20} color={COLOR_PALETTE.background.primary} />
-                  <Text style={styles.editInfoButtonText}>Editar Información</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Botón de cancelar edición */}
-            {isEditing && !readOnly && (
-              <View style={styles.cancelButtonContainer}>
-                <TouchableOpacity 
-                  style={styles.cancelButton}
-                  onPress={() => {
-                    setIsEditing(false);
-                    setErrors({});
-                    // Recargar los datos originales
-                    loadUserData();
-                  }}
-                >
-                  <Ionicons name="close" size={20} color={COLOR_PALETTE.red} />
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-              </View>
-            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Overlay de carga durante el guardado */}
+      {saving && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#4ADE80" />
+            <Text style={styles.loadingText}>Actualizando perfil...</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Modal para seleccionar ciudad */}
+      <Modal
+        visible={showCityPicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Seleccionar Ciudad</Text>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => setShowCityPicker(false)}
+            >
+              <Ionicons name="close" size={24} color="#1F2937" />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.modalContent}>
+            {nicaraguaCities.map((city) => (
+              <TouchableOpacity
+                key={city}
+                style={[
+                  styles.optionItem,
+                  formData.city === city && styles.selectedOptionItem
+                ]}
+                onPress={() => {
+                  handleInputChange('city', city);
+                  setShowCityPicker(false);
+                }}
+              >
+                <Text style={[
+                  styles.optionText,
+                  formData.city === city && styles.selectedOptionText
+                ]}>
+                  {city}
+                </Text>
+                {formData.city === city && (
+                  <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Modal para seleccionar país */}
+      <Modal
+        visible={showCountryPicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Seleccionar País</Text>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => setShowCountryPicker(false)}
+            >
+              <Ionicons name="close" size={24} color="#1F2937" />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.modalContent}>
+            {countries.map((country) => (
+              <TouchableOpacity
+                key={country}
+                style={[
+                  styles.optionItem,
+                  formData.country === country && styles.selectedOptionItem
+                ]}
+                onPress={() => {
+                  handleInputChange('country', country);
+                  setShowCountryPicker(false);
+                }}
+              >
+                <Text style={[
+                  styles.optionText,
+                  formData.country === country && styles.selectedOptionText
+                ]}>
+                  {country}
+                </Text>
+                {formData.country === country && (
+                  <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -615,9 +781,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: COLOR_PALETTE.text.primary,
+    marginLeft: 8,
+    flex: 1,
+  },
+  headerButtons: {
+    position: 'absolute',
+    right: 16,
   },
   saveButton: {
-    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     backgroundColor: COLOR_PALETTE.primary,
@@ -625,10 +799,17 @@ const styles = StyleSheet.create({
   saveButtonDisabled: {
     backgroundColor: COLOR_PALETTE.gray[300],
   },
+  saveButtonSaving: {
+    backgroundColor: COLOR_PALETTE.primary,
+  },
   saveButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: COLOR_PALETTE.background.primary,
+    marginLeft: 4,
+  },
+  saveButtonTextDisabled: {
+    color: '#9CA3AF',
   },
   editButton: {
     padding: 8,
@@ -645,6 +826,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 30, // Margen al final del formulario
   },
   imageSection: {
     backgroundColor: COLOR_PALETTE.background.primary,
@@ -869,6 +1053,119 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLOR_PALETTE.red,
     marginLeft: 8,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 32,
+    paddingVertical: 24,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLOR_PALETTE.text.primary,
+    textAlign: 'center',
+  },
+  // Estilos para selectores
+  selectorButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  selectorButtonError: {
+    borderColor: '#EF4444',
+  },
+  selectorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  selectorText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#111827',
+    marginLeft: 12,
+  },
+  selectorPlaceholder: {
+    color: '#9CA3AF',
+  },
+  // Estilos para modales
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  selectedOptionItem: {
+    backgroundColor: '#EBF4FF',
+    borderColor: '#3B82F6',
+  },
+  optionText: {
+    fontSize: 16,
+    color: '#111827',
+    flex: 1,
+  },
+  selectedOptionText: {
+    color: '#3B82F6',
+    fontWeight: '600',
   },
 });
 

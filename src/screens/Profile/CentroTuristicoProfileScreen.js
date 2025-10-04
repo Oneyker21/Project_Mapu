@@ -1,34 +1,68 @@
 import React, { useState, useEffect } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
+  StyleSheet,
   Image,
-  TextInput,
-  Modal,
+  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  TextInput,
+  Modal,
+  BackHandler,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
-import { uploadImage, getStoragePaths } from '../../services/imageStorage.js';
-import { validatePhone, validateEmail } from '../../utils/validations.js';
+import { uploadImage } from '../../services/imageStorage';
+import { getDepartmentFromCoordinates, isWithinNicaragua } from '../../utils/geolocation';
 
-const CentroTuristicoProfileScreen = ({ navigation }) => {
+// Paleta de colores
+const COLOR_PALETTE = {
+  primary: '#3B82F6',
+  secondary: '#10B981',
+  accent: '#F59E0B',
+  red: '#EF4444',
+  gray: {
+    50: '#F9FAFB',
+    100: '#F3F4F6',
+    200: '#E5E7EB',
+    300: '#D1D5DB',
+    400: '#9CA3AF',
+    500: '#6B7280',
+    600: '#4B5563',
+    700: '#374151',
+    800: '#1F2937',
+    900: '#111827',
+  },
+  text: {
+    primary: '#1F2937',
+    secondary: '#6B7280',
+    light: '#9CA3AF',
+  },
+  background: {
+    primary: '#FFFFFF',
+    secondary: '#F9FAFB',
+  }
+};
+
+const CentroTuristicoProfileScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { user: authUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [isEditing, setIsEditing] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+
   const [formData, setFormData] = useState({
     nombreNegocio: '',
     categoriaNegocio: '',
@@ -37,36 +71,33 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
     direccion: '',
     latitud: '',
     longitud: '',
+    departamento: '',
     horario: '',
     costo: '',
-    logotipo: '',
-    portada: ''
+    logotipo: null,
+    portada: null,
   });
-  const [categoriasSeleccionadas, setCategoriasSeleccionadas] = useState([]);
-  const [showAddCategory, setShowAddCategory] = useState(false);
-  const [nuevaCategoria, setNuevaCategoria] = useState('');
-  const [showImagePicker, setShowImagePicker] = useState(false);
-  const [imageType, setImageType] = useState(''); // 'logo' o 'portada'
-  const [showLocationPermissionModal, setShowLocationPermissionModal] = useState(false);
-  const [locationError, setLocationError] = useState(null);
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
+
   const [scheduleData, setScheduleData] = useState({
     lunes: { open: '09:00', close: '18:00', enabled: true },
     martes: { open: '09:00', close: '18:00', enabled: true },
     miercoles: { open: '09:00', close: '18:00', enabled: true },
     jueves: { open: '09:00', close: '18:00', enabled: true },
     viernes: { open: '09:00', close: '18:00', enabled: true },
-    sabado: { open: '09:00', close: '18:00', enabled: true },
+    sabado: { open: '09:00', close: '16:00', enabled: true },
     domingo: { open: '09:00', close: '18:00', enabled: false }
   });
+
+  const [categoriasSeleccionadas, setCategoriasSeleccionadas] = useState([]);
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [nuevaCategoria, setNuevaCategoria] = useState('');
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [currentTimeField, setCurrentTimeField] = useState({ day: '', field: '', value: '' });
+  const [selectedDay, setSelectedDay] = useState('');
+  const [selectedField, setSelectedField] = useState(''); // 'open' o 'close'
   const [selectedHour, setSelectedHour] = useState(9);
   const [selectedMinute, setSelectedMinute] = useState(0);
   const [selectedAmPm, setSelectedAmPm] = useState('AM');
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [originalFormData, setOriginalFormData] = useState(null);
-  const [originalScheduleData, setOriginalScheduleData] = useState(null);
 
   const categoriasNegocio = [
     'Hoteles',
@@ -84,48 +115,76 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
     'Otros'
   ];
 
+  const diasSemana = [
+    { key: 'lunes', label: 'Lunes' },
+    { key: 'martes', label: 'Martes' },
+    { key: 'miercoles', label: 'Miércoles' },
+    { key: 'jueves', label: 'Jueves' },
+    { key: 'viernes', label: 'Viernes' },
+    { key: 'sabado', label: 'Sábado' },
+    { key: 'domingo', label: 'Domingo' }
+  ];
+
   useEffect(() => {
     loadUserData();
   }, []);
 
-  // Detectar cambios automáticamente
+  // Detectar cambios en el formulario
   useEffect(() => {
-    if (originalFormData && originalScheduleData) {
-      const hasChanges = checkForChanges();
-      setHasUnsavedChanges(hasChanges);
+    if (userData) {
+      const hasFormChanges = formData.nombreNegocio.trim() !== (userData?.nombreNegocio || '') ||
+                            formData.categoriaNegocio.trim() !== (userData?.categoriaNegocio || '') ||
+                            formData.emailNegocio.trim() !== (userData?.emailNegocio || '') ||
+                            formData.telefonoNegocio.trim() !== (userData?.telefonoNegocio || '') ||
+                            formData.direccion.trim() !== (userData?.direccion || '') ||
+                            formData.latitud !== (userData?.latitud || '') ||
+                            formData.longitud !== (userData?.longitud || '') ||
+                            formData.departamento.trim() !== (userData?.departamento || '') ||
+                            formData.costo.trim() !== (userData?.costo || '');
+      
+      // Verificar si hay imágenes seleccionadas (nuevas o cambiadas)
+      const hasNewImages = (formData.logotipo && formData.logotipo.uri !== userData?.logotipo) ||
+                          (formData.portada && formData.portada.uri !== userData?.portada);
+      
+      setHasChanges(hasFormChanges || hasNewImages);
     }
-  }, [formData, scheduleData, originalFormData, originalScheduleData]);
+  }, [formData, scheduleData, categoriasSeleccionadas, userData]);
 
-  // Guardia de navegación para prevenir pérdida de datos
+  // Manejar el botón de atrás del teléfono
   useFocusEffect(
     React.useCallback(() => {
       const onBackPress = () => {
-        if (hasUnsavedChanges) {
-          showUnsavedChangesAlert(() => {
-            navigation.navigate('Tabs');
-          });
+        if (hasChanges) {
+          Alert.alert(
+            'Cambios sin guardar',
+            'Tienes cambios sin guardar. ¿Deseas guardar antes de salir?',
+            [
+              {
+                text: 'Descartar',
+                style: 'destructive',
+                onPress: () => navigation.goBack(),
+              },
+              {
+                text: 'Guardar',
+                onPress: () => {
+                  handleSave();
+                  navigation.goBack();
+                },
+              },
+              {
+                text: 'Cancelar',
+                style: 'cancel',
+              },
+            ]
+          );
           return true; // Prevenir el comportamiento por defecto
         }
-        return false; // Permitir navegación normal
+        return false; // Permitir el comportamiento por defecto
       };
 
-      // Agregar listener para el botón de atrás
-      const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-        if (!hasUnsavedChanges) {
-          return; // Si no hay cambios, permitir navegación normal
-        }
-
-        // Prevenir navegación por defecto
-        e.preventDefault();
-
-        // Mostrar alerta
-        showUnsavedChangesAlert(() => {
-          navigation.dispatch(e.data.action);
-        });
-      });
-
-      return unsubscribe;
-    }, [hasUnsavedChanges, navigation])
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [hasChanges, navigation])
   );
 
   const loadUserData = async () => {
@@ -135,6 +194,8 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
         if (userDoc.exists()) {
           const data = userDoc.data();
           setUserData(data);
+          
+          // Llenar el formulario con los datos existentes
           setFormData({
             nombreNegocio: data.nombreNegocio || '',
             categoriaNegocio: data.categoriaNegocio || '',
@@ -143,106 +204,213 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
             direccion: data.direccion || '',
             latitud: data.latitud ? Number(data.latitud).toFixed(8) : '',
             longitud: data.longitud ? Number(data.longitud).toFixed(8) : '',
-            horario: data.horario ? convertScheduleTo12h(data.horario) : '',
+            departamento: data.departamento || '',
+            horario: data.horario || '',
             costo: data.costo || '',
-            logotipo: data.logotipo || '',
-            portada: data.portada || ''
+            logotipo: data.logotipo ? { uri: data.logotipo } : null,
+            portada: data.portada ? { uri: data.portada } : null,
           });
 
-          // Cargar datos estructurados del horario si existen
-          if (data.horarioDetallado) {
-            setScheduleData(data.horarioDetallado);
-            setOriginalScheduleData(data.horarioDetallado);
+          // Procesar categorías
+          if (data.categoriaNegocio) {
+            const categorias = data.categoriaNegocio.split(',').map(cat => cat.trim()).filter(Boolean);
+            setCategoriasSeleccionadas(categorias);
           } else {
-            setOriginalScheduleData(scheduleData);
+            setCategoriasSeleccionadas([]);
           }
 
-          // Guardar datos originales para comparación
-          const originalData = {
-            nombreNegocio: data.nombreNegocio || '',
-            categoriaNegocio: data.categoriaNegocio || '',
-            emailNegocio: data.emailNegocio || '',
-            telefonoNegocio: data.telefonoNegocio || '',
-            direccion: data.direccion || '',
-            latitud: data.latitud ? Number(data.latitud).toFixed(8) : '',
-            longitud: data.longitud ? Number(data.longitud).toFixed(8) : '',
-            horario: data.horario ? convertScheduleTo12h(data.horario) : '',
-            costo: data.costo || '',
-            logotipo: data.logotipo || '',
-            portada: data.portada || ''
-          };
-          setOriginalFormData(originalData);
-          
-          // Cargar categorías seleccionadas
-          if (data.categoriaNegocio) {
-            const categorias = data.categoriaNegocio.split(', ').filter(cat => cat.trim() !== '');
-            setCategoriasSeleccionadas(categorias);
+          // Procesar horario detallado
+          if (data.horarioDetallado) {
+            setScheduleData(data.horarioDetallado);
           }
+
+          setHasChanges(false);
         }
       }
     } catch (error) {
-      console.error('Error cargando datos del usuario:', error);
-      Alert.alert('Error', 'No se pudieron cargar los datos del perfil');
+      console.error('Error cargando datos del centro:', error);
+      Alert.alert('Error', 'No se pudieron cargar los datos del centro');
     } finally {
       setLoading(false);
+    }
+  };
+
+
+  const pickImage = async (type = 'logotipo') => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permisos', 'Se necesitan permisos para acceder a la galería');
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: type === 'logotipo' ? [1, 1] : [16, 9],
+        quality: 0.8,
+        exif: false,
+        base64: false,
+        allowsMultipleSelection: false,
+        selectionLimit: 1,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const field = type === 'logotipo' ? 'logotipo' : 'portada';
+        setFormData(prev => ({ ...prev, [field]: result.assets[0] }));
+      }
+    } catch (error) {
+      console.error('Error seleccionando imagen:', error);
+      Alert.alert('Error', 'No se pudo seleccionar la imagen');
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.nombreNegocio.trim()) {
+      newErrors.nombreNegocio = 'El nombre del negocio es requerido';
+    }
+
+    if (!formData.emailNegocio.trim()) {
+      newErrors.emailNegocio = 'El email es requerido';
+    } else if (!/\S+@\S+\.\S+/.test(formData.emailNegocio)) {
+      newErrors.emailNegocio = 'El email no es válido';
+    }
+
+    if (!formData.telefonoNegocio.trim()) {
+      newErrors.telefonoNegocio = 'El teléfono es requerido';
+    }
+
+    if (!formData.direccion.trim()) {
+      newErrors.direccion = 'La dirección es requerida';
+    }
+
+    if (!formData.latitud || !formData.longitud) {
+      newErrors.ubicacion = 'La ubicación es requerida';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSave = async () => {
+    if (!validateForm()) {
+      Alert.alert('Error', 'Por favor corrige los errores en el formulario');
+      return;
+    }
+
+    if (!authUser?.uid) {
+      Alert.alert('Error', 'No se pudo obtener la información del usuario');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let logotipoUrl = userData?.logotipo || null;
+      let portadaUrl = userData?.portada || null;
+
+      // Subir logotipo si es nuevo
+      if (formData.logotipo && !formData.logotipo.uri?.startsWith('http')) {
+        try {
+          const logotipoResult = await uploadImage(formData.logotipo.uri, `centros_turisticos/${authUser.uid}/logo`, authUser.uid);
+          if (logotipoResult.success) {
+            logotipoUrl = logotipoResult.url;
+          }
+        } catch (error) {
+          console.error('Error subiendo logotipo:', error);
+        }
+      }
+
+      // Subir portada si es nueva
+      if (formData.portada && !formData.portada.uri?.startsWith('http')) {
+        try {
+          const portadaResult = await uploadImage(formData.portada.uri, `centros_turisticos/${authUser.uid}/business_cover`, authUser.uid);
+          if (portadaResult.success) {
+            portadaUrl = portadaResult.url;
+          }
+        } catch (error) {
+          console.error('Error subiendo portada:', error);
+        }
+      }
+
+      // Actualizar datos en Firestore
+      const updateData = {
+        nombreNegocio: formData.nombreNegocio.trim(),
+        categoriaNegocio: formData.categoriaNegocio.trim(),
+        emailNegocio: formData.emailNegocio.trim(),
+        telefonoNegocio: formData.telefonoNegocio.trim(),
+        direccion: formData.direccion.trim(),
+        latitud: formData.latitud ? Number(formData.latitud).toFixed(8) : '',
+        longitud: formData.longitud ? Number(formData.longitud).toFixed(8) : '',
+        departamento: formData.departamento.trim(),
+        horario: convertScheduleTo12h(scheduleData),
+        horarioDetallado: scheduleData,
+        costo: formData.costo.trim(),
+        logotipo: logotipoUrl,
+        portada: portadaUrl,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await updateDoc(doc(db, 'centrosTuristicos', authUser.uid), updateData);
+
+      setHasChanges(false);
+      
+      // Notificar al HomeScreen que se actualizaron los datos
+      if (route?.params?.onProfileUpdate) {
+        console.log('Ejecutando callback onProfileUpdate');
+        route.params.onProfileUpdate();
+      } else {
+        console.log('No hay callback onProfileUpdate disponible');
+      }
+      
+      Alert.alert(
+        'Éxito',
+        'Tu centro ha sido actualizado correctamente'
+      );
+    } catch (error) {
+      console.error('Error guardando centro:', error);
+      Alert.alert('Error', 'No se pudo guardar el centro. Inténtalo de nuevo.');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleInputChange = (field, value) => {
     let processedValue = value;
     
-    // Validaciones específicas por campo
     switch (field) {
-      case 'telefonoNegocio':
-        // Solo permitir números, espacios, guiones, paréntesis y el símbolo +
-        processedValue = value.replace(/[^0-9\s\-\(\)\+]/g, '');
-        // Limitar a 15 caracteres (mismo límite del registro)
-        if (processedValue.length > 15) {
-          processedValue = processedValue.substring(0, 15);
-        }
+      case 'nombreNegocio':
+        processedValue = value.slice(0, 100);
         break;
       case 'emailNegocio':
-        // Convertir a minúsculas y remover espacios
         processedValue = value.toLowerCase().trim();
         break;
-      case 'nombreNegocio':
-        // Limitar a 100 caracteres
-        if (processedValue.length > 100) {
-          processedValue = processedValue.substring(0, 100);
-        }
+      case 'telefonoNegocio':
+        processedValue = value.replace(/[^0-9\s\-\(\)\+]/g, '').slice(0, 15);
         break;
       case 'direccion':
-        // Limitar a 200 caracteres
-        if (processedValue.length > 200) {
-          processedValue = processedValue.substring(0, 200);
-        }
+        processedValue = value.slice(0, 200);
         break;
       case 'horario':
-        // Limitar a 100 caracteres
-        if (processedValue.length > 100) {
-          processedValue = processedValue.substring(0, 100);
-        }
+        processedValue = value.slice(0, 100);
         break;
       case 'costo':
-        // Limitar a 100 caracteres
-        if (processedValue.length > 100) {
-          processedValue = processedValue.substring(0, 100);
-        }
+        processedValue = value.slice(0, 100);
         break;
       default:
-        break;
+        processedValue = value;
     }
     
-    setFormData(prev => ({
-      ...prev,
-      [field]: processedValue
-    }));
+    setFormData(prev => ({ ...prev, [field]: processedValue }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
   };
 
   const handleCategoriaToggle = (categoria) => {
     setCategoriasSeleccionadas(prev => {
       if (prev.includes(categoria)) {
-        // Remover categoría
         const nuevasCategorias = prev.filter(cat => cat !== categoria);
         setFormData(prevForm => ({
           ...prevForm,
@@ -250,7 +418,6 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
         }));
         return nuevasCategorias;
       } else {
-        // Agregar categoría
         const nuevasCategorias = [...prev, categoria];
         setFormData(prevForm => ({
           ...prevForm,
@@ -274,180 +441,7 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
     }
   };
 
-  const handleRemoveCategory = (categoria) => {
-    const nuevasCategorias = categoriasSeleccionadas.filter(cat => cat !== categoria);
-    setCategoriasSeleccionadas(nuevasCategorias);
-    setFormData(prev => ({
-      ...prev,
-      categoriaNegocio: nuevasCategorias.join(', ')
-    }));
-  };
-
-  const handleAcceptLocationPermission = () => {
-    setShowLocationPermissionModal(false);
-    // Intentar abrir configuración del sistema
-    Alert.alert(
-      'Configuración',
-      'Se abrirá la configuración de tu dispositivo.\n\n' +
-      '1. Busca "Privacidad" o "Ubicación"\n' +
-      '2. Habilita "Servicios de ubicación"\n' +
-      '3. Asegúrate de que esta app tenga permisos\n' +
-      '4. Regresa e intenta seleccionar ubicación nuevamente',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Abrir Configuración', 
-          style: 'default',
-          onPress: () => {
-            // Aquí podrías intentar abrir la configuración del sistema
-            // Por ahora solo cerramos el modal
-            setShowLocationPermissionModal(false);
-          }
-        }
-      ]
-    );
-  };
-
-  const handleCancelLocationPermission = () => {
-    setShowLocationPermissionModal(false);
-    setLocationError(null);
-  };
-
-  const getLocationErrorInfo = () => {
-    if (!locationError) return { title: 'Error de Ubicación', message: 'No se pudo acceder a la ubicación.' };
-    
-    if (locationError.code === 'PERMISSION_DENIED' || (locationError.message && locationError.message.includes('permission'))) {
-      return {
-        title: 'Permisos de Ubicación',
-        message: 'Se necesita permiso para acceder a la ubicación.',
-        icon: 'location-outline',
-        color: '#3B82F6'
-      };
-    } else if (locationError.message && locationError.message.includes('location services')) {
-      return {
-        title: 'Servicios de Ubicación',
-        message: 'Los servicios de ubicación están deshabilitados.',
-        icon: 'settings-outline',
-        color: '#F59E0B'
-      };
-    } else if (locationError.message && locationError.message.includes('network')) {
-      return {
-        title: 'Error de Conexión',
-        message: 'Error de conexión a internet.',
-        icon: 'wifi-outline',
-        color: '#EF4444'
-      };
-    } else {
-      return {
-        title: 'Error de Ubicación',
-        message: 'No se pudo obtener la ubicación.',
-        icon: 'location-outline',
-        color: '#6B7280'
-      };
-    }
-  };
-
-  const handleImagePicker = (type) => {
-    setImageType(type);
-    setShowImagePicker(true);
-  };
-
-  const pickImage = async (source) => {
-    try {
-      let result;
-      
-      if (source === 'camera') {
-        const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-        if (permissionResult.granted === false) {
-          Alert.alert('Permisos', 'Se necesita acceso a la cámara para tomar fotos');
-          return;
-        }
-        result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: imageType === 'logo' ? [1, 1] : [16, 9],
-          quality: 0.8,
-        });
-      } else {
-        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (permissionResult.granted === false) {
-          Alert.alert('Permisos', 'Se necesita acceso a la galería para seleccionar fotos');
-          return;
-        }
-        result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: imageType === 'logo' ? [1, 1] : [16, 9],
-          quality: 0.8,
-        });
-      }
-
-      if (!result.canceled && result.assets[0]) {
-        const imageUri = result.assets[0].uri;
-        // Cerrar el modal inmediatamente después de seleccionar la imagen
-        setShowImagePicker(false);
-        // Subir la imagen (esto mostrará el indicador de carga)
-        await uploadImageToProfile(imageUri, imageType);
-      }
-    } catch (error) {
-      console.error('Error seleccionando imagen:', error);
-      Alert.alert('Error', 'No se pudo seleccionar la imagen');
-    } finally {
-      // Solo cerrar el modal si no se canceló la selección
-      if (result && result.canceled) {
-        setShowImagePicker(false);
-      }
-    }
-  };
-
-  const uploadImageToProfile = async (imageUri, type) => {
-    try {
-      setSaving(true);
-      
-      // Obtener las rutas de almacenamiento
-      const storagePaths = getStoragePaths(authUser.uid, 'centro_turistico');
-      
-      // Determinar la ruta según el tipo de imagen
-      const path = type === 'logo' ? storagePaths.businessLogo : storagePaths.businessCover;
-      
-      // Subir la imagen
-      const result = await uploadImage(imageUri, path, authUser.uid);
-      
-      if (result.success) {
-        setFormData(prev => ({
-          ...prev,
-          [type === 'logo' ? 'logotipo' : 'portada']: result.url
-        }));
-        
-        Alert.alert('Éxito', 'Imagen subida correctamente');
-      } else {
-        throw new Error(result.error || 'Error al subir la imagen');
-      }
-    } catch (error) {
-      console.error('Error subiendo imagen:', error);
-      Alert.alert('Error', 'No se pudo subir la imagen');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Funciones para manejar el horario
-  const handleScheduleModal = () => {
-    setShowScheduleModal(true);
-  };
-
-  const updateScheduleDay = (day, field, value) => {
-    setScheduleData(prev => ({
-      ...prev,
-      [day]: {
-        ...prev[day],
-        [field]: value
-      }
-    }));
-    setHasUnsavedChanges(true);
-  };
-
-  const toggleDayEnabled = (day) => {
+  const handleScheduleToggle = (day) => {
     setScheduleData(prev => ({
       ...prev,
       [day]: {
@@ -455,509 +449,298 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
         enabled: !prev[day].enabled
       }
     }));
-    setHasUnsavedChanges(true);
   };
 
-  const formatScheduleText = () => {
-    const days = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
-    const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-    
-    let scheduleText = '';
-    let currentGroup = null;
-    let groupStart = null;
-    let groupEnd = null;
-    
-    for (let i = 0; i < days.length; i++) {
-      const day = days[i];
-      const dayData = scheduleData[day];
-      
-      if (dayData.enabled) {
-        const openTime12h = convert24To12Display(dayData.open);
-        const closeTime12h = convert24To12Display(dayData.close);
-        const timeRange = `${openTime12h} - ${closeTime12h}`;
-        
-        if (currentGroup && currentGroup === timeRange) {
-          groupEnd = dayNames[i];
-        } else {
-          // Finalizar grupo anterior si existe
-          if (currentGroup) {
-            if (groupStart === groupEnd) {
-              scheduleText += `${groupStart}: ${currentGroup}\n`;
-            } else {
-              scheduleText += `${groupStart} - ${groupEnd}: ${currentGroup}\n`;
-            }
-          }
-          
-          // Iniciar nuevo grupo
-          currentGroup = timeRange;
-          groupStart = dayNames[i];
-          groupEnd = dayNames[i];
-        }
-      } else {
-        // Finalizar grupo anterior si existe
-        if (currentGroup) {
-          if (groupStart === groupEnd) {
-            scheduleText += `${groupStart}: ${currentGroup}\n`;
-          } else {
-            scheduleText += `${groupStart} - ${groupEnd}: ${currentGroup}\n`;
-          }
-          currentGroup = null;
-        }
-      }
-    }
-    
-    // Finalizar último grupo si existe
-    if (currentGroup) {
-      if (groupStart === groupEnd) {
-        scheduleText += `${groupStart}: ${currentGroup}`;
-      } else {
-        scheduleText += `${groupStart} - ${groupEnd}: ${currentGroup}`;
-      }
-    }
-    
-    return scheduleText.trim();
-  };
-
-  const saveSchedule = () => {
-    const scheduleText = formatScheduleText();
-    setFormData(prev => ({
+  const handleScheduleTimeChange = (day, field, value) => {
+    setScheduleData(prev => ({
       ...prev,
-      horario: scheduleText
+      [day]: {
+        ...prev[day],
+        [field]: value
+      }
     }));
-    setShowScheduleModal(false);
-    // No mostrar alerta aquí, solo actualizar el texto
   };
 
-  // Funciones para el TimePicker
+  const convertScheduleTo12h = (schedule) => {
+    if (!schedule) return '';
+    
+    const formatTime = (time) => {
+      if (!time) return '';
+      const [hours, minutes] = time.split(':');
+      const hour = parseInt(hours);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour % 12 || 12;
+      return `${displayHour}:${minutes} ${ampm}`;
+    };
+
+    const enabledDays = Object.entries(schedule)
+      .filter(([_, data]) => data.enabled)
+      .map(([day, data]) => {
+        const dayName = diasSemana.find(d => d.key === day)?.label || day;
+        return `${dayName}: ${formatTime(data.open)} - ${formatTime(data.close)}`;
+      });
+
+    return enabledDays.join('\n');
+  };
+
+  const convertTo24h = (hour, minute, ampm) => {
+    let hour24 = hour;
+    if (ampm === 'PM' && hour !== 12) {
+      hour24 = hour + 12;
+    } else if (ampm === 'AM' && hour === 12) {
+      hour24 = 0;
+    }
+    return `${hour24.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+  };
+
+  const convertFrom24h = (time24) => {
+    if (!time24) return { hour: 9, minute: 0, ampm: 'AM' };
+    const [hours, minutes] = time24.split(':');
+    const hour24 = parseInt(hours);
+    const minute = parseInt(minutes);
+    
+    let hour12 = hour24;
+    let ampm = 'AM';
+    
+    if (hour24 === 0) {
+      hour12 = 12;
+    } else if (hour24 === 12) {
+      ampm = 'PM';
+    } else if (hour24 > 12) {
+      hour12 = hour24 - 12;
+      ampm = 'PM';
+    }
+    
+    return { hour: hour12, minute, ampm };
+  };
+
   const openTimePicker = (day, field) => {
-    const currentTime = scheduleData[day][field];
-    const [hour24, minute] = currentTime.split(':').map(Number);
+    const currentTime = scheduleData[day]?.[field] || '09:00';
+    const { hour, minute, ampm } = convertFrom24h(currentTime);
     
-    // Convertir de 24h a 12h
-    const { hour12, ampm } = convert24To12(hour24);
-    
-    setCurrentTimeField({ day, field, value: currentTime });
-    setSelectedHour(hour12);
+    setSelectedDay(day);
+    setSelectedField(field);
+    setSelectedHour(hour);
     setSelectedMinute(minute);
     setSelectedAmPm(ampm);
     setShowTimePicker(true);
   };
 
-  const saveTime = () => {
-    // Convertir de 12h a 24h
-    const hour24 = convert12To24(selectedHour, selectedAmPm);
-    const timeString = `${hour24.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`;
-    
-    setScheduleData(prev => ({
-      ...prev,
-      [currentTimeField.day]: {
-        ...prev[currentTimeField.day],
-        [currentTimeField.field]: timeString
-      }
-    }));
-    
-    setHasUnsavedChanges(true);
+  const saveTimeSelection = () => {
+    const time24 = convertTo24h(selectedHour, selectedMinute, selectedAmPm);
+    handleScheduleTimeChange(selectedDay, selectedField, time24);
     setShowTimePicker(false);
   };
 
-  // Convertir de formato 24h a 12h
-  const convert24To12 = (hour24) => {
-    if (hour24 === 0) {
-      return { hour12: 12, ampm: 'AM' };
-    } else if (hour24 < 12) {
-      return { hour12: hour24, ampm: 'AM' };
-    } else if (hour24 === 12) {
-      return { hour12: 12, ampm: 'PM' };
+  const handleBackPress = () => {
+    if (hasChanges) {
+      Alert.alert(
+        'Cambios sin guardar',
+        'Tienes cambios sin guardar. ¿Deseas guardar antes de salir?',
+        [
+          {
+            text: 'Descartar',
+            style: 'destructive',
+            onPress: () => navigation.goBack(),
+          },
+          {
+            text: 'Guardar',
+            onPress: () => {
+              handleSave();
+              navigation.goBack();
+            },
+          },
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+          },
+        ]
+      );
     } else {
-      return { hour12: hour24 - 12, ampm: 'PM' };
+      navigation.goBack();
     }
-  };
-
-  // Convertir de formato 12h a 24h
-  const convert12To24 = (hour12, ampm) => {
-    if (ampm === 'AM') {
-      return hour12 === 12 ? 0 : hour12;
-    } else {
-      return hour12 === 12 ? 12 : hour12 + 12;
-    }
-  };
-
-  // Convertir de formato 24h a 12h para mostrar
-  const convert24To12Display = (time24) => {
-    const [hour, minute] = time24.split(':').map(Number);
-    const { hour12, ampm } = convert24To12(hour);
-    return `${hour12}:${minute.toString().padStart(2, '0')} ${ampm}`;
-  };
-
-  // Convertir horario completo de 24h a 12h
-  const convertScheduleTo12h = (scheduleText) => {
-    if (!scheduleText) return '';
-    
-    // Patrón para encontrar horarios en formato 24h (HH:MM - HH:MM)
-    const timePattern = /(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/g;
-    
-    return scheduleText.replace(timePattern, (match, openHour, openMinute, closeHour, closeMinute) => {
-      const openTime12h = convert24To12Display(`${openHour}:${openMinute}`);
-      const closeTime12h = convert24To12Display(`${closeHour}:${closeMinute}`);
-      return `${openTime12h} - ${closeTime12h}`;
-    });
-  };
-
-  const generateTimeOptions = (type) => {
-    const options = [];
-    if (type === 'hour') {
-      for (let i = 1; i <= 12; i++) {
-        options.push({ value: i, label: i.toString() });
-      }
-    } else if (type === 'minute') {
-      for (let i = 0; i < 60; i++) {
-        options.push({ value: i, label: i.toString().padStart(2, '0') });
-      }
-    } else if (type === 'ampm') {
-      options.push({ value: 'AM', label: 'AM' });
-      options.push({ value: 'PM', label: 'PM' });
-    }
-    return options;
-  };
-
-  // Función para detectar cambios
-  const checkForChanges = () => {
-    if (!originalFormData || !originalScheduleData) return false;
-
-    // Comparar datos del formulario
-    const formChanged = Object.keys(originalFormData).some(key => {
-      return originalFormData[key] !== formData[key];
-    });
-
-    // Comparar datos del horario
-    const scheduleChanged = JSON.stringify(originalScheduleData) !== JSON.stringify(scheduleData);
-
-    return formChanged || scheduleChanged;
-  };
-
-  // Función para mostrar alerta de cambios no guardados
-  const showUnsavedChangesAlert = (onConfirm) => {
-    Alert.alert(
-      'Cambios no guardados',
-      'Tienes cambios sin guardar. ¿Deseas guardar antes de salir?',
-      [
-        {
-          text: 'Descartar',
-          style: 'destructive',
-          onPress: () => {
-            setHasUnsavedChanges(false);
-            onConfirm();
-          }
-        },
-        {
-          text: 'Cancelar',
-          style: 'cancel'
-        },
-        {
-          text: 'Guardar',
-          onPress: async () => {
-            try {
-              await handleSave();
-              onConfirm();
-            } catch (error) {
-              console.error('Error al guardar:', error);
-              Alert.alert('Error', 'No se pudo guardar los cambios');
-            }
-          }
-        }
-      ]
-    );
   };
 
   const handleLocationPicker = () => {
-    // Si ya tiene ubicación registrada, ir directamente a esas coordenadas
-    if (formData.latitud && formData.longitud) {
       navigation.navigate('MapPicker', {
-        initialCoords: {
+      initialCoords: (formData.latitud && formData.longitud) ? {
           latitude: Number(formData.latitud),
-          longitude: Number(formData.longitud)
-        },
+        longitude: Number(formData.longitud),
+      } : undefined,
         onPick: (coords) => {
           if (coords && coords.latitude && coords.longitude) {
+          // Determinar departamento automáticamente
+          const department = getDepartmentFromCoordinates(coords.latitude, coords.longitude);
+          const isInNicaragua = isWithinNicaragua(coords.latitude, coords.longitude);
+          
             setFormData(prev => ({
               ...prev,
               latitud: coords.latitude.toFixed(8),
-              longitud: coords.longitude.toFixed(8)
-            }));
-            Alert.alert('Ubicación Actualizada', 'La ubicación se ha actualizado correctamente');
-          } else {
-            Alert.alert('Error', 'No se pudo obtener la ubicación. Inténtalo de nuevo.');
-          }
-        },
-        onError: (error) => {
-          // Solo logear para debugging interno, no mostrar al usuario
-          console.log('Error interno en MapPicker:', error.message);
+            longitud: coords.longitude.toFixed(8),
+            departamento: department
+          }));
           
-          // Mostrar vista de permisos en lugar de alertas
-          setLocationError(error);
-          setShowLocationPermissionModal(true);
-        }
-      });
-    } else {
-      // Si no tiene ubicación, mostrar la vista de permisos primero
-      Alert.alert(
-        'Seleccionar Ubicación',
-        'Para seleccionar la ubicación de tu centro turístico necesitas habilitar los servicios de ubicación.\n\n¿Quieres continuar?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { 
-            text: 'Continuar', 
-            style: 'default',
-            onPress: () => {
-              navigation.navigate('MapPicker', {
-                onPick: (coords) => {
-                  if (coords && coords.latitude && coords.longitude) {
-                    setFormData(prev => ({
-                      ...prev,
-                      latitud: coords.latitude.toFixed(8),
-                      longitud: coords.longitude.toFixed(8)
-                    }));
-                    Alert.alert('Ubicación Actualizada', 'La ubicación se ha actualizado correctamente');
+          const message = isInNicaragua 
+            ? `Ubicación actualizada correctamente.\nDepartamento detectado: ${department}`
+            : 'Ubicación actualizada, pero está fuera de Nicaragua.';
+          
+          Alert.alert('Ubicación Actualizada', message);
                   } else {
                     Alert.alert('Error', 'No se pudo obtener la ubicación. Inténtalo de nuevo.');
                   }
                 },
-                onError: (error) => {
-                  // Solo logear para debugging interno, no mostrar al usuario
-                  console.log('Error interno en MapPicker:', error.message);
-                  
-                  // Mostrar vista de permisos en lugar de alertas
-                  setLocationError(error);
-                  setShowLocationPermissionModal(true);
-                }
-              });
-            }
-          }
-        ]
-      );
-    }
-  };
-
-  const validateForm = () => {
-    // Validar nombre del negocio
-    if (!formData.nombreNegocio.trim()) {
-      Alert.alert('Error', 'El nombre del negocio es requerido');
-      return false;
-    }
-    if (formData.nombreNegocio.trim().length < 3) {
-      Alert.alert('Error', 'El nombre del negocio debe tener al menos 3 caracteres');
-      return false;
-    }
-
-    // Validar categorías
-    if (!formData.categoriaNegocio.trim()) {
-      Alert.alert('Error', 'Debe seleccionar al menos una categoría');
-      return false;
-    }
-
-    // Validar email si se proporciona
-    if (formData.emailNegocio.trim()) {
-      const emailValidation = validateEmail(formData.emailNegocio.trim());
-      if (!emailValidation.isValid) {
-        Alert.alert('Error', emailValidation.message);
-        return false;
-      }
-    }
-
-    // Validar teléfono si se proporciona
-    if (formData.telefonoNegocio.trim()) {
-      const phoneValidation = validatePhone(formData.telefonoNegocio.trim());
-      if (!phoneValidation.isValid) {
-        Alert.alert('Error', phoneValidation.message);
-        return false;
-      }
-    }
-
-    // Validar dirección
-    if (!formData.direccion.trim()) {
-      Alert.alert('Error', 'La dirección es requerida');
-      return false;
-    }
-    if (formData.direccion.trim().length < 10) {
-      Alert.alert('Error', 'La dirección debe ser más específica (mínimo 10 caracteres)');
-      return false;
-    }
-
-    // Validar ubicación
-    if (!formData.latitud || !formData.longitud) {
-      Alert.alert('Error', 'Debe seleccionar la ubicación en el mapa');
-      return false;
-    }
-
-    // Validar coordenadas numéricas
-    const lat = parseFloat(formData.latitud);
-    const lng = parseFloat(formData.longitud);
-    if (isNaN(lat) || isNaN(lng)) {
-      Alert.alert('Error', 'Las coordenadas de ubicación no son válidas');
-      return false;
-    }
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      Alert.alert('Error', 'Las coordenadas de ubicación están fuera del rango válido');
-      return false;
-    }
-
-    return true;
-  };
-
-
-  const handleSave = async () => {
-    if (!validateForm()) return;
-
-    try {
-      setSaving(true);
-      
-      const updateData = {
-        nombreNegocio: formData.nombreNegocio.trim(),
-        categoriaNegocio: formData.categoriaNegocio.trim(),
-        emailNegocio: formData.emailNegocio.trim(),
-        telefonoNegocio: formData.telefonoNegocio.trim(),
-        direccion: formData.direccion.trim(),
-        latitud: formData.latitud ? Number(formData.latitud).toFixed(8) : '',
-        longitud: formData.longitud ? Number(formData.longitud).toFixed(8) : '',
-        horario: formData.horario.trim(),
-        horarioDetallado: scheduleData, // Datos estructurados del horario
-        costo: formData.costo.trim(),
-        logotipo: formData.logotipo,
-        portada: formData.portada,
-        ultimaActualizacion: new Date().toISOString()
-      };
-
-      await updateDoc(doc(db, 'centrosTuristicos', authUser.uid), updateData);
-      
-      // Actualizar datos originales después de guardar
-      setOriginalFormData({ ...formData });
-      setOriginalScheduleData({ ...scheduleData });
-      setHasUnsavedChanges(false);
-      
-      Alert.alert(
-        'Éxito',
-        'Perfil actualizado correctamente',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('Tabs')
-          }
-        ]
-      );
-    } catch (error) {
-      console.error('Error actualizando perfil:', error);
-      Alert.alert('Error', 'No se pudo actualizar el perfil');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const getFieldStatus = (value) => {
-    if (!value || value.trim() === '') {
-      return { status: 'empty', color: '#EF4444', text: 'Pendiente' };
-    }
-    return { status: 'complete', color: '#10B981', text: 'Completado' };
+    });
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Cargando perfil...</Text>
-        </View>
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center', paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <ActivityIndicator size="large" color={COLOR_PALETTE.primary} />
+        <Text style={styles.loadingText}>Cargando centro...</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header que llega hasta los límites de la cámara */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]} edges={[]}>
+      {/* Header */}
+      <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={handleBackPress}
         >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color={COLOR_PALETTE.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Editar Mi Centro</Text>
-        <TouchableOpacity 
-          style={styles.saveButton}
-          onPress={handleSave}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={styles.saveButtonText}>Guardar</Text>
-          )}
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Mi Centro</Text>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={[
+              styles.saveButton, 
+              !hasChanges && styles.saveButtonDisabled,
+              saving && styles.saveButtonSaving
+            ]}
+            onPress={handleSave}
+            disabled={!hasChanges || saving}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color={COLOR_PALETTE.background.primary} />
+            ) : (
+              <>
+                <Ionicons 
+                  name="checkmark" 
+                  size={16} 
+                  color={hasChanges ? COLOR_PALETTE.background.primary : '#9CA3AF'} 
+                />
+                <Text style={[
+                  styles.saveButtonText,
+                  !hasChanges && styles.saveButtonTextDisabled
+                ]}>
+                  Guardar
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <SafeAreaView style={styles.safeAreaContent}>
         <KeyboardAvoidingView 
-          style={styles.keyboardView}
+        style={styles.keyboardContainer}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Información del Negocio */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Información del Negocio</Text>
-            
-            {/* Nombre del Negocio */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>
-                Nombre del Negocio *
-                <Text style={[styles.statusText, { color: getFieldStatus(formData.nombreNegocio).color }]}>
-                  {' '}({getFieldStatus(formData.nombreNegocio).text})
-                </Text>
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Sección de imágenes */}
+          <View style={styles.imageSection}>
+            {/* Imagen de portada */}
+            <View style={styles.coverImageContainer}>
+              <TouchableOpacity 
+                style={styles.coverImageButton} 
+                onPress={() => pickImage('portada')}
+              >
+                {formData.portada ? (
+                  <Image 
+                    source={{ uri: typeof formData.portada.uri === 'string' ? formData.portada.uri : String(formData.portada.uri) }} 
+                    style={styles.coverImage} 
+                  />
+                ) : (
+                  <View style={styles.coverImagePlaceholder}>
+                    <Ionicons name="image" size={32} color={COLOR_PALETTE.text.light} />
+                    <Text style={styles.coverImageText}>
+                      Agregar portada
               </Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.nombreNegocio}
-                onChangeText={(value) => handleInputChange('nombreNegocio', value)}
-                placeholder="Ej: Hotel Paradise"
-                placeholderTextColor="#9CA3AF"
-                maxLength={100}
-              />
-              <Text style={styles.fieldHint}>
-                Mínimo 3 caracteres. Máximo 100 caracteres.
-              </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              {formData.portada && (
+                <TouchableOpacity 
+                  style={styles.removeCoverButton} 
+                  onPress={() => setFormData(prev => ({ ...prev, portada: null }))}
+                >
+                  <Ionicons name="close-circle" size={20} color={COLOR_PALETTE.red} />
+                  <Text style={styles.removeCoverText}>Eliminar</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            {/* Categoría del Negocio */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>
-                Categorías del Negocio *
-                <Text style={[styles.statusText, { color: getFieldStatus(formData.categoriaNegocio).color }]}>
-                  {' '}({getFieldStatus(formData.categoriaNegocio).text})
+            {/* Logotipo */}
+            <View style={styles.logoContainer}>
+              <TouchableOpacity 
+                style={styles.logoButton} 
+                onPress={() => pickImage('logotipo')}
+              >
+                {formData.logotipo ? (
+                  <Image 
+                    source={{ uri: typeof formData.logotipo.uri === 'string' ? formData.logotipo.uri : String(formData.logotipo.uri) }} 
+                    style={styles.logoImage} 
+                  />
+                ) : (
+                  <View style={styles.logoPlaceholder}>
+                    <Ionicons name="business" size={24} color={COLOR_PALETTE.text.light} />
+                    <Text style={styles.logoText}>
+                      Logo
                 </Text>
-              </Text>
-              
-              {/* Categorías seleccionadas */}
-              {categoriasSeleccionadas.length > 0 && (
-                <View style={styles.selectedCategoriesContainer}>
-                  <Text style={styles.selectedCategoriesTitle}>Categorías seleccionadas:</Text>
-                  <View style={styles.selectedCategoriesList}>
-                    {categoriasSeleccionadas.map((categoria) => (
-                      <View key={categoria} style={styles.selectedCategoryChip}>
-                        <Text style={styles.selectedCategoryText}>{categoria}</Text>
-                        <TouchableOpacity
-                          onPress={() => handleRemoveCategory(categoria)}
-                          style={styles.removeCategoryButton}
-                        >
-                          <Ionicons name="close" size={16} color="#EF4444" />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
                   </View>
-                </View>
+                )}
+              </TouchableOpacity>
+              {formData.logotipo && (
+                        <TouchableOpacity
+                  style={styles.removeLogoButton} 
+                  onPress={() => setFormData(prev => ({ ...prev, logotipo: null }))}
+                        >
+                  <Ionicons name="close-circle" size={16} color={COLOR_PALETTE.red} />
+                        </TouchableOpacity>
               )}
+                      </View>
+                  </View>
 
-              {/* Categorías predefinidas */}
-              <Text style={styles.categoriesSubtitle}>Categorías disponibles:</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
+          {/* Formulario */}
+          <View style={styles.formContainer}>
+            {/* Información básica del negocio */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Información del Negocio</Text>
+              <View style={styles.sectionUnderline} />
+              
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Nombre del Negocio *</Text>
+                <TextInput
+                  style={[styles.textInput, errors.nombreNegocio && styles.inputError]}
+                  value={formData.nombreNegocio}
+                  onChangeText={(value) => handleInputChange('nombreNegocio', value)}
+                  placeholder="Ej. Hotel Paradise"
+                />
+                {errors.nombreNegocio && <Text style={styles.errorText}>{errors.nombreNegocio}</Text>}
+                <Text style={styles.characterCount}>
+                  {(formData.nombreNegocio || '').length}/100
+                </Text>
+                </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Categorías del Negocio</Text>
+                <View style={styles.categoriesContainer}>
                 {categoriasNegocio.map((categoria) => (
                   <TouchableOpacity
                     key={categoria}
@@ -965,7 +748,7 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
                       styles.categoryChip,
                       categoriasSeleccionadas.includes(categoria) && styles.categoryChipSelected
                     ]}
-                    onPress={() => handleCategoriaToggle(categoria)}
+                      onPress={() => handleCategoriaToggle(categoria)}
                   >
                     <Text style={[
                       styles.categoryChipText,
@@ -975,1003 +758,866 @@ const CentroTuristicoProfileScreen = ({ navigation }) => {
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
-
-              {/* Agregar categoría personalizada */}
+                </View>
+                {(
               <TouchableOpacity
                 style={styles.addCategoryButton}
                 onPress={() => setShowAddCategory(true)}
               >
-                <Ionicons name="add" size={20} color="#3B82F6" />
+                    <Ionicons name="add" size={20} color={COLOR_PALETTE.primary} />
                 <Text style={styles.addCategoryButtonText}>Agregar Categoría</Text>
               </TouchableOpacity>
-
-              {/* Modal para agregar categoría personalizada */}
-              {showAddCategory && (
-                <View style={styles.addCategoryModal}>
-                  <Text style={styles.addCategoryModalTitle}>Nueva Categoría</Text>
-                  <TextInput
-                    style={styles.addCategoryInput}
-                    value={nuevaCategoria}
-                    onChangeText={setNuevaCategoria}
-                    placeholder="Escribe el nombre de la categoría"
-                    placeholderTextColor="#9CA3AF"
-                    autoFocus={true}
-                  />
-                  <View style={styles.addCategoryButtons}>
-                    <TouchableOpacity
-                      style={styles.cancelButton}
-                      onPress={() => {
-                        setShowAddCategory(false);
-                        setNuevaCategoria('');
-                      }}
-                    >
-                      <Text style={styles.cancelButtonText}>Cancelar</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.addButton}
-                      onPress={handleAddCustomCategory}
-                    >
-                      <Text style={styles.addButtonText}>Agregar</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
+                )}
+              </View>
             </View>
 
-            {/* Email del Negocio */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>
-                Email del Negocio
-                <Text style={[styles.statusText, { color: getFieldStatus(formData.emailNegocio).color }]}>
-                  {' '}({getFieldStatus(formData.emailNegocio).text})
-                </Text>
-              </Text>
+            {/* Información de contacto */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Información de Contacto</Text>
+              <View style={styles.sectionUnderline} />
+              
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Email del Negocio *</Text>
               <TextInput
-                style={styles.textInput}
+                  style={[styles.textInput, errors.emailNegocio && styles.inputError]}
                 value={formData.emailNegocio}
-                onChangeText={(value) => handleInputChange('emailNegocio', value)}
+                  onChangeText={(value) => handleInputChange('emailNegocio', value)}
                 placeholder="reservas@hotelparadise.com"
-                placeholderTextColor="#9CA3AF"
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
+                {errors.emailNegocio && <Text style={styles.errorText}>{errors.emailNegocio}</Text>}
             </View>
 
-            {/* Teléfono del Negocio */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>
-                Teléfono del Negocio
-                <Text style={[styles.statusText, { color: getFieldStatus(formData.telefonoNegocio).color }]}>
-                  {' '}({getFieldStatus(formData.telefonoNegocio).text})
-                </Text>
-              </Text>
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Teléfono del Negocio *</Text>
               <TextInput
-                style={styles.textInput}
+                  style={[styles.textInput, errors.telefonoNegocio && styles.inputError]}
                 value={formData.telefonoNegocio}
-                onChangeText={(value) => handleInputChange('telefonoNegocio', value)}
+                  onChangeText={(value) => handleInputChange('telefonoNegocio', value)}
                 placeholder="2222-2222 o (505) 2222-2222"
-                placeholderTextColor="#9CA3AF"
                 keyboardType="phone-pad"
-                maxLength={15}
               />
-              <Text style={styles.fieldHint}>
-                Formato: 8-15 caracteres. Solo números, espacios, guiones, paréntesis y +.
+                {errors.telefonoNegocio && <Text style={styles.errorText}>{errors.telefonoNegocio}</Text>}
+                <Text style={styles.characterCount}>
+                  {(formData.telefonoNegocio || '').replace(/\s/g, '').length}/15
               </Text>
+              </View>
             </View>
 
-            {/* Dirección */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>
-                Dirección *
-                <Text style={[styles.statusText, { color: getFieldStatus(formData.direccion).color }]}>
-                  {' '}({getFieldStatus(formData.direccion).text})
-                </Text>
-              </Text>
+            {/* Ubicación */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Ubicación</Text>
+              <Text style={styles.sectionSubtext}>Selecciona la ubicación exacta de tu centro</Text>
+              <View style={styles.sectionUnderline} />
+              
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Dirección *</Text>
               <TextInput
-                style={styles.textInput}
+                  style={[styles.textInput, errors.direccion && styles.inputError]}
                 value={formData.direccion}
-                onChangeText={(value) => handleInputChange('direccion', value)}
+                  onChangeText={(value) => handleInputChange('direccion', value)}
                 placeholder="Calle Principal, Granada"
-                placeholderTextColor="#9CA3AF"
-                maxLength={200}
               />
-              <Text style={styles.fieldHint}>
-                Mínimo 10 caracteres. Máximo 200 caracteres.
+                {errors.direccion && <Text style={styles.errorText}>{errors.direccion}</Text>}
+                <Text style={styles.characterCount}>
+                  {(formData.direccion || '').length}/200
               </Text>
             </View>
 
-            {/* Ubicación en el Mapa */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>
-                Ubicación en el Mapa *
-                <Text style={[styles.statusText, { color: getFieldStatus(formData.latitud).color }]}>
-                  {' '}({getFieldStatus(formData.latitud).text})
-                </Text>
-              </Text>
-              <TouchableOpacity style={styles.locationButton} onPress={handleLocationPicker}>
-                <Ionicons name="location" size={20} color="#3B82F6" />
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Ubicación en el Mapa *</Text>
+                <TouchableOpacity 
+                  style={styles.locationButton} 
+                  onPress={handleLocationPicker}
+                >
+                  <Ionicons name="location" size={20} color={COLOR_PALETTE.primary} />
                 <Text style={styles.locationButtonText}>
                   {formData.latitud && formData.longitud 
                     ? `Editar ubicación: ${parseFloat(formData.latitud).toFixed(4)}, ${parseFloat(formData.longitud).toFixed(4)}`
-                    : 'Toca para seleccionar ubicación en el mapa'
+                      : 'Seleccionar ubicación en el mapa'
                   }
                 </Text>
-                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  <Ionicons name="chevron-forward" size={20} color={COLOR_PALETTE.text.light} />
               </TouchableOpacity>
-              <Text style={styles.fieldHint}>
-                Requerido. Selecciona la ubicación exacta de tu centro turístico.{'\n'}
-                Asegúrate de tener habilitados los servicios de ubicación en tu dispositivo.
+                {errors.ubicacion && <Text style={styles.errorText}>{errors.ubicacion}</Text>}
+                
+                {formData.departamento && (
+                  <View style={styles.departmentInfo}>
+                    <Ionicons name="location" size={16} color={COLOR_PALETTE.secondary} />
+                    <Text style={styles.departmentText}>
+                      Departamento detectado: {formData.departamento}
               </Text>
-              <TouchableOpacity 
-                style={styles.helpButton}
-                onPress={() => {
-                  Alert.alert(
-                    'Habilitar Ubicación',
-                    'Para seleccionar tu ubicación necesitas habilitar los servicios de ubicación.\n\n' +
-                    '¿Quieres ver las instrucciones paso a paso?',
-                    [
-                      { text: 'Cancelar', style: 'cancel' },
-                      { 
-                        text: 'Ver Instrucciones', 
-                        style: 'default',
-                        onPress: () => {
-                          Alert.alert(
-                            'Instrucciones Paso a Paso',
-                            '1. Ve a Configuración de tu dispositivo\n' +
-                            '2. Busca "Privacidad" o "Ubicación"\n' +
-                            '3. Habilita "Servicios de ubicación"\n' +
-                            '4. Asegúrate de que esta app tenga permisos\n' +
-                            '5. Regresa e intenta seleccionar ubicación',
-                            [{ text: 'Entendido' }]
-                          );
-                        }
-                      }
-                    ]
-                  );
-                }}
-              >
-                <Ionicons name="help-circle-outline" size={16} color="#3B82F6" />
-                <Text style={styles.helpButtonText}>¿Cómo habilitar la ubicación?</Text>
-              </TouchableOpacity>
+                  </View>
+                )}
+                </View>
             </View>
 
-            {/* Horario */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>
-                Horario de Atención
-                <Text style={[styles.statusText, { color: getFieldStatus(formData.horario).color }]}>
-                  {' '}({getFieldStatus(formData.horario).text})
-                </Text>
-              </Text>
+            {/* Sistema de Horario */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Horario de Atención</Text>
+              <Text style={styles.sectionSubtext}>Configura los horarios de atención para cada día de la semana</Text>
+              <View style={styles.sectionUnderline} />
+              
               <TouchableOpacity 
                 style={styles.scheduleButton}
-                onPress={handleScheduleModal}
+                onPress={() => setShowScheduleModal(true)}
               >
                 <View style={styles.scheduleButtonContent}>
-                  <Ionicons name="time" size={20} color="#3B82F6" />
+                  <Ionicons name="time" size={24} color={COLOR_PALETTE.primary} />
                   <View style={styles.scheduleButtonText}>
-                    <Text style={styles.scheduleButtonTitle}>
-                      {formData.horario ? 'Horario Configurado' : 'Establecer Horario'}
-                    </Text>
-                    <Text style={styles.scheduleButtonSubtitle} numberOfLines={2}>
-                      {formData.horario || 'Configura los horarios de atención por día'}
+                    <Text style={styles.scheduleButtonTitle}>Sistema de Horario</Text>
+                    <Text style={styles.scheduleButtonSubtitle}>
+                      {Object.values(scheduleData).filter(day => day.enabled).length} días configurados
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  <Ionicons name="chevron-forward" size={20} color={COLOR_PALETTE.text.light} />
                 </View>
               </TouchableOpacity>
+
+              {/* Vista previa del horario */}
+              <View style={styles.schedulePreview}>
+                <Text style={styles.schedulePreviewTitle}>Horario Actual:</Text>
+                <View style={styles.schedulePreviewContent}>
+                  {diasSemana
+                    .filter(dia => scheduleData[dia.key]?.enabled)
+                    .map((dia) => {
+                      const data = scheduleData[dia.key];
+                      const { hour, minute, ampm } = convertFrom24h(data.open);
+                      const { hour: closeHour, minute: closeMinute, ampm: closeAmpm } = convertFrom24h(data.close);
+                      return (
+                        <View key={dia.key} style={styles.schedulePreviewItem}>
+                          <Text style={styles.schedulePreviewDay}>{dia.label}</Text>
+                          <Text style={styles.schedulePreviewTime}>
+                            {hour}:{minute.toString().padStart(2, '0')} {ampm} - {closeHour}:{closeMinute.toString().padStart(2, '0')} {closeAmpm}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  {Object.values(scheduleData).filter(day => day.enabled).length === 0 && (
+                    <Text style={styles.schedulePreviewEmpty}>No hay horarios configurados</Text>
+                  )}
+                </View>
+              </View>
             </View>
 
-            {/* Costo */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>
-                Información de Costos
-                <Text style={[styles.statusText, { color: getFieldStatus(formData.costo).color }]}>
-                  {' '}({getFieldStatus(formData.costo).text})
-                </Text>
-              </Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.costo}
-                onChangeText={(value) => handleInputChange('costo', value)}
-                placeholder="Ej: Desde $50/noche, Entrada $10"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
-          </View>
 
-          {/* Imágenes */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Imágenes del Centro</Text>
-            
-            {/* Logo */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>
-                Logo del Centro
-                <Text style={[styles.statusText, { color: getFieldStatus(formData.logotipo).color }]}>
-                  {' '}({getFieldStatus(formData.logotipo).text})
-                </Text>
-              </Text>
-              <TouchableOpacity 
-                style={styles.imageButton}
-                onPress={() => handleImagePicker('logo')}
-                disabled={saving}
-              >
-                {saving && imageType === 'logo' ? (
-                  <View style={styles.imagePlaceholder}>
-                    <ActivityIndicator size="large" color="#3B82F6" />
-                    <Text style={styles.imagePlaceholderText}>Cargando imagen...</Text>
-                  </View>
-                ) : formData.logotipo ? (
-                  <Image source={{ uri: formData.logotipo }} style={styles.previewImage} />
-                ) : (
-                  <View style={styles.imagePlaceholder}>
-                    <Ionicons name="camera" size={30} color="#9CA3AF" />
-                    <Text style={styles.imagePlaceholderText}>Subir Logo</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
 
-            {/* Portada */}
-            <View style={styles.fieldContainer}>
-              <Text style={styles.fieldLabel}>
-                Imagen de Portada
-                <Text style={[styles.statusText, { color: getFieldStatus(formData.portada).color }]}>
-                  {' '}({getFieldStatus(formData.portada).text})
-                </Text>
-              </Text>
-              <TouchableOpacity 
-                style={styles.imageButton}
-                onPress={() => handleImagePicker('portada')}
-                disabled={saving}
-              >
-                {saving && imageType === 'portada' ? (
-                  <View style={styles.imagePlaceholder}>
-                    <ActivityIndicator size="large" color="#3B82F6" />
-                    <Text style={styles.imagePlaceholderText}>Cargando imagen...</Text>
-                  </View>
-                ) : formData.portada ? (
-                  <Image source={{ uri: formData.portada }} style={styles.previewImage} />
-                ) : (
-                  <View style={styles.imagePlaceholder}>
-                    <Ionicons name="image" size={30} color="#9CA3AF" />
-                    <Text style={styles.imagePlaceholderText}>Subir Portada</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
           </View>
         </ScrollView>
+      </KeyboardAvoidingView>
 
-        {/* Modal para seleccionar imagen */}
+      {/* Modal para agregar categoría personalizada */}
         <Modal
-          visible={showImagePicker}
+        visible={showAddCategory}
           transparent={true}
           animationType="slide"
-          onRequestClose={() => setShowImagePicker(false)}
+        onRequestClose={() => setShowAddCategory(false)}
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>
-                {imageType === 'logo' ? 'Seleccionar Logo' : 'Seleccionar Portada'}
-              </Text>
+            <Text style={styles.modalTitle}>Nueva Categoría</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={nuevaCategoria}
+              onChangeText={setNuevaCategoria}
+              placeholder="Escribe el nombre de la categoría"
+              placeholderTextColor={COLOR_PALETTE.text.light}
+              autoFocus={true}
+            />
+            <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={styles.modalOption}
-                onPress={() => pickImage('camera')}
+                style={styles.modalCancelButton}
+                onPress={() => {
+                  setShowAddCategory(false);
+                  setNuevaCategoria('');
+                }}
               >
-                <Ionicons name="camera" size={24} color="#3B82F6" />
-                <Text style={styles.modalOptionText}>Tomar Foto</Text>
+                <Text style={styles.modalCancelButtonText}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.modalOption}
-                onPress={() => pickImage('gallery')}
+                style={styles.modalAddButton}
+                onPress={handleAddCustomCategory}
               >
-                <Ionicons name="images" size={24} color="#3B82F6" />
-                <Text style={styles.modalOptionText}>Elegir de Galería</Text>
+                <Text style={styles.modalAddButtonText}>Agregar</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalCancel}
-                onPress={() => setShowImagePicker(false)}
-              >
-                <Text style={styles.modalCancelText}>Cancelar</Text>
-              </TouchableOpacity>
+            </View>
             </View>
           </View>
         </Modal>
 
-        {/* Modal de Permisos de Ubicación */}
-        <Modal
-          visible={showLocationPermissionModal}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={handleCancelLocationPermission}
-        >
-          <View style={styles.permissionModalOverlay}>
-            <View style={styles.permissionModalContent}>
-              {(() => {
-                const errorInfo = getLocationErrorInfo();
-                return (
-                  <>
-                    <View style={styles.permissionHeader}>
-                      <View style={[styles.permissionIconContainer, { backgroundColor: errorInfo.color + '20' }]}>
-                        <Ionicons name={errorInfo.icon} size={48} color={errorInfo.color} />
-                      </View>
-                      <Text style={styles.permissionTitle}>{errorInfo.title}</Text>
-                      <Text style={styles.permissionMessage}>{errorInfo.message}</Text>
-                    </View>
-
-                    <View style={styles.permissionBody}>
-                      <Text style={styles.permissionInstructions}>
-                        Para continuar, necesitas habilitar los servicios de ubicación:
-                      </Text>
-                      
-                      <View style={styles.permissionSteps}>
-                        <View style={styles.permissionStep}>
-                          <View style={styles.stepNumber}>
-                            <Text style={styles.stepNumberText}>1</Text>
-                          </View>
-                          <Text style={styles.stepText}>Ve a Configuración de tu dispositivo</Text>
-                        </View>
-                        
-                        <View style={styles.permissionStep}>
-                          <View style={styles.stepNumber}>
-                            <Text style={styles.stepNumberText}>2</Text>
-                          </View>
-                          <Text style={styles.stepText}>Busca "Privacidad" o "Ubicación"</Text>
-                        </View>
-                        
-                        <View style={styles.permissionStep}>
-                          <View style={styles.stepNumber}>
-                            <Text style={styles.stepNumberText}>3</Text>
-                          </View>
-                          <Text style={styles.stepText}>Habilita "Servicios de ubicación"</Text>
-                        </View>
-                        
-                        <View style={styles.permissionStep}>
-                          <View style={styles.stepNumber}>
-                            <Text style={styles.stepNumberText}>4</Text>
-                          </View>
-                          <Text style={styles.stepText}>Asegúrate de que esta app tenga permisos</Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    <View style={styles.permissionFooter}>
-                      <TouchableOpacity 
-                        style={styles.permissionCancelButton}
-                        onPress={handleCancelLocationPermission}
-                      >
-                        <Text style={styles.permissionCancelText}>Cancelar</Text>
-                      </TouchableOpacity>
-                      
-                      <TouchableOpacity 
-                        style={[styles.permissionAcceptButton, { backgroundColor: errorInfo.color }]}
-                        onPress={handleAcceptLocationPermission}
-                      >
-                        <Ionicons name="settings" size={20} color="#FFFFFF" />
-                        <Text style={styles.permissionAcceptText}>Ir a Configuración</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                );
-              })()}
-            </View>
-          </View>
-        </Modal>
-
-        {/* Modal de Horarios */}
+        {/* Modal del Sistema de Horario */}
         <Modal
           visible={showScheduleModal}
           transparent={true}
           animationType="slide"
           onRequestClose={() => setShowScheduleModal(false)}
         >
-          <View style={styles.scheduleModalOverlay}>
+          <View style={styles.modalOverlay}>
             <View style={styles.scheduleModalContent}>
               <View style={styles.scheduleModalHeader}>
-                <Text style={styles.scheduleModalTitle}>Horarios de Atención</Text>
+                <Text style={styles.scheduleModalTitle}>Sistema de Horario</Text>
                 <TouchableOpacity 
-                  onPress={() => setShowScheduleModal(false)}
                   style={styles.scheduleModalCloseButton}
+                  onPress={() => setShowScheduleModal(false)}
                 >
-                  <Ionicons name="close" size={24} color="#6B7280" />
+                  <Ionicons name="close" size={24} color={COLOR_PALETTE.text.secondary} />
                 </TouchableOpacity>
               </View>
               
-              <ScrollView style={styles.scheduleModalBody} contentContainerStyle={styles.scheduleModalBodyContent}>
-                {['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'].map((day) => {
-                  const data = scheduleData[day];
-                  return (
-                  <View key={day} style={styles.scheduleDayContainer}>
+              <ScrollView style={styles.scheduleModalBody} showsVerticalScrollIndicator={false}>
+                <Text style={styles.scheduleModalSubtitle}>
+                  Configura los horarios de atención para cada día de la semana
+                </Text>
+                
+                {diasSemana.map((dia) => (
+                  <View key={dia.key} style={styles.scheduleDayContainer}>
                     <View style={styles.scheduleDayHeader}>
                       <TouchableOpacity 
                         style={styles.scheduleDayToggle}
-                        onPress={() => toggleDayEnabled(day)}
+                        onPress={() => handleScheduleToggle(dia.key)}
                       >
-                        <Ionicons 
-                          name={data.enabled ? "checkbox" : "square-outline"} 
-                          size={24} 
-                          color={data.enabled ? "#3B82F6" : "#9CA3AF"} 
-                        />
-                        <Text style={[
-                          styles.scheduleDayName,
-                          { color: data.enabled ? '#1F2937' : '#9CA3AF' }
+                        <View style={[
+                          styles.checkbox,
+                          scheduleData[dia.key]?.enabled && styles.checkboxChecked
                         ]}>
-                          {day.charAt(0).toUpperCase() + day.slice(1)}
+                          {scheduleData[dia.key]?.enabled && (
+                            <Ionicons name="checkmark" size={16} color={COLOR_PALETTE.background.primary} />
+                          )}
+                        </View>
+                        <Text style={[
+                          styles.scheduleDayLabel,
+                          scheduleData[dia.key]?.enabled && styles.scheduleDayLabelEnabled
+                        ]}>
+                          {dia.label}
                         </Text>
                       </TouchableOpacity>
                     </View>
                     
-                    {data.enabled && (
+                    {scheduleData[dia.key]?.enabled && (
                       <View style={styles.scheduleTimeContainer}>
-                        <View style={styles.scheduleTimeInput}>
-                          <Text style={styles.scheduleTimeLabel}>Abre:</Text>
+                        <View style={styles.timeInputContainer}>
+                          <Text style={styles.timeLabel}>Apertura</Text>
                           <TouchableOpacity 
-                            style={styles.scheduleTimeButton}
-                            onPress={() => openTimePicker(day, 'open')}
+                            style={styles.timeButton}
+                            onPress={() => openTimePicker(dia.key, 'open')}
                           >
-                            <Text style={styles.scheduleTimeText}>{convert24To12Display(data.open)}</Text>
-                            <Ionicons name="chevron-down" size={16} color="#6B7280" />
+                            <Text style={styles.timeButtonText}>
+                              {convertFrom24h(scheduleData[dia.key]?.open || '09:00').hour}:
+                              {convertFrom24h(scheduleData[dia.key]?.open || '09:00').minute.toString().padStart(2, '0')} 
+                              {convertFrom24h(scheduleData[dia.key]?.open || '09:00').ampm}
+                            </Text>
+                            <Ionicons name="chevron-down" size={16} color={COLOR_PALETTE.text.light} />
                           </TouchableOpacity>
                         </View>
                         
-                        <View style={styles.scheduleTimeInput}>
-                          <Text style={styles.scheduleTimeLabel}>Cierra:</Text>
+                        <Text style={styles.timeSeparator}>-</Text>
+                        
+                        <View style={styles.timeInputContainer}>
+                          <Text style={styles.timeLabel}>Cierre</Text>
                           <TouchableOpacity 
-                            style={styles.scheduleTimeButton}
-                            onPress={() => openTimePicker(day, 'close')}
+                            style={styles.timeButton}
+                            onPress={() => openTimePicker(dia.key, 'close')}
                           >
-                            <Text style={styles.scheduleTimeText}>{convert24To12Display(data.close)}</Text>
-                            <Ionicons name="chevron-down" size={16} color="#6B7280" />
+                            <Text style={styles.timeButtonText}>
+                              {convertFrom24h(scheduleData[dia.key]?.close || '18:00').hour}:
+                              {convertFrom24h(scheduleData[dia.key]?.close || '18:00').minute.toString().padStart(2, '0')} 
+                              {convertFrom24h(scheduleData[dia.key]?.close || '18:00').ampm}
+                            </Text>
+                            <Ionicons name="chevron-down" size={16} color={COLOR_PALETTE.text.light} />
                           </TouchableOpacity>
                         </View>
                       </View>
                     )}
                   </View>
-                  );
-                })}
+                ))}
               </ScrollView>
               
               <View style={styles.scheduleModalFooter}>
                 <TouchableOpacity 
-                  style={styles.scheduleCancelButton}
+                  style={styles.scheduleModalCancelButton}
                   onPress={() => setShowScheduleModal(false)}
                 >
-                  <Text style={styles.scheduleCancelButtonText}>Cancelar</Text>
+                  <Text style={styles.scheduleModalCancelButtonText}>Cancelar</Text>
                 </TouchableOpacity>
+                
                 <TouchableOpacity 
-                  style={styles.scheduleSaveButton}
-                  onPress={saveSchedule}
+                  style={styles.scheduleModalSaveButton}
+                  onPress={() => setShowScheduleModal(false)}
                 >
-                  <Text style={styles.scheduleSaveButtonText}>Guardar Horario</Text>
+                  <Text style={styles.scheduleModalSaveButtonText}>Guardar Horario</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
 
-        {/* Modal del TimePicker */}
+        {/* Modal del Selector de Hora */}
         <Modal
           visible={showTimePicker}
           transparent={true}
           animationType="slide"
           onRequestClose={() => setShowTimePicker(false)}
         >
-          <View style={styles.timePickerOverlay}>
-            <View style={styles.timePickerContent}>
-              <View style={styles.timePickerHeader}>
-                <Text style={styles.timePickerTitle}>
-                  {currentTimeField.field === 'open' ? 'Hora de Apertura' : 'Hora de Cierre'}
+          <View style={styles.modalOverlay}>
+            <View style={styles.timePickerModalContent}>
+              <View style={styles.timePickerModalHeader}>
+                <Text style={styles.timePickerModalTitle}>
+                  Seleccionar Hora - {selectedField === 'open' ? 'Apertura' : 'Cierre'}
                 </Text>
                 <TouchableOpacity 
+                  style={styles.timePickerModalCloseButton}
                   onPress={() => setShowTimePicker(false)}
-                  style={styles.timePickerCloseButton}
                 >
-                  <Ionicons name="close" size={24} color="#6B7280" />
+                  <Ionicons name="close" size={24} color={COLOR_PALETTE.text.secondary} />
                 </TouchableOpacity>
               </View>
               
-              <View style={styles.timePickerBody}>
-                <View style={styles.timePickerRow}>
-                  <Text style={styles.timePickerLabel}>Hora:</Text>
-                  <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
-                    {generateTimeOptions('hour').map((option) => (
+              <View style={styles.timePickerContainer}>
+                <View style={styles.timePickerColumn}>
+                  <Text style={styles.timePickerLabel}>Hora</Text>
+                  <ScrollView 
+                    style={styles.timePickerScroll} 
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.timePickerContent}
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((hour) => (
                       <TouchableOpacity
-                        key={option.value}
+                        key={hour}
                         style={[
-                          styles.timePickerOption,
-                          selectedHour === option.value && styles.timePickerOptionSelected
+                          styles.timePickerItem,
+                          selectedHour === hour && styles.timePickerItemSelected
                         ]}
-                        onPress={() => setSelectedHour(option.value)}
+                        onPress={() => setSelectedHour(hour)}
                       >
                         <Text style={[
-                          styles.timePickerOptionText,
-                          selectedHour === option.value && styles.timePickerOptionTextSelected
+                          styles.timePickerItemText,
+                          selectedHour === hour && styles.timePickerItemTextSelected
                         ]}>
-                          {option.label}
+                          {hour}
                         </Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
                 </View>
-                
-                <View style={styles.timePickerRow}>
-                  <Text style={styles.timePickerLabel}>Minutos:</Text>
-                  <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
-                    {generateTimeOptions('minute').map((option) => (
+
+                <View style={styles.timePickerColumn}>
+                  <Text style={styles.timePickerLabel}>Minuto</Text>
+                  <ScrollView 
+                    style={styles.timePickerScroll} 
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.timePickerContent}
+                  >
+                    {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
                       <TouchableOpacity
-                        key={option.value}
+                        key={minute}
                         style={[
-                          styles.timePickerOption,
-                          selectedMinute === option.value && styles.timePickerOptionSelected
+                          styles.timePickerItem,
+                          selectedMinute === minute && styles.timePickerItemSelected
                         ]}
-                        onPress={() => setSelectedMinute(option.value)}
+                        onPress={() => setSelectedMinute(minute)}
                       >
                         <Text style={[
-                          styles.timePickerOptionText,
-                          selectedMinute === option.value && styles.timePickerOptionTextSelected
+                          styles.timePickerItemText,
+                          selectedMinute === minute && styles.timePickerItemTextSelected
                         ]}>
-                          {option.label}
+                          {minute.toString().padStart(2, '0')}
                         </Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
                 </View>
-                
-                <View style={styles.timePickerRow}>
-                  <Text style={styles.timePickerLabel}>AM/PM:</Text>
-                  <ScrollView style={styles.timePickerScroll} showsVerticalScrollIndicator={false}>
-                    {generateTimeOptions('ampm').map((option) => (
+
+                <View style={styles.timePickerColumn}>
+                  <Text style={styles.timePickerLabel}>AM/PM</Text>
+                  <ScrollView 
+                    style={styles.timePickerScroll} 
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.timePickerContent}
+                  >
+                    {['AM', 'PM'].map((ampm) => (
                       <TouchableOpacity
-                        key={option.value}
+                        key={ampm}
                         style={[
-                          styles.timePickerOption,
-                          selectedAmPm === option.value && styles.timePickerOptionSelected
+                          styles.timePickerItem,
+                          selectedAmPm === ampm && styles.timePickerItemSelected
                         ]}
-                        onPress={() => setSelectedAmPm(option.value)}
+                        onPress={() => setSelectedAmPm(ampm)}
                       >
                         <Text style={[
-                          styles.timePickerOptionText,
-                          selectedAmPm === option.value && styles.timePickerOptionTextSelected
+                          styles.timePickerItemText,
+                          selectedAmPm === ampm && styles.timePickerItemTextSelected
                         ]}>
-                          {option.label}
+                          {ampm}
                         </Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
                 </View>
               </View>
-              
-              <View style={styles.timePickerFooter}>
+
+              <View style={styles.timePickerModalFooter}>
                 <TouchableOpacity 
-                  style={styles.timePickerCancelButton}
+                  style={styles.timePickerModalCancelButton}
                   onPress={() => setShowTimePicker(false)}
                 >
-                  <Text style={styles.timePickerCancelButtonText}>Cancelar</Text>
+                  <Text style={styles.timePickerModalCancelButtonText}>Cancelar</Text>
                 </TouchableOpacity>
+                
                 <TouchableOpacity 
-                  style={styles.timePickerSaveButton}
-                  onPress={saveTime}
+                  style={styles.timePickerModalSaveButton}
+                  onPress={saveTimeSelection}
                 >
-                  <Text style={styles.timePickerSaveButtonText}>Guardar</Text>
+                  <Text style={styles.timePickerModalSaveButtonText}>Seleccionar</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
-        </KeyboardAvoidingView>
+
+        {/* Overlay de carga durante el guardado */}
+        {saving && (
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#4ADE80" />
+              <Text style={styles.loadingText}>Actualizando perfil...</Text>
+            </View>
+          </View>
+        )}
       </SafeAreaView>
-    </View>
-  );
-};
+    );
+  };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  safeAreaContent: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginTop: 16,
+    backgroundColor: COLOR_PALETTE.background.secondary,
+    zIndex: 0,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLOR_PALETTE.background.primary,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: COLOR_PALETTE.gray[200],
   },
   backButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLOR_PALETTE.gray[100],
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: COLOR_PALETTE.text.primary,
+    marginLeft: 12,
+    flex: 1,
   },
   saveButton: {
-    backgroundColor: '#3B82F6',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    minWidth: 80,
-    alignItems: 'center',
+    backgroundColor: COLOR_PALETTE.primary,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#E5E7EB',
+  },
+  saveButtonSaving: {
+    backgroundColor: '#9CA3AF',
+  },
+  saveButtonTextDisabled: {
+    color: '#9CA3AF',
   },
   saveButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
     fontSize: 14,
+    fontWeight: '600',
+    color: COLOR_PALETTE.background.primary,
+    marginLeft: 4,
+  },
+  placeholderButton: {
+    width: 80,
+    height: 40,
+  },
+  editButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: COLOR_PALETTE.gray[100],
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginLeft: 'auto',
+  },
+  viewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: COLOR_PALETTE.gray[100],
+    borderWidth: 1,
+    borderColor: COLOR_PALETTE.primary,
+  },
+  viewButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLOR_PALETTE.primary,
+    marginLeft: 4,
+  },
+  editModeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: COLOR_PALETTE.primary,
+  },
+  editModeButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLOR_PALETTE.background.primary,
+    marginLeft: 4,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: COLOR_PALETTE.text.secondary,
+    marginTop: 8,
+  },
+  keyboardContainer: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
   },
-  section: {
-    backgroundColor: '#FFFFFF',
-    marginTop: 16,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    padding: 16,
+  scrollContent: {
+    paddingBottom: 100, // Espacio para evitar solapamiento con navegación
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
+  imageSection: {
+    backgroundColor: COLOR_PALETTE.background.primary,
     marginBottom: 16,
   },
-  fieldContainer: {
-    marginBottom: 20,
+  coverImageContainer: {
+    height: 120,
+    position: 'relative',
   },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
+  coverImageButton: {
+    width: '100%',
+    height: '100%',
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '400',
+  coverImage: {
+    width: '100%',
+    height: '100%',
   },
-  fieldHint: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
-  helpButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    backgroundColor: '#EBF4FF',
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  helpButtonText: {
-    fontSize: 12,
-    color: '#3B82F6',
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#FFFFFF',
-  },
-  categoriesContainer: {
-    flexDirection: 'row',
-  },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  categoryChipSelected: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
-  },
-  categoryChipText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  categoryChipTextSelected: {
-    color: '#FFFFFF',
-  },
-  selectedCategoriesContainer: {
-    marginBottom: 12,
-  },
-  selectedCategoriesTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  selectedCategoriesList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  selectedCategoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  selectedCategoryText: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontWeight: '500',
-    marginRight: 4,
-  },
-  removeCategoryButton: {
-    marginLeft: 4,
-  },
-  categoriesSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  addCategoryButton: {
-    flexDirection: 'row',
+  coverImagePlaceholder: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#EBF4FF',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#3B82F6',
-    borderStyle: 'dashed',
+    backgroundColor: COLOR_PALETTE.gray[100],
   },
-  addCategoryButtonText: {
+  coverImageText: {
     fontSize: 14,
-    color: '#3B82F6',
-    fontWeight: '600',
-    marginLeft: 6,
+    color: COLOR_PALETTE.text.light,
+    marginTop: 8,
+    fontWeight: '500',
   },
-  addCategoryModal: {
-    backgroundColor: '#FFFFFF',
+  removeCoverButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLOR_PALETTE.background.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 12,
-    padding: 16,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  addCategoryModalTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  addCategoryInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#FFFFFF',
-    marginBottom: 16,
-  },
-  addCategoryButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 12,
-  },
-  cancelButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  cancelButtonText: {
-    fontSize: 14,
-    color: '#6B7280',
+  removeCoverText: {
+    fontSize: 12,
+    color: COLOR_PALETTE.red,
+    marginLeft: 4,
     fontWeight: '500',
   },
-  addButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  addButtonText: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  // Estilos para el modal de permisos
-  permissionModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
+  logoContainer: {
+    position: 'absolute',
+    bottom: -40,
+    left: 20,
     alignItems: 'center',
-    padding: 20,
   },
-  permissionModalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    width: '100%',
-    maxWidth: 400,
-    maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  permissionHeader: {
-    alignItems: 'center',
-    padding: 24,
-    paddingBottom: 16,
-  },
-  permissionIconContainer: {
+  logoButton: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 4,
+    borderColor: COLOR_PALETTE.background.primary,
+    backgroundColor: COLOR_PALETTE.gray[100],
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  logoPlaceholder: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLOR_PALETTE.gray[100],
+  },
+  logoText: {
+    fontSize: 10,
+    color: COLOR_PALETTE.text.light,
+    marginTop: 2,
+  },
+  removeLogoButton: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLOR_PALETTE.background.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  formContainer: {
+    marginTop: 50,
+    paddingHorizontal: 16,
+  },
+  sectionContainer: {
+    backgroundColor: COLOR_PALETTE.background.primary,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLOR_PALETTE.text.primary,
+    marginBottom: 2,
+  },
+  sectionSubtext: {
+    fontSize: 12,
+    color: COLOR_PALETTE.text.secondary,
+    marginBottom: 6,
+    lineHeight: 16,
+  },
+  sectionUnderline: {
+    height: 2,
+    backgroundColor: COLOR_PALETTE.primary,
+    borderRadius: 1,
+    marginBottom: 16,
+    width: 30,
+  },
+  inputContainer: {
     marginBottom: 16,
   },
-  permissionTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    textAlign: 'center',
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLOR_PALETTE.text.primary,
     marginBottom: 8,
+    backgroundColor: COLOR_PALETTE.background.primary,
+    paddingHorizontal: 4,
+    alignSelf: 'flex-start',
+    zIndex: 1,
   },
-  permissionMessage: {
+  textInput: {
+    borderWidth: 1,
+    borderColor: COLOR_PALETTE.gray[200],
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
+    color: COLOR_PALETTE.text.primary,
+    backgroundColor: COLOR_PALETTE.background.primary,
   },
-  permissionBody: {
-    paddingHorizontal: 24,
-    paddingBottom: 16,
+  inputError: {
+    borderColor: COLOR_PALETTE.red,
   },
-  permissionInstructions: {
-    fontSize: 16,
-    color: '#374151',
-    fontWeight: '600',
-    marginBottom: 20,
-    textAlign: 'center',
+  inputDisabled: {
+    backgroundColor: '#F3F4F6',
+    color: '#9CA3AF',
   },
-  permissionSteps: {
-    gap: 16,
+  buttonDisabled: {
+    opacity: 0.5,
   },
-  permissionStep: {
-    flexDirection: 'row',
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
+    zIndex: 1000,
   },
-  stepNumber: {
-    width: 32,
-    height: 32,
+  loadingContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 32,
+    paddingVertical: 24,
     borderRadius: 16,
-    backgroundColor: '#3B82F6',
-    justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  stepNumberText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  stepText: {
-    fontSize: 16,
-    color: '#374151',
-    flex: 1,
-    lineHeight: 22,
-  },
-  permissionFooter: {
-    flexDirection: 'row',
-    padding: 24,
-    paddingTop: 16,
-    gap: 12,
-  },
-  permissionCancelButton: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-  },
-  permissionCancelText: {
+  loadingText: {
+    marginTop: 16,
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#1F2937',
   },
-  permissionAcceptButton: {
-    flex: 2,
+  characterCount: {
+    fontSize: 11,
+    color: COLOR_PALETTE.text.light,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  errorText: {
+    color: COLOR_PALETTE.red,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  categoriesContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
+    flexWrap: 'wrap',
     gap: 8,
   },
-  permissionAcceptText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  categoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: COLOR_PALETTE.gray[100],
+    borderWidth: 1,
+    borderColor: COLOR_PALETTE.gray[200],
+  },
+  categoryChipSelected: {
+    backgroundColor: COLOR_PALETTE.primary,
+    borderColor: COLOR_PALETTE.primary,
+  },
+  categoryChipText: {
+    fontSize: 12,
+    color: COLOR_PALETTE.text.secondary,
+    fontWeight: '500',
+  },
+  categoryChipTextSelected: {
+    color: COLOR_PALETTE.background.primary,
+  },
+  addCategoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingVertical: 8,
+  },
+  addCategoryButtonText: {
+    fontSize: 14,
+    color: COLOR_PALETTE.primary,
+    marginLeft: 6,
+    fontWeight: '500',
   },
   locationButton: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: COLOR_PALETTE.gray[200],
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLOR_PALETTE.background.primary,
   },
   locationButtonText: {
     flex: 1,
     fontSize: 16,
-    color: '#111827',
+    color: COLOR_PALETTE.text.primary,
     marginLeft: 8,
   },
-  imageButton: {
-    borderWidth: 2,
-    borderColor: '#D1D5DB',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: 20,
+  departmentInfo: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-  },
-  previewImage: {
-    width: 100,
-    height: 100,
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
-  },
-  imagePlaceholder: {
-    alignItems: 'center',
-  },
-  imagePlaceholderText: {
-    fontSize: 14,
-    color: '#9CA3AF',
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  departmentText: {
+    color: '#166534',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  editButtonContainer: {
+    marginTop: 24,
+    marginBottom: 32,
+  },
+  editInfoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLOR_PALETTE.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    shadowColor: COLOR_PALETTE.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  editInfoButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLOR_PALETTE.background.primary,
+    marginLeft: 8,
+  },
+  cancelButtonContainer: {
+    marginTop: 16,
+    marginBottom: 32,
+  },
+  cancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLOR_PALETTE.background.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLOR_PALETTE.red,
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLOR_PALETTE.red,
+    marginLeft: 8,
   },
   modalOverlay: {
     flex: 1,
@@ -1980,7 +1626,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLOR_PALETTE.background.primary,
     borderRadius: 12,
     padding: 20,
     width: '80%',
@@ -1989,44 +1635,142 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: COLOR_PALETTE.text.primary,
     textAlign: 'center',
     marginBottom: 20,
   },
-  modalOption: {
+  modalInput: {
+    borderWidth: 1,
+    borderColor: COLOR_PALETTE.gray[200],
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: COLOR_PALETTE.text.primary,
+    backgroundColor: COLOR_PALETTE.background.primary,
+    marginBottom: 16,
+  },
+  modalButtons: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    justifyContent: 'flex-end',
+    gap: 12,
   },
-  modalOptionText: {
-    fontSize: 16,
-    color: '#111827',
-    marginLeft: 12,
+  modalCancelButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
   },
-  modalCancel: {
-    paddingVertical: 16,
-    alignItems: 'center',
+  modalCancelButtonText: {
+    fontSize: 14,
+    color: COLOR_PALETTE.text.secondary,
+    fontWeight: '500',
   },
-  modalCancelText: {
-    fontSize: 16,
-    color: '#EF4444',
+  modalAddButton: {
+    backgroundColor: COLOR_PALETTE.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  modalAddButtonText: {
+    fontSize: 14,
+    color: COLOR_PALETTE.background.primary,
     fontWeight: '600',
   },
-  
-  // Estilos para el botón de horario
+  // Estilos para el sistema de horario
+  scheduleDayContainer: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: COLOR_PALETTE.gray[50],
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLOR_PALETTE.gray[200],
+  },
+  scheduleDayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  scheduleDayToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: COLOR_PALETTE.gray[300],
+    backgroundColor: COLOR_PALETTE.background.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  checkboxChecked: {
+    backgroundColor: COLOR_PALETTE.primary,
+    borderColor: COLOR_PALETTE.primary,
+  },
+  scheduleDayLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: COLOR_PALETTE.text.secondary,
+  },
+  scheduleDayLabelEnabled: {
+    color: COLOR_PALETTE.text.primary,
+    fontWeight: '600',
+  },
+  scheduleTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingLeft: 32,
+  },
+  timeInputContainer: {
+    flex: 1,
+  },
+  timeLabel: {
+    fontSize: 12,
+    color: COLOR_PALETTE.text.secondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  timeInput: {
+    borderWidth: 1,
+    borderColor: COLOR_PALETTE.gray[200],
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: COLOR_PALETTE.text.primary,
+    backgroundColor: COLOR_PALETTE.background.primary,
+    textAlign: 'center',
+  },
+  timeInputDisabled: {
+    backgroundColor: COLOR_PALETTE.gray[100],
+    color: COLOR_PALETTE.text.light,
+  },
+  timeSeparator: {
+    fontSize: 16,
+    color: COLOR_PALETTE.text.secondary,
+    marginHorizontal: 12,
+    fontWeight: '500',
+  },
+  // Estilos para el botón del sistema de horario
   scheduleButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLOR_PALETTE.background.primary,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 16,
-    marginTop: 8,
+    borderColor: COLOR_PALETTE.gray[200],
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   scheduleButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 16,
   },
   scheduleButtonText: {
     flex: 1,
@@ -2035,226 +1779,272 @@ const styles = StyleSheet.create({
   scheduleButtonTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
+    color: COLOR_PALETTE.text.primary,
+    marginBottom: 2,
   },
   scheduleButtonSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
+    color: COLOR_PALETTE.text.secondary,
   },
-  
-  // Estilos para el modal de horarios
-  scheduleModalOverlay: {
+  schedulePreview: {
+    backgroundColor: COLOR_PALETTE.gray[50],
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: COLOR_PALETTE.gray[200],
+    marginBottom: 20, // Espacio extra para evitar solapamiento
+    zIndex: 1,
+    elevation: 1,
+  },
+  schedulePreviewTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLOR_PALETTE.text.primary,
+    marginBottom: 4,
+  },
+  schedulePreviewContent: {
+    marginTop: 8,
+  },
+  schedulePreviewItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: COLOR_PALETTE.gray[100],
+  },
+  schedulePreviewDay: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLOR_PALETTE.text.primary,
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
   },
+  schedulePreviewTime: {
+    fontSize: 13,
+    color: COLOR_PALETTE.text.secondary,
+    fontWeight: '500',
+  },
+  schedulePreviewEmpty: {
+    fontSize: 13,
+    color: COLOR_PALETTE.text.light,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 12,
+  },
+  // Estilos para el modal del sistema de horario
   scheduleModalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: COLOR_PALETTE.background.primary,
+    borderRadius: 16,
+    width: '90%',
+    maxWidth: 500,
     maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
   },
   scheduleModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: COLOR_PALETTE.gray[200],
   },
   scheduleModalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: COLOR_PALETTE.text.primary,
   },
   scheduleModalCloseButton: {
     padding: 4,
   },
   scheduleModalBody: {
     maxHeight: 400,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
-  scheduleModalBodyContent: {
-    padding: 20,
-    paddingBottom: 40, // Espacio extra al final
-  },
-  scheduleDayContainer: {
-    marginBottom: 20,
-  },
-  scheduleDayHeader: {
-    marginBottom: 12,
-  },
-  scheduleDayToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  scheduleDayName: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 12,
-  },
-  scheduleTimeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  scheduleTimeInput: {
-    flex: 1,
-  },
-  scheduleTimeLabel: {
+  scheduleModalSubtitle: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
-    marginBottom: 8,
-  },
-  scheduleTimeButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  scheduleTimeText: {
-    fontSize: 16,
-    color: '#1F2937',
-    fontWeight: '500',
+    color: COLOR_PALETTE.text.secondary,
+    marginBottom: 20,
+    lineHeight: 20,
   },
   scheduleModalFooter: {
     flexDirection: 'row',
-    padding: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: COLOR_PALETTE.gray[200],
     gap: 12,
   },
-  scheduleCancelButton: {
+  scheduleModalCancelButton: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLOR_PALETTE.gray[300],
     alignItems: 'center',
   },
-  scheduleCancelButtonText: {
+  scheduleModalCancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: COLOR_PALETTE.text.secondary,
   },
-  scheduleSaveButton: {
+  scheduleModalSaveButton: {
     flex: 1,
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    paddingVertical: 14,
     alignItems: 'center',
-  },
-  scheduleSaveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  
-  // Estilos para el TimePicker
-  timePickerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: COLOR_PALETTE.primary,
+  },
+  scheduleModalSaveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLOR_PALETTE.background.primary,
+  },
+  // Estilos para el botón de hora
+  timeButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: COLOR_PALETTE.gray[200],
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: COLOR_PALETTE.background.primary,
   },
-  timePickerContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    width: '100%',
+  timeButtonText: {
+    fontSize: 14,
+    color: COLOR_PALETTE.text.primary,
+    fontWeight: '500',
+  },
+  // Estilos para el modal del selector de hora
+  timePickerModalContent: {
+    backgroundColor: COLOR_PALETTE.background.primary,
+    borderRadius: 16,
+    width: '90%',
     maxWidth: 400,
-    maxHeight: '80%',
+    maxHeight: '70%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  timePickerHeader: {
+  timePickerModalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: COLOR_PALETTE.gray[200],
   },
-  timePickerTitle: {
+  timePickerModalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: COLOR_PALETTE.text.primary,
+    flex: 1,
   },
-  timePickerCloseButton: {
+  timePickerModalCloseButton: {
     padding: 4,
   },
-  timePickerBody: {
+  timePickerContainer: {
     flexDirection: 'row',
-    padding: 20,
-    gap: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    height: 300,
   },
-  timePickerRow: {
+  timePickerColumn: {
     flex: 1,
-    minWidth: 80,
+    marginHorizontal: 4,
   },
   timePickerLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
+    color: COLOR_PALETTE.text.primary,
     textAlign: 'center',
+    marginBottom: 12,
   },
   timePickerScroll: {
-    maxHeight: 200,
+    flex: 1,
   },
-  timePickerOption: {
+  timePickerContent: {
+    paddingVertical: 20,
+  },
+  timePickerItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    marginVertical: 4,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: COLOR_PALETTE.gray[50],
+    borderWidth: 1,
+    borderColor: COLOR_PALETTE.gray[200],
+  },
+  timePickerItemSelected: {
+    backgroundColor: COLOR_PALETTE.primary,
+    borderColor: COLOR_PALETTE.primary,
+    shadowColor: COLOR_PALETTE.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  timePickerItemText: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: COLOR_PALETTE.text.primary,
+  },
+  timePickerItemTextSelected: {
+    color: COLOR_PALETTE.background.primary,
+    fontWeight: '700',
+    fontSize: 20,
+  },
+  timePickerModalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLOR_PALETTE.gray[200],
+    gap: 12,
+  },
+  timePickerModalCancelButton: {
+    flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: COLOR_PALETTE.gray[300],
     alignItems: 'center',
   },
-  timePickerOptionSelected: {
-    backgroundColor: '#3B82F6',
-  },
-  timePickerOptionText: {
+  timePickerModalCancelButtonText: {
     fontSize: 16,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  timePickerOptionTextSelected: {
-    color: '#FFFFFF',
     fontWeight: '600',
+    color: COLOR_PALETTE.text.secondary,
   },
-  timePickerFooter: {
-    flexDirection: 'row',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    gap: 12,
-  },
-  timePickerCancelButton: {
+  timePickerModalSaveButton: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: COLOR_PALETTE.primary,
   },
-  timePickerCancelButtonText: {
+  timePickerModalSaveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
-  },
-  timePickerSaveButton: {
-    flex: 1,
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  timePickerSaveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    color: COLOR_PALETTE.background.primary,
   },
 });
 

@@ -28,6 +28,7 @@ import {
   validateResidence,
   formatCedula
 } from '../../utils/validations';
+import { getDepartmentFromCoordinates, isWithinNicaragua } from '../../utils/geolocation';
 import { registerUser, loginUser } from '../../services/auth.js';
 import { useAuth } from '../../contexts/AuthContext';
 import { Picker } from '@react-native-picker/picker';
@@ -64,6 +65,7 @@ const RegisterScreen = ({ navigation }) => {
     businessAddress: '',
     businessLatitude: '',
     businessLongitude: '',
+    businessDepartment: '',
     businessCost: '',
     businessLogo: null,
     businessCover: null,
@@ -243,7 +245,20 @@ const RegisterScreen = ({ navigation }) => {
       } : undefined,
       onPick: ({ latitude, longitude }) => {
         console.log('Ubicación seleccionada:', { latitude, longitude });
-        setFormData(prev => ({ ...prev, businessLatitude: String(latitude), businessLongitude: String(longitude) }));
+        
+        // Determinar departamento automáticamente
+        const department = getDepartmentFromCoordinates(latitude, longitude);
+        const isInNicaragua = isWithinNicaragua(latitude, longitude);
+        
+        console.log('Departamento detectado:', department);
+        console.log('¿Está en Nicaragua?:', isInNicaragua);
+        
+        setFormData(prev => ({ 
+          ...prev, 
+          businessLatitude: String(latitude), 
+          businessLongitude: String(longitude),
+          businessDepartment: department
+        }));
       }
     });
   };
@@ -314,6 +329,7 @@ const RegisterScreen = ({ navigation }) => {
           address: formData.businessAddress,
           latitude: formData.businessLatitude,
           longitude: formData.businessLongitude,
+          department: formData.businessDepartment,
           businessCost: formData.businessCost,
           businessLogo: formData.businessLogo,
           businessCover: formData.businessCover
@@ -906,6 +922,14 @@ const RegisterScreen = ({ navigation }) => {
             : 'Selecciona la ubicación en el mapa'
           }
         </Text>
+        {formData.businessDepartment && (
+          <View style={styles.departmentInfo}>
+            <Ionicons name="location" size={16} color="#10B981" />
+            <Text style={styles.departmentText}>
+              Departamento detectado: {formData.businessDepartment}
+            </Text>
+          </View>
+        )}
         <TouchableOpacity style={styles.mapButton} onPress={openMapPicker}>
           <Ionicons name="location" size={20} color="#3B82F6" />
           <Text style={styles.mapButtonText}>
@@ -1956,6 +1980,23 @@ const styles = StyleSheet.create({
     color: '#3B82F6',
     marginLeft: 12,
     flex: 1,
+  },
+  departmentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  departmentText: {
+    color: '#166534',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
   },
   footerText: {
     color: '#6B7280',

@@ -89,7 +89,12 @@ const SettingsScreen = ({ navigation }) => {
           icon: 'person-outline',
           title: isCenter ? 'Mi centro' : 'Perfil',
           subtitle: isCenter ? 'Editar centro turístico' : 'Editar información personal',
-          onPress: () => navigation.navigate(isCenter ? 'CentroTuristicoProfile' : 'TuristaProfile'),
+          onPress: () => navigation.navigate(isCenter ? 'CentroTuristicoProfile' : 'TuristaProfile', {
+            onProfileUpdate: () => {
+              // Recargar datos del usuario en Home
+              console.log('Perfil actualizado, recargando datos...');
+            }
+          }),
         },
         {
           icon: 'shield-checkmark-outline',
@@ -306,6 +311,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
+    marginLeft: 12,
+    flex: 1,
   },
   headerRight: {
     width: 40,

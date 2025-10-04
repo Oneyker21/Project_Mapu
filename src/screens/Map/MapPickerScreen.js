@@ -19,6 +19,7 @@ const MapPickerScreen = ({ route, navigation }) => {
   const initial = route?.params?.initialCoords;
   const onPick = route?.params?.onPick;
   const onError = route?.params?.onError;
+  const centers = route?.params?.centers || []; // Centros registrados
   
   console.log('MapPickerScreen - Parámetros recibidos:', route?.params);
 
@@ -326,7 +327,7 @@ const MapPickerScreen = ({ route, navigation }) => {
                     >
                       <Ionicons 
                         name={lugares[lugar].tipo === 'Departamento' ? 'map' : 
-                              lugares[lugar].tipo === 'Ciudad' ? 'location' : 'island'} 
+                              lugares[lugar].tipo === 'Ciudad' ? 'location' : 'business'} 
                         size={16} 
                         color="#3B82F6" 
                       />
@@ -357,7 +358,71 @@ const MapPickerScreen = ({ route, navigation }) => {
         zoomEnabled={true}
         pitchEnabled={true}
         rotateEnabled={true}
+        // Deshabilitar todos los iconos por defecto de Google Maps
+        showsCompass={false}
+        showsScale={false}
+        showsTraffic={false}
+        showsBuildings={false}
+        showsIndoors={false}
+        showsPointsOfInterest={false}
+        showsMapToolbar={false}
+        shows3DBuildings={false}
+        showsUserLocationButton={false}
+        showsZoomControls={false}
+        showsIndoorLevelPicker={false}
+        showsNightShading={false}
+        // Estilo personalizado para ocultar POIs de Google
+        customMapStyle={[
+          {
+            featureType: "poi",
+            elementType: "labels",
+            stylers: [{ visibility: "off" }]
+          },
+          {
+            featureType: "poi.business",
+            stylers: [{ visibility: "off" }]
+          },
+          {
+            featureType: "poi.attraction",
+            stylers: [{ visibility: "off" }]
+          },
+          {
+            featureType: "poi.government",
+            stylers: [{ visibility: "off" }]
+          },
+          {
+            featureType: "poi.medical",
+            stylers: [{ visibility: "off" }]
+          },
+          {
+            featureType: "poi.park",
+            stylers: [{ visibility: "off" }]
+          },
+          {
+            featureType: "poi.place_of_worship",
+            stylers: [{ visibility: "off" }]
+          },
+          {
+            featureType: "poi.school",
+            stylers: [{ visibility: "off" }]
+          },
+          {
+            featureType: "poi.sports_complex",
+            stylers: [{ visibility: "off" }]
+          }
+        ]}
       >
+        {/* Mostrar solo los centros registrados */}
+        {centers.map((center) => (
+          <Marker
+            key={center.id}
+            coordinate={center.coordinate}
+            title={center.businessName}
+            description={`${center.category} • ${center.isOpen ? 'Abierto' : 'Cerrado'}`}
+            pinColor={center.isOpen ? "#10B981" : "#EF4444"}
+          />
+        ))}
+        
         {/* Marcador estático para ubicación registrada */}
         {initial && (
           <Marker

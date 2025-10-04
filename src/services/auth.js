@@ -242,6 +242,7 @@ export const registerUser = async (userData) => {
         direccion: additionalData.address || '',
         latitud: additionalData.latitude || '',
         longitud: additionalData.longitude || '',
+        departamento: additionalData.department || '',
         horario: additionalData.businessSchedule || '',
         costo: additionalData.businessCost || '',
         logotipo: businessLogoUrl, // URL de Firebase Storage

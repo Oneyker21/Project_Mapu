@@ -281,6 +281,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#000000',
+    marginLeft: 12,
+    flex: 1,
   },
   headerSpacer: {
     width: 40,
