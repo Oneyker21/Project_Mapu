@@ -220,10 +220,13 @@ const RouteNavigationScreen = ({ navigation, route }) => {
       const destination = `${currentCenter.coordinate.latitude},${currentCenter.coordinate.longitude}`;
       
       console.log('🗺️ Calculando ruta:', { origin, destination });
+      console.log('🗺️ Ubicación usuario:', userLocation);
+      console.log('🗺️ Centro destino:', currentCenter.coordinate);
       
       const routeCoordinates = await getGoogleDirections(origin, destination);
       
       if (routeCoordinates && routeCoordinates.length > 0) {
+        console.log('✅ Ruta obtenida de Google con', routeCoordinates.length, 'puntos');
         setRoutePolyline(routeCoordinates);
         
         // Ajustar el mapa para mostrar toda la ruta con zoom apropiado
@@ -234,14 +237,16 @@ const RouteNavigationScreen = ({ navigation, route }) => {
           mapRef.current.animateToRegion(region, 1000);
         }
         
-        console.log('✅ Ruta calculada exitosamente');
+        console.log('✅ Ruta aplicada al mapa exitosamente');
       } else {
-        console.log('⚠️ Usando ruta simulada');
+        console.log('⚠️ Google API falló, usando ruta simulada mejorada');
         const fallbackRoute = generateRealisticRoute(userLocation, currentCenter.coordinate);
+        console.log('🛣️ Ruta simulada generada con', fallbackRoute.length, 'puntos');
         setRoutePolyline(fallbackRoute);
       }
     } catch (error) {
       console.error('❌ Error calculando ruta:', error);
+      console.log('🛣️ Usando ruta simulada como último recurso');
       const fallbackRoute = generateRealisticRoute(userLocation, currentCenter.coordinate);
       setRoutePolyline(fallbackRoute);
     } finally {
@@ -252,87 +257,119 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   // Obtener ruta real usando Google Directions API
   const getGoogleDirections = async (origin, destination) => {
     try {
-      if (!validateApiKey()) {
-        console.warn('Google Maps API Key no configurada');
+      // Usar la API key del servicio de GoogleMaps
+      const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+      
+      console.log('🔑 API Key disponible:', !!API_KEY);
+      console.log('🔑 API Key (primeros 10 chars):', API_KEY ? API_KEY.substring(0, 10) + '...' : 'NO DISPONIBLE');
+      
+      if (!API_KEY || API_KEY === 'TU_GOOGLE_MAPS_API_KEY_AQUI') {
+        console.warn('❌ Google Maps API Key no configurada o es placeholder');
         return null;
       }
       
-      const url = buildDirectionsUrl(origin, destination, {
+      // Construir URL con parámetros optimizados para rutas detalladas
+      const params = new URLSearchParams({
+        origin: origin,
+        destination: destination,
+        key: API_KEY,
         mode: 'driving',
-        avoid: [],
+        language: 'es',
+        region: 'ni',
         alternatives: false,
-        // Parámetros para obtener ruta más detallada
+        avoid: 'tolls|ferries', // Evitar peajes y ferries para rutas más directas
+        units: 'metric',
         traffic_model: 'best_guess',
-        departure_time: 'now',
-        // Solicitar más detalles en la respuesta
-        include_geometry: true
+        departure_time: Math.floor(Date.now() / 1000).toString(), // Timestamp actual
+        // Parámetros críticos para obtener rutas detalladas
+        waypoints: '', // Sin waypoints para ruta directa
+        optimize: 'false'
       });
       
+      const url = `https://maps.googleapis.com/maps/api/directions/json?${params.toString()}`;
+      
+      console.log('🌐 Llamando a Google Directions API...');
+      console.log('🌐 URL (sin API key):', url.replace(API_KEY, 'API_KEY_HIDDEN'));
+      
       const response = await fetch(url);
+      console.log('📡 Respuesta HTTP:', response.status, response.statusText);
+      
       const data = await response.json();
+      
+      console.log('📊 Respuesta completa de Google Directions:', {
+        status: data.status,
+        routes: data.routes?.length || 0,
+        legs: data.routes?.[0]?.legs?.length || 0,
+        steps: data.routes?.[0]?.legs?.[0]?.steps?.length || 0,
+        overview_polyline: !!data.routes?.[0]?.overview_polyline?.points,
+        error_message: data.error_message
+      });
       
       if (data.status === 'OK' && data.routes && data.routes.length > 0) {
         const route = data.routes[0];
         const leg = route.legs[0];
         
-        // Actualizar duración
+        // Actualizar duración y distancia
         if (leg.duration) {
-          setDuration(leg.duration.value); // en segundos
+          setDuration(leg.duration.value);
         }
         
         const coordinates = [];
         
-        // Usar steps detallados para seguir exactamente las carreteras de Google
+        // PRIORIDAD 1: Usar overview_polyline que contiene la ruta completa optimizada
+        if (route.overview_polyline && route.overview_polyline.points) {
+          const decodedPoints = decodePolyline(route.overview_polyline.points);
+          coordinates.push(...decodedPoints);
+          console.log('✅ Usando overview_polyline con', decodedPoints.length, 'puntos detallados');
+          
+          // Verificar que la ruta no esté vacía
+          if (coordinates.length === 0) {
+            console.error('❌ Ruta vacía recibida de Google overview_polyline');
+            return null;
+          }
+          
+          return coordinates;
+        }
+        
+        // PRIORIDAD 2: Usar steps detallados si overview_polyline no está disponible
         if (leg.steps && leg.steps.length > 0) {
-          // Agregar punto de inicio
-          coordinates.push({
-            latitude: leg.start_location.lat,
-            longitude: leg.start_location.lng
-          });
+          console.log('📍 Procesando', leg.steps.length, 'steps detallados');
           
           // Procesar cada step para obtener la ruta exacta
           leg.steps.forEach((step, stepIndex) => {
             if (step.polyline && step.polyline.points) {
               const stepPoints = decodePolyline(step.polyline.points);
-              // Agregar todos los puntos del step para seguir la carretera exacta
               coordinates.push(...stepPoints);
-              console.log(`📍 Step ${stepIndex + 1}: ${stepPoints.length} puntos`);
+              console.log(`📍 Step ${stepIndex + 1}: ${stepPoints.length} puntos - ${step.html_instructions || 'Instrucción no disponible'}`);
             }
           });
           
-          // Agregar punto final
-          coordinates.push({
-            latitude: leg.end_location.lat,
-            longitude: leg.end_location.lng
-          });
+          console.log('✅ Usando steps detallados con', coordinates.length, 'puntos totales');
           
-          console.log('📍 Usando steps detallados con', coordinates.length, 'puntos totales');
-        } else if (route.overview_polyline && route.overview_polyline.points) {
-          // Fallback: usar overview_polyline si no hay steps detallados
-          const decodedPoints = decodePolyline(route.overview_polyline.points);
-          coordinates.push(...decodedPoints);
-          console.log('📍 Usando overview_polyline con', decodedPoints.length, 'puntos');
-        } else {
-          // Fallback final: solo inicio y fin
-          coordinates.push({
-            latitude: leg.start_location.lat,
-            longitude: leg.start_location.lng
-          });
-          coordinates.push({
-            latitude: leg.end_location.lat,
-            longitude: leg.end_location.lng
-          });
-          console.log('📍 Usando fallback con', coordinates.length, 'puntos');
+          // Verificar que la ruta no esté vacía
+          if (coordinates.length === 0) {
+            console.error('❌ Ruta vacía de steps');
+            return null;
+          }
+          
+          return coordinates;
         }
         
-        console.log('📍 Ruta con', coordinates.length, 'puntos detallados');
-        return coordinates;
+        // PRIORIDAD 3: Fallback con solo inicio y fin (NO USAR - genera línea recta)
+        console.warn('⚠️ Solo hay inicio y fin - esto generará línea recta');
+        return null; // No devolver línea recta
+        
       } else {
-        console.error('Error en Google Directions API:', data.status);
+        console.error('❌ Error en Google Directions API:', {
+          status: data.status,
+          error_message: data.error_message,
+          origin,
+          destination
+        });
         return null;
       }
     } catch (error) {
-      console.error('Error llamando a Google Directions API:', error);
+      console.error('❌ Error llamando a Google Directions API:', error);
       return null;
     }
   };
@@ -415,61 +452,91 @@ const RouteNavigationScreen = ({ navigation, route }) => {
     return points;
   };
 
-  // Generar ruta simulada como fallback
+  // Generar ruta simulada más realista como fallback
   const generateRealisticRoute = (start, end) => {
     const points = [];
-    const steps = 150; // Muchos más puntos para seguir carreteras
     
-    // Calcular dirección y distancia
+    // Calcular distancia y dirección
     const deltaLat = end.latitude - start.latitude;
     const deltaLng = end.longitude - start.longitude;
     const distance = Math.sqrt(deltaLat * deltaLat + deltaLng * deltaLng);
     
-    // Vector perpendicular para curvas
-    const perpLat = -deltaLng / distance;
-    const perpLng = deltaLat / distance;
+    // Determinar número de puntos basado en la distancia (más puntos para distancias mayores)
+    const steps = Math.max(50, Math.min(300, Math.floor(distance * 1000))); // 50-300 puntos
     
-    for (let i = 0; i <= steps; i++) {
+    console.log(`🛣️ Generando ruta simulada: ${distance.toFixed(3)}° de distancia, ${steps} puntos`);
+    
+    // Vector unitario de dirección
+    const dirLat = deltaLat / distance;
+    const dirLng = deltaLng / distance;
+    
+    // Vector perpendicular para curvas
+    const perpLat = -dirLng;
+    const perpLng = dirLat;
+    
+    // Agregar punto de inicio
+    points.push({ latitude: start.latitude, longitude: start.longitude });
+    
+    for (let i = 1; i < steps; i++) {
       const t = i / steps;
       
-      // Interpolación básica
+      // Interpolación lineal básica
       let lat = start.latitude + deltaLat * t;
       let lng = start.longitude + deltaLng * t;
       
-      // Agregar curvas que sigan patrones de carreteras reales
-      if (i > 0 && i < steps) {
-        const curveIntensity = Math.min(distance * 0.08, 0.012);
+      // Simular rutas que siguen carreteras principales
+      // Las carreteras en Nicaragua suelen seguir patrones más rectos con curvas suaves
+      const curveIntensity = Math.min(distance * 0.02, 0.005); // Curvas más suaves
+      
+      // Patrón 1: Curvas suaves que simulan carreteras principales
+      if (i > 5 && i < steps - 5) {
+        // Simular giros suaves como en carreteras reales
+        const smoothCurve = Math.sin(t * Math.PI * 1.5) * curveIntensity * 0.6;
+        const roadVariation = Math.cos(t * Math.PI * 3) * curveIntensity * 0.3;
         
-        // Simular curvas de carretera con múltiples ondas
-        const roadCurve1 = Math.sin(t * Math.PI * 2) * curveIntensity * 0.8;
-        const roadCurve2 = Math.sin(t * Math.PI * 4) * curveIntensity * 0.4;
-        const roadCurve3 = Math.cos(t * Math.PI * 3) * curveIntensity * 0.3;
+        // Aplicar variaciones perpendiculares (giros)
+        lat += smoothCurve * perpLat;
+        lng += smoothCurve * perpLng;
         
-        // Aplicar curvas perpendiculares para simular giros
-        lat += (roadCurve1 + roadCurve2) * perpLat;
-        lng += (roadCurve1 + roadCurve2) * perpLng;
-        
-        // Agregar pequeñas variaciones en la dirección principal
-        lat += roadCurve3 * deltaLat / distance * 0.15;
-        lng += roadCurve3 * deltaLng / distance * 0.15;
-        
-        // Simular curvas más pronunciadas en el medio del trayecto
-        const midPoint = steps / 2;
-        const distanceFromMid = Math.abs(i - midPoint) / midPoint;
-        const sharpCurve = Math.sin(t * Math.PI * 6) * curveIntensity * 0.5 * (1 - distanceFromMid);
-        
-        lat += sharpCurve * perpLat;
-        lng += sharpCurve * perpLng;
+        // Aplicar variaciones en la dirección principal (curvas en la carretera)
+        lat += roadVariation * dirLat;
+        lng += roadVariation * dirLng;
       }
+      
+      // Patrón 2: Simular intersecciones y cambios de dirección
+      const intersectionChance = Math.sin(t * Math.PI * 8) * curveIntensity * 0.4;
+      if (Math.abs(intersectionChance) > curveIntensity * 0.2) {
+        lat += intersectionChance * perpLat * 0.5;
+        lng += intersectionChance * perpLng * 0.5;
+      }
+      
+      // Patrón 3: Simular curvas más pronunciadas en ciertos puntos
+      const sharpTurnPoints = [0.25, 0.5, 0.75]; // Puntos donde pueden haber giros más pronunciados
+      for (const turnPoint of sharpTurnPoints) {
+        const distanceFromTurn = Math.abs(t - turnPoint);
+        if (distanceFromTurn < 0.1) {
+          const turnIntensity = (0.1 - distanceFromTurn) * curveIntensity * 2;
+          const turnDirection = Math.sin(t * Math.PI * 4) * turnIntensity;
+          lat += turnDirection * perpLat;
+          lng += turnDirection * perpLng;
+          break;
+        }
+      }
+      
+      // Patrón 4: Simular variaciones menores como baches o curvas naturales
+      const minorVariation = (Math.random() - 0.5) * curveIntensity * 0.1;
+      lat += minorVariation * perpLat;
+      lng += minorVariation * perpLng;
+      
+      // Validar coordenadas (no deben salir de Nicaragua)
+      lat = Math.max(10.7, Math.min(15.0, lat));
+      lng = Math.max(-87.7, Math.min(-82.7, lng));
       
       points.push({ latitude: lat, longitude: lng });
     }
     
     // Asegurar que el último punto sea exactamente el destino
-    points[points.length - 1] = {
-      latitude: end.latitude,
-      longitude: end.longitude
-    };
+    points.push({ latitude: end.latitude, longitude: end.longitude });
     
     console.log('🛣️ Ruta simulada generada con', points.length, 'puntos');
     return points;
@@ -615,7 +682,6 @@ const RouteNavigationScreen = ({ navigation, route }) => {
           }}
           // Rotación deshabilitada temporalmente
           // heading={mapHeading}
-          style={styles.map}
           scrollEnabled={true}
           zoomEnabled={true}
           // Configuración de zoom más controlada
