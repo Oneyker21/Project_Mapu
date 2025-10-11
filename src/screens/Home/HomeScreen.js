@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
+import { colors } from '../../config/colors';
 
 
 const HomeScreen = ({ navigation }) => {
@@ -858,13 +859,13 @@ const HomeScreen = ({ navigation }) => {
           >
             <View style={styles.startRouteContent}>
               <View style={styles.startRouteIcon}>
-                <Ionicons name="map" size={32} color="#FFFFFF" />
+                <Ionicons name="map" size={32} color={colors.text.primary} />
               </View>
               <View style={styles.startRouteText}>
                 <Text style={styles.startRouteTitle}>Iniciar Ruta</Text>
                 <Text style={styles.startRouteSubtitle}>Crea tu recorrido personalizado</Text>
               </View>
-              <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
+              <Ionicons name="chevron-forward" size={24} color={colors.text.primary} />
             </View>
           </TouchableOpacity>
           
@@ -1029,7 +1030,7 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flex: 1,
@@ -1039,7 +1040,7 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   headerContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     width: '100%',
   },
   profileSection: {
@@ -1048,7 +1049,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 20,
   },
   profileInfo: {
     flexDirection: 'row',
@@ -1077,21 +1078,22 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     flex: 1,
+    marginTop: 8,
   },
   userName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 2,
   },
   userRole: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     fontWeight: '500',
   },
   propietarioName: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.text.muted,
     fontWeight: '400',
     marginTop: 2,
   },
@@ -1289,9 +1291,9 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   footerContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
     paddingTop: 8,
     paddingBottom: 8,
   },
@@ -1312,7 +1314,7 @@ const styles = StyleSheet.create({
   footerButtonText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -1326,7 +1328,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     height: '90%',
@@ -1364,7 +1366,7 @@ const styles = StyleSheet.create({
   menuTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
     flex: 1,
     textAlign: 'center',
   },
@@ -1410,7 +1412,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 16,
     marginBottom: 8,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
     borderRadius: 12,
     borderLeftWidth: 4,
   },
@@ -1440,11 +1442,11 @@ const styles = StyleSheet.create({
   
   // Estilos para la sección de turistas
   touristSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingVertical: 16,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    flex: 1,
+    paddingBottom: 100, // Espacio para el footer
   },
   touristSectionHeader: {
     marginBottom: 12,
@@ -1452,18 +1454,18 @@ const styles = StyleSheet.create({
   touristSectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   touristSectionSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   startRouteButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     borderRadius: 16,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: colors.shadow.primary,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -1506,13 +1508,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   touristActionCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
     borderRadius: 12,
     padding: 16,
     width: '48%',
     marginBottom: 12,
     borderLeftWidth: 4,
-    shadowColor: '#000',
+    shadowColor: colors.shadow.primary,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -1532,12 +1534,12 @@ const styles = StyleSheet.create({
   touristActionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   touristActionSubtitle: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     lineHeight: 16,
   },
   centerStatusSection: {

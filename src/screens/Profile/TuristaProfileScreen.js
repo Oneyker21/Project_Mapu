@@ -20,6 +20,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
 import { Input } from '../../components';
+import { colors } from '../../config/colors';
 import { 
   validateName, 
   validateLastName, 
@@ -31,34 +32,7 @@ import {
 } from '../../utils/validations';
 import { uploadImage } from '../../services/imageStorage';
 
-// Paleta de colores
-const COLOR_PALETTE = {
-  primary: '#3B82F6',
-  secondary: '#10B981',
-  accent: '#F59E0B',
-  red: '#EF4444',
-  gray: {
-    50: '#F9FAFB',
-    100: '#F3F4F6',
-    200: '#E5E7EB',
-    300: '#D1D5DB',
-    400: '#9CA3AF',
-    500: '#6B7280',
-    600: '#4B5563',
-    700: '#374151',
-    800: '#1F2937',
-    900: '#111827',
-  },
-  text: {
-    primary: '#1F2937',
-    secondary: '#6B7280',
-    light: '#9CA3AF',
-  },
-  background: {
-    primary: '#FFFFFF',
-    secondary: '#F9FAFB',
-  }
-};
+// Usar la paleta de colores centralizada
 
 const TuristaProfileScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -378,7 +352,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={COLOR_PALETTE.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando perfil...</Text>
       </SafeAreaView>
     );
@@ -392,7 +366,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
           style={styles.backButton}
           onPress={handleBackPress}
         >
-          <Ionicons name="arrow-back" size={24} color={COLOR_PALETTE.text.primary} />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mi Perfil</Text>
         <View style={styles.headerButtons}>
@@ -407,13 +381,13 @@ const TuristaProfileScreen = ({ navigation, route }) => {
               disabled={!hasChanges || saving}
             >
               {saving ? (
-                <ActivityIndicator size="small" color={COLOR_PALETTE.background.primary} />
+                <ActivityIndicator size="small" color={colors.surface} />
               ) : (
                 <>
                   <Ionicons 
                     name="checkmark" 
                     size={16} 
-                    color={hasChanges ? COLOR_PALETTE.background.primary : '#9CA3AF'} 
+                    color={hasChanges ? colors.surface : '#9CA3AF'} 
                   />
                   <Text style={[
                     styles.saveButtonText,
@@ -454,7 +428,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   />
                 ) : (
                   <View style={styles.coverImagePlaceholder}>
-                    <Ionicons name="image" size={32} color={COLOR_PALETTE.text.light} />
+                    <Ionicons name="image" size={32} color={colors.text.muted} />
                     <Text style={styles.coverImageText}>
                       {'Agregar portada'}
                     </Text>
@@ -466,7 +440,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   style={styles.removeCoverButton} 
                   onPress={() => setFormData(prev => ({ ...prev, coverImage: null }))}
                 >
-                  <Ionicons name="close-circle" size={20} color={COLOR_PALETTE.red} />
+                  <Ionicons name="close-circle" size={20} color={colors.error} />
                   <Text style={styles.removeCoverText}>Eliminar</Text>
                 </TouchableOpacity>
               )}
@@ -486,7 +460,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   />
                 ) : (
                   <View style={styles.profileImagePlaceholder}>
-                    <Ionicons name="camera" size={24} color={COLOR_PALETTE.text.light} />
+                    <Ionicons name="camera" size={24} color={colors.text.muted} />
                     <Text style={styles.profileImageText}>
                       {'Foto'}
                     </Text>
@@ -498,7 +472,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   style={styles.removeImageButton} 
                   onPress={() => setFormData(prev => ({ ...prev, profileImage: null }))}
                 >
-                  <Ionicons name="close-circle" size={16} color={COLOR_PALETTE.red} />
+                  <Ionicons name="close-circle" size={16} color={colors.error} />
                 </TouchableOpacity>
               )}
             </View>
@@ -589,7 +563,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                     <Picker.Item label="Cédula de Identidad" value="cedula" />
                     <Picker.Item label="Pasaporte" value="pasaporte" />
                   </Picker>
-                  <Ionicons name="chevron-down" size={20} color={COLOR_PALETTE.text.light} style={styles.pickerIcon} />
+                  <Ionicons name="chevron-down" size={20} color={colors.text.muted} style={styles.pickerIcon} />
                 </View>
                 {errors.documentType && <Text style={styles.errorText}>{errors.documentType}</Text>}
               </View>
@@ -760,7 +734,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLOR_PALETTE.background.secondary,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -768,19 +742,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLOR_PALETTE.gray[200],
+    borderBottomColor: colors.border,
   },
   backButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: COLOR_PALETTE.gray[100],
+    backgroundColor: colors.surface,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginLeft: 8,
     flex: 1,
   },
@@ -794,18 +768,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
   },
   saveButtonDisabled: {
-    backgroundColor: COLOR_PALETTE.gray[300],
+    backgroundColor: colors.surface,
   },
   saveButtonSaving: {
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
   },
   saveButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLOR_PALETTE.background.primary,
+    color: colors.surface,
     marginLeft: 4,
   },
   saveButtonTextDisabled: {
@@ -814,11 +788,11 @@ const styles = StyleSheet.create({
   editButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: COLOR_PALETTE.gray[100],
+    backgroundColor: colors.surface,
   },
   loadingText: {
     fontSize: 16,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     marginTop: 8,
   },
   keyboardContainer: {
@@ -831,7 +805,7 @@ const styles = StyleSheet.create({
     paddingBottom: 30, // Margen al final del formulario
   },
   imageSection: {
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     marginBottom: 16,
   },
   coverImageContainer: {
@@ -851,11 +825,11 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLOR_PALETTE.gray[100],
+    backgroundColor: colors.surface,
   },
   coverImageText: {
     fontSize: 14,
-    color: COLOR_PALETTE.text.light,
+    color: colors.text.muted,
     marginTop: 8,
     fontWeight: '500',
   },
@@ -865,7 +839,7 @@ const styles = StyleSheet.create({
     right: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -877,7 +851,7 @@ const styles = StyleSheet.create({
   },
   removeCoverText: {
     fontSize: 12,
-    color: COLOR_PALETTE.red,
+    color: colors.error,
     marginLeft: 4,
     fontWeight: '500',
   },
@@ -893,8 +867,8 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     overflow: 'hidden',
     borderWidth: 4,
-    borderColor: COLOR_PALETTE.background.primary,
-    backgroundColor: COLOR_PALETTE.gray[100],
+    borderColor: colors.surface,
+    backgroundColor: colors.surface,
   },
   profileImage: {
     width: '100%',
@@ -905,11 +879,11 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLOR_PALETTE.gray[100],
+    backgroundColor: colors.surface,
   },
   profileImageText: {
     fontSize: 10,
-    color: COLOR_PALETTE.text.light,
+    color: colors.text.muted,
     marginTop: 2,
   },
   removeImageButton: {
@@ -919,7 +893,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -935,7 +909,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   sectionContainer: {
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -943,18 +917,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginBottom: 2,
   },
   sectionSubtext: {
     fontSize: 12,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     marginBottom: 6,
     lineHeight: 16,
   },
   sectionUnderline: {
     height: 2,
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
     borderRadius: 1,
     marginBottom: 16,
     width: 30,
@@ -964,7 +938,7 @@ const styles = StyleSheet.create({
   },
   characterCount: {
     fontSize: 11,
-    color: COLOR_PALETTE.text.light,
+    color: colors.text.muted,
     textAlign: 'right',
     marginTop: 4,
     marginRight: 4,
@@ -975,15 +949,15 @@ const styles = StyleSheet.create({
   pickerLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginBottom: 8,
   },
   pickerWrapper: {
     position: 'relative',
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[200],
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -992,7 +966,7 @@ const styles = StyleSheet.create({
   },
   picker: {
     height: 50,
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
   },
   pickerIcon: {
     position: 'absolute',
@@ -1001,7 +975,7 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
   errorText: {
-    color: COLOR_PALETTE.red,
+    color: colors.error,
     fontSize: 14,
     marginTop: 4,
     marginLeft: 4,
@@ -1017,11 +991,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
-    shadowColor: COLOR_PALETTE.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -1030,7 +1004,7 @@ const styles = StyleSheet.create({
   editInfoButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.background.primary,
+    color: colors.surface,
     marginLeft: 8,
   },
   cancelButtonContainer: {
@@ -1041,17 +1015,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.red,
+    borderColor: colors.error,
   },
   cancelButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLOR_PALETTE.red,
+    color: colors.error,
     marginLeft: 8,
   },
   loadingOverlay: {
@@ -1081,7 +1055,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     textAlign: 'center',
   },
   // Estilos para selectores

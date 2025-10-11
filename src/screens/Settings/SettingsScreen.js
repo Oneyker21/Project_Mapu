@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
+import { colors } from '../../config/colors';
 
 const SettingsScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
@@ -115,8 +116,8 @@ const SettingsScreen = ({ navigation }) => {
             <Switch
               value={notifications}
               onValueChange={setNotifications}
-              trackColor={{ false: '#E5E7EB', true: '#10B981' }}
-              thumbColor={notifications ? '#FFFFFF' : '#9CA3AF'}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={notifications ? colors.text.primary : colors.text.muted}
             />
           ),
         },
@@ -133,8 +134,8 @@ const SettingsScreen = ({ navigation }) => {
             <Switch
               value={locationServices}
               onValueChange={setLocationServices}
-              trackColor={{ false: '#E5E7EB', true: '#10B981' }}
-              thumbColor={locationServices ? '#FFFFFF' : '#9CA3AF'}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={locationServices ? colors.text.primary : colors.text.muted}
             />
           ),
         },
@@ -157,8 +158,8 @@ const SettingsScreen = ({ navigation }) => {
             <Switch
               value={darkMode}
               onValueChange={setDarkMode}
-              trackColor={{ false: '#E5E7EB', true: '#10B981' }}
-              thumbColor={darkMode ? '#FFFFFF' : '#9CA3AF'}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={darkMode ? colors.text.primary : colors.text.muted}
             />
           ),
         },
@@ -212,14 +213,14 @@ const SettingsScreen = ({ navigation }) => {
           title: 'Cerrar Sesión',
           subtitle: 'Salir de tu cuenta',
           onPress: handleLogout,
-          textColor: '#EF4444',
+          textColor: colors.error,
         },
         {
           icon: 'trash-outline',
           title: 'Eliminar Cuenta',
           subtitle: 'Eliminar permanentemente tu cuenta',
           onPress: handleDeleteAccount,
-          textColor: '#EF4444',
+          textColor: colors.error,
         },
       ],
     },
@@ -237,11 +238,11 @@ const SettingsScreen = ({ navigation }) => {
           <Ionicons
             name={item.icon}
             size={24}
-            color={item.textColor || '#6B7280'}
+            color={item.textColor || colors.text.muted}
           />
         </View>
         <View style={styles.settingTextContainer}>
-          <Text style={[styles.settingTitle, { color: item.textColor || '#1F2937' }]}>
+          <Text style={[styles.settingTitle, { color: item.textColor || colors.text.primary }]}>
             {item.title}
           </Text>
           {item.subtitle && (
@@ -250,7 +251,7 @@ const SettingsScreen = ({ navigation }) => {
         </View>
       </View>
       {item.rightComponent || (
-        <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+        <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
       )}
     </TouchableOpacity>
   );
@@ -262,7 +263,7 @@ const SettingsScreen = ({ navigation }) => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Configuraciones</Text>
         <View style={styles.headerRight} />
@@ -290,7 +291,7 @@ const SettingsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -298,19 +299,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   backButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginLeft: 12,
     flex: 1,
   },
@@ -326,14 +327,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 12,
     paddingHorizontal: 20,
   },
   sectionContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     marginHorizontal: 20,
     borderRadius: 12,
     overflow: 'hidden',
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   settingItemLeft: {
     flexDirection: 'row',
@@ -356,7 +357,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -367,12 +368,12 @@ const styles = StyleSheet.create({
   settingTitle: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 2,
   },
   settingSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   footer: {
     alignItems: 'center',
@@ -382,12 +383,12 @@ const styles = StyleSheet.create({
   appVersion: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 4,
   },
   copyright: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.text.muted,
     textAlign: 'center',
   },
 });

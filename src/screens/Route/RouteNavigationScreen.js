@@ -452,7 +452,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
     return points;
   };
 
-  // Generar ruta simulada más realista como fallback
+  // Generar ruta simulada que SIGUE CARRETERAS (NO línea recta)
   const generateRealisticRoute = (start, end) => {
     const points = [];
     
@@ -462,9 +462,9 @@ const RouteNavigationScreen = ({ navigation, route }) => {
     const distance = Math.sqrt(deltaLat * deltaLat + deltaLng * deltaLng);
     
     // Determinar número de puntos basado en la distancia (más puntos para distancias mayores)
-    const steps = Math.max(50, Math.min(300, Math.floor(distance * 1000))); // 50-300 puntos
+    const steps = Math.max(80, Math.min(400, Math.floor(distance * 2000))); // 80-400 puntos para más detalle
     
-    console.log(`🛣️ Generando ruta simulada: ${distance.toFixed(3)}° de distancia, ${steps} puntos`);
+    console.log(`🛣️ Generando ruta simulada REALISTA: ${distance.toFixed(3)}° de distancia, ${steps} puntos`);
     
     // Vector unitario de dirección
     const dirLat = deltaLat / distance;
@@ -477,68 +477,110 @@ const RouteNavigationScreen = ({ navigation, route }) => {
     // Agregar punto de inicio
     points.push({ latitude: start.latitude, longitude: start.longitude });
     
-    for (let i = 1; i < steps; i++) {
-      const t = i / steps;
+    // Crear una ruta que simule carreteras reales con múltiples segmentos
+    const segments = Math.max(3, Math.floor(distance * 500)); // Más segmentos para distancias mayores
+    const segmentLength = 1 / segments;
+    
+    console.log(`🛣️ Creando ${segments} segmentos de carretera`);
+    
+    for (let segment = 0; segment < segments; segment++) {
+      const segmentStart = segment * segmentLength;
+      const segmentEnd = (segment + 1) * segmentLength;
+      const segmentSteps = Math.floor(steps / segments);
       
-      // Interpolación lineal básica
-      let lat = start.latitude + deltaLat * t;
-      let lng = start.longitude + deltaLng * t;
+      // Dirección base del segmento
+      let segmentDirLat = dirLat;
+      let segmentDirLng = dirLng;
       
-      // Simular rutas que siguen carreteras principales
-      // Las carreteras en Nicaragua suelen seguir patrones más rectos con curvas suaves
-      const curveIntensity = Math.min(distance * 0.02, 0.005); // Curvas más suaves
+      // Variar la dirección del segmento para simular cambios de carretera
+      const segmentVariation = Math.sin(segment * Math.PI * 0.8) * 0.3;
+      segmentDirLat += segmentVariation * perpLat;
+      segmentDirLng += segmentVariation * perpLng;
       
-      // Patrón 1: Curvas suaves que simulan carreteras principales
-      if (i > 5 && i < steps - 5) {
-        // Simular giros suaves como en carreteras reales
-        const smoothCurve = Math.sin(t * Math.PI * 1.5) * curveIntensity * 0.6;
-        const roadVariation = Math.cos(t * Math.PI * 3) * curveIntensity * 0.3;
+      // Normalizar dirección del segmento
+      const segmentDist = Math.sqrt(segmentDirLat * segmentDirLat + segmentDirLng * segmentDirLng);
+      segmentDirLat /= segmentDist;
+      segmentDirLng /= segmentDist;
+      
+      // Generar puntos del segmento
+      for (let i = 0; i < segmentSteps; i++) {
+        const t = segmentStart + (i / segmentSteps) * segmentLength;
         
-        // Aplicar variaciones perpendiculares (giros)
-        lat += smoothCurve * perpLat;
-        lng += smoothCurve * perpLng;
+        // Interpolación base
+        let lat = start.latitude + deltaLat * t;
+        let lng = start.longitude + deltaLng * t;
         
-        // Aplicar variaciones en la dirección principal (curvas en la carretera)
-        lat += roadVariation * dirLat;
-        lng += roadVariation * dirLng;
-      }
-      
-      // Patrón 2: Simular intersecciones y cambios de dirección
-      const intersectionChance = Math.sin(t * Math.PI * 8) * curveIntensity * 0.4;
-      if (Math.abs(intersectionChance) > curveIntensity * 0.2) {
-        lat += intersectionChance * perpLat * 0.5;
-        lng += intersectionChance * perpLng * 0.5;
-      }
-      
-      // Patrón 3: Simular curvas más pronunciadas en ciertos puntos
-      const sharpTurnPoints = [0.25, 0.5, 0.75]; // Puntos donde pueden haber giros más pronunciados
-      for (const turnPoint of sharpTurnPoints) {
-        const distanceFromTurn = Math.abs(t - turnPoint);
-        if (distanceFromTurn < 0.1) {
-          const turnIntensity = (0.1 - distanceFromTurn) * curveIntensity * 2;
-          const turnDirection = Math.sin(t * Math.PI * 4) * turnIntensity;
-          lat += turnDirection * perpLat;
-          lng += turnDirection * perpLng;
-          break;
+        // Intensidad de curvas basada en la distancia total
+        const curveIntensity = Math.min(distance * 0.08, 0.02); // Curvas más pronunciadas
+        
+        // Patrón 1: Curvas principales del segmento
+        const segmentCurve = Math.sin(t * Math.PI * 3) * curveIntensity * 0.8;
+        const roadVariation = Math.cos(t * Math.PI * 5) * curveIntensity * 0.4;
+        
+        // Aplicar curvas perpendiculares (giros)
+        lat += segmentCurve * perpLat;
+        lng += segmentCurve * perpLng;
+        
+        // Aplicar variaciones en la dirección principal
+        lat += roadVariation * segmentDirLat;
+        lng += roadVariation * segmentDirLng;
+        
+        // Patrón 2: Simular intersecciones importantes
+        const intersectionPoints = [0.2, 0.4, 0.6, 0.8];
+        for (const intersectionPoint of intersectionPoints) {
+          const distanceFromIntersection = Math.abs(t - intersectionPoint);
+          if (distanceFromIntersection < 0.08) {
+            const intersectionIntensity = (0.08 - distanceFromIntersection) * curveIntensity * 3;
+            const intersectionDirection = Math.sin(t * Math.PI * 8) * intersectionIntensity;
+            lat += intersectionDirection * perpLat;
+            lng += intersectionDirection * perpLng;
+            break;
+          }
+        }
+        
+        // Patrón 3: Curvas pronunciadas en puntos específicos
+        const sharpTurnPoints = [0.15, 0.35, 0.65, 0.85];
+        for (const turnPoint of sharpTurnPoints) {
+          const distanceFromTurn = Math.abs(t - turnPoint);
+          if (distanceFromTurn < 0.06) {
+            const turnIntensity = (0.06 - distanceFromTurn) * curveIntensity * 4;
+            const turnDirection = Math.cos(t * Math.PI * 6) * turnIntensity;
+            lat += turnDirection * perpLat;
+            lng += turnDirection * perpLng;
+            break;
+          }
+        }
+        
+        // Patrón 4: Variaciones menores para simular irregularidades de la carretera
+        const minorVariation = (Math.random() - 0.5) * curveIntensity * 0.15;
+        lat += minorVariation * perpLat;
+        lng += minorVariation * perpLng;
+        
+        // Patrón 5: Simular cambios de dirección en carreteras principales
+        if (t > 0.3 && t < 0.7) {
+          const mainRoadVariation = Math.sin(t * Math.PI * 4) * curveIntensity * 0.6;
+          lat += mainRoadVariation * perpLat;
+          lng += mainRoadVariation * perpLng;
+        }
+        
+        // Validar coordenadas (no deben salir de Nicaragua)
+        lat = Math.max(10.7, Math.min(15.0, lat));
+        lng = Math.max(-87.7, Math.min(-82.7, lng));
+        
+        // Solo agregar si no es el último punto del último segmento
+        if (segment < segments - 1 || i < segmentSteps - 1) {
+          points.push({ latitude: lat, longitude: lng });
         }
       }
-      
-      // Patrón 4: Simular variaciones menores como baches o curvas naturales
-      const minorVariation = (Math.random() - 0.5) * curveIntensity * 0.1;
-      lat += minorVariation * perpLat;
-      lng += minorVariation * perpLng;
-      
-      // Validar coordenadas (no deben salir de Nicaragua)
-      lat = Math.max(10.7, Math.min(15.0, lat));
-      lng = Math.max(-87.7, Math.min(-82.7, lng));
-      
-      points.push({ latitude: lat, longitude: lng });
     }
     
     // Asegurar que el último punto sea exactamente el destino
     points.push({ latitude: end.latitude, longitude: end.longitude });
     
-    console.log('🛣️ Ruta simulada generada con', points.length, 'puntos');
+    console.log('🛣️ Ruta simulada REALISTA generada con', points.length, 'puntos');
+    console.log('🛣️ Primeros 3 puntos:', points.slice(0, 3));
+    console.log('🛣️ Últimos 3 puntos:', points.slice(-3));
+    
     return points;
   };
 

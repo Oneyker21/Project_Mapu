@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Input, Button, Stepper, PasswordSecurity, PasswordConfirm } from '../../components';
+import { colors } from '../../config/colors';
 import { 
   validateName, 
   validateLastName, 
@@ -1157,14 +1158,14 @@ const RegisterScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   systemNavBackground: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
     zIndex: 1000,
   },
   systemTopBackground: {
@@ -1172,7 +1173,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
     zIndex: 1000,
   },
   keyboardContainer: {
@@ -1197,22 +1198,22 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 24,
     fontWeight: '800',
-    color: '#3B82F6',
+    color: colors.primary,
     letterSpacing: 1,
   },
   stepIndicator: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'right',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 16,
   },
   subtitle: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 16,
@@ -1317,31 +1318,31 @@ const styles = StyleSheet.create({
   roleTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
+    color: colors.text.primary,
     textAlign: 'center',
     marginBottom: 6,
   },
   titleUnderline: {
     height: 2,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     marginBottom: 16,
     borderRadius: 1,
   },
   roleSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
     marginBottom: 24,
   },
   roleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   roleCardSelected: {
     borderColor: '#3B82F6',

@@ -17,6 +17,7 @@ import { Input, Button } from '../../components';
 import { loginUser } from '../../services/auth.js';
 import { getSavedCredentials } from '../../services/storage.js';
 import { useAuth } from '../../contexts/AuthContext';
+import { colors } from '../../config/colors';
 
 const LoginScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -226,14 +227,14 @@ const LoginScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F0F0F',
+    backgroundColor: colors.background,
   },
   systemNavBackground: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#0F0F0F',
+    backgroundColor: colors.background,
     zIndex: 1000,
   },
   systemTopBackground: {
@@ -241,7 +242,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#0F0F0F',
+    backgroundColor: colors.background,
     zIndex: 1000,
   },
   header: {
@@ -281,23 +282,23 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#4ADE80', // Verde más brillante para modo oscuro
+    color: colors.primary,
     marginBottom: 8,
     letterSpacing: 1,
-    textShadowColor: '#DAA621',
+    textShadowColor: colors.secondary,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.text.primary,
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: '#4ADE80', // Verde más brillante para modo oscuro
+    color: colors.primary,
     textAlign: 'center',
     fontWeight: '500',
   },
@@ -316,20 +317,20 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderWidth: 2,
-    borderColor: '#DAA621',
+    borderColor: colors.secondary,
     borderRadius: 4,
     marginRight: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.surface,
   },
   checkboxChecked: {
-    backgroundColor: '#4ADE80', // Verde más brillante para modo oscuro
-    borderColor: '#4ADE80',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   rememberText: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontWeight: '500',
   },
   forgotPassword: {
@@ -337,7 +338,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   forgotPasswordText: {
-    color: '#4ADE80', // Verde más brillante para modo oscuro
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600',
   },

@@ -6,6 +6,7 @@ import { getCurrentUser } from '../../services/auth.js';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
+import { colors } from '../../config/colors';
 
 const ProfileScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
