@@ -1,7 +1,7 @@
 // Configuración de Google Maps API
 export const GOOGLE_MAPS_CONFIG = {
   // Usar API key desde variables de entorno (más seguro)
-  API_KEY: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || 'TU_GOOGLE_MAPS_API_KEY_AQUI',
+  API_KEY: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || 'TU_GOOGLE_MAPS_API_KEY_AQUI', // ← Reemplaza con tu API Key real
   
   // Configuraciones de la API
   DIRECTIONS_API: {
