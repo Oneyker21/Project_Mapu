@@ -208,6 +208,24 @@ const CenterDetailScreen = ({ navigation, route }) => {
             <Text style={styles.secondaryButtonText}>Reservar</Text>
           </TouchableOpacity>
         </View>
+        
+        <View style={styles.actionsRow}>
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.reviewButton]}
+            onPress={() => navigation.navigate('Reviews', { center })}
+          >
+            <Ionicons name="star" size={20} color="#F59E0B" />
+            <Text style={[styles.actionButtonText, { color: '#F59E0B' }]}>Ver Reseñas</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.reviewButton]}
+            onPress={() => navigation.navigate('RouteCreation')}
+          >
+            <Ionicons name="map" size={20} color="#10B981" />
+            <Text style={[styles.actionButtonText, { color: '#10B981' }]}>Crear Ruta</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -378,6 +396,11 @@ const styles = StyleSheet.create({
     color: '#3B82F6',
     fontWeight: '600',
     marginLeft: 8,
+  },
+  reviewButton: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
   },
 });
 

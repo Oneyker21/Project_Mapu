@@ -193,7 +193,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
         const userDoc = await getDoc(doc(db, 'centrosTuristicos', authUser.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
-          setUserData(data);
+          setUserData({ ...data, id: userDoc.id });
           
           // Llenar el formulario con los datos existentes
           setFormData({
@@ -769,6 +769,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
               </TouchableOpacity>
                 )}
               </View>
+
             </View>
 
             {/* Información de contacto */}
@@ -1540,6 +1541,36 @@ const styles = StyleSheet.create({
     color: COLOR_PALETTE.primary,
     marginLeft: 6,
     fontWeight: '500',
+  },
+  reviewsButton: {
+    backgroundColor: COLOR_PALETTE.background.primary,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLOR_PALETTE.gray[200],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  reviewsButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  reviewsButtonText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  reviewsButtonTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLOR_PALETTE.text.primary,
+    marginBottom: 2,
+  },
+  reviewsButtonSubtitle: {
+    fontSize: 14,
+    color: COLOR_PALETTE.text.secondary,
   },
   locationButton: {
     flexDirection: 'row',
