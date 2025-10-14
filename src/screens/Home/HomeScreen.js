@@ -384,6 +384,7 @@ const HomeScreen = ({ navigation }) => {
 
     navigation.navigate('MapPicker', {
       initialCoords,
+      showInitialMarker: false,
       onPick: async (coords) => {
         try {
           if (!authUser) throw new Error('No auth user');

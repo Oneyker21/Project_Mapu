@@ -293,6 +293,7 @@ const RouteCreationScreen = ({ navigation, route }) => {
       navigation.navigate('MapPicker', {
         initialCoords,
         centers: centers, // Pasar los centros registrados
+        showInitialMarker: false, // no mostrar pin inicial junto al punto azul
         onPick: (coords) => {
           console.log('Coordenadas seleccionadas del MapPicker:', coords);
           handleStartPointSelected(coords, 'Punto de inicio seleccionado');
@@ -314,6 +315,7 @@ const RouteCreationScreen = ({ navigation, route }) => {
       navigation.navigate('MapPicker', {
         initialCoords,
         centers: centers,
+        showInitialMarker: false, // no mostrar pin inicial junto al punto azul
         onPick: (coords) => {
           console.log('Coordenadas seleccionadas del MapPicker:', coords);
           handleStartPointSelected(coords, 'Punto de inicio seleccionado');

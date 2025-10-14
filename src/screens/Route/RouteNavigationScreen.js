@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Polyline, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { buildDirectionsUrl, validateApiKey } from '../../config/googleMaps';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../../database/FirebaseConfig.js';
 
 const RouteNavigationScreen = ({ navigation, route }) => {
   const { route: routeCenters, currentIndex = 0, userLocation: passedUserLocation } = route.params;
@@ -26,10 +28,11 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   const [distance, setDistance] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isRotating, setIsRotating] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
   const [destinationBearing, setDestinationBearing] = useState(0);
   const [mapHeading, setMapHeading] = useState(0);
   const rotationAnim = useRef(new Animated.Value(0)).current;
+  const [navigating, setNavigating] = useState(false);
+  const [centers, setCenters] = useState([]);
 
   useEffect(() => {
     if (userLocation && currentCenter) {
@@ -37,6 +40,34 @@ const RouteNavigationScreen = ({ navigation, route }) => {
       calculateDistance();
     }
   }, [userLocation, currentCenter]);
+
+  // Cargar todos los centros registrados para mostrarlos como marcadores de referencia
+  useEffect(() => {
+    const loadCenters = async () => {
+      try {
+        const centersSnapshot = await getDocs(collection(db, 'centrosTuristicos'));
+        const centersData = [];
+        centersSnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const lat = parseFloat(data.latitud || data.latitude);
+          const lng = parseFloat(data.longitud || data.longitude);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            centersData.push({
+              id: docSnap.id,
+              businessName: data.nombreNegocio || data.businessName,
+              category: data.categoriaNegocio || data.category,
+              isOpen: data.isOpen || data.abierto || true,
+              coordinate: { latitude: lat, longitude: lng },
+            });
+          }
+        });
+        setCenters(centersData);
+      } catch (err) {
+        console.log('Error cargando centros para navegación:', err?.message || err);
+      }
+    };
+    loadCenters();
+  }, []);
 
   // Obtener dirección del móvil en tiempo real
   useEffect(() => {
@@ -181,7 +212,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
 
   // Iniciar navegación
   const startNavigation = () => {
-    setIsNavigating(true);
+    setNavigating(true);
     
     // Centrar el mapa en la ruta completa
     if (mapRef.current && routePolyline.length > 0) {
@@ -757,6 +788,17 @@ const RouteNavigationScreen = ({ navigation, route }) => {
             </Marker>
           )}
 
+          {/* Marcadores de todos los centros registrados (referencia visual como en MapPicker) */}
+          {centers.map((center) => (
+            <Marker
+              key={center.id}
+              coordinate={center.coordinate}
+              title={center.businessName}
+              description={`${center.category} • ${center.isOpen ? 'Abierto' : 'Cerrado'}`}
+              pinColor={center.isOpen ? '#10B981' : '#EF4444'}
+            />
+          ))}
+
           {/* Marcador del destino con pin personalizado */}
           {currentCenter && (
             <Marker
@@ -860,18 +902,18 @@ const RouteNavigationScreen = ({ navigation, route }) => {
         
         <TouchableOpacity 
           style={[styles.actionButton, styles.primaryButton]}
-          onPress={isNavigating ? () => {
+          onPress={navigating ? () => {
             Alert.alert('Navegación', 'Ya estás navegando hacia el destino');
           } : startRotationAnimation}
           disabled={isRotating}
         >
           <Ionicons 
-            name={isRotating ? "refresh" : isNavigating ? "navigate" : "navigate"} 
+            name={isRotating ? "refresh" : navigating ? "navigate" : "navigate"} 
             size={20} 
             color="#FFFFFF" 
           />
           <Text style={[styles.actionButtonText, styles.primaryButtonText]}>
-            {isRotating ? 'Girando...' : isNavigating ? 'Navegando...' : 'Iniciar Navegación'}
+            {isRotating ? 'Girando...' : navigating ? 'Navegando...' : 'Iniciar Navegación'}
           </Text>
         </TouchableOpacity>
       </View>

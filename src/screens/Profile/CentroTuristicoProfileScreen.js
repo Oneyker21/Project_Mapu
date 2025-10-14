@@ -563,10 +563,11 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
 
   const handleLocationPicker = () => {
       navigation.navigate('MapPicker', {
-      initialCoords: (formData.latitud && formData.longitud) ? {
-          latitude: Number(formData.latitud),
+        initialCoords: (formData.latitud && formData.longitud) ? {
+            latitude: Number(formData.latitud),
         longitude: Number(formData.longitud),
       } : undefined,
+        showInitialMarker: false,
         onPick: (coords) => {
           if (coords && coords.latitude && coords.longitude) {
           // Determinar departamento automáticamente
