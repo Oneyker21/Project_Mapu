@@ -13,7 +13,6 @@ import {
   increment
 } from 'firebase/firestore';
 import { db } from '../../database/FirebaseConfig.js';
-import { createReviewNotification, getCenterOwner } from './notifications.js';
 
 // Colecciones de Firebase
 const REVIEWS_COLLECTION = 'reseñas';
@@ -41,26 +40,6 @@ export const saveReview = async (reviewData) => {
     // Actualizar estadísticas del centro
     await updateCenterStats(reviewData.centerId, reviewData.rating, 'add');
 
-    // Crear notificación para el propietario del centro
-    try {
-      console.log('🔍 Intentando crear notificación para centerId:', reviewData.centerId);
-      const centerOwner = await getCenterOwner(reviewData.centerId);
-      console.log('🔍 Centro encontrado:', centerOwner);
-      
-      if (centerOwner && centerOwner.ownerId !== reviewData.userId) {
-        console.log('🔍 Creando notificación para ownerId:', centerOwner.ownerId);
-        await createReviewNotification({
-          ...reviewData,
-          id: docRef.id
-        }, centerOwner.ownerId);
-        console.log('✅ Notificación creada exitosamente');
-      } else {
-        console.log('⚠️ No se creó notificación - mismo usuario o centro no encontrado');
-      }
-    } catch (notificationError) {
-      console.error('❌ Error creando notificación:', notificationError);
-      // No fallar la operación principal por un error de notificación
-    }
 
     console.log('✅ Reseña guardada con ID:', docRef.id);
     return docRef.id;

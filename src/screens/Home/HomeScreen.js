@@ -7,13 +7,11 @@ import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors } from '../../config/colors';
-import { useNotifications } from '../../hooks/useNotifications';
 
 
 const HomeScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { user: authUser } = useAuth();
-  const { unreadCount } = useNotifications(authUser?.uid);
   const [centers, setCenters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
@@ -912,7 +910,7 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.footerButton}
                 onPress={() => navigation.navigate('Reservations')}
               >
-                <Ionicons name="calendar" size={24} color="#F59E0B" />
+                <Ionicons name="calendar" size={24} color={colors.primary} />
                 <Text style={styles.footerButtonText}>Reservas</Text>
               </TouchableOpacity>
 
@@ -920,7 +918,7 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.footerButton}
                 onPress={() => navigation.navigate('Statistics')}
               >
-                <Ionicons name="bar-chart" size={24} color="#8B5CF6" />
+                <Ionicons name="bar-chart" size={24} color={colors.secondary} />
                 <Text style={styles.footerButtonText}>Estadísticas</Text>
               </TouchableOpacity>
 
@@ -934,26 +932,9 @@ const HomeScreen = ({ navigation }) => {
 
               <TouchableOpacity 
                 style={styles.footerButton}
-                onPress={() => navigation.navigate('UserNotifications')}
-              >
-                <View style={styles.notificationIconContainer}>
-                  <Ionicons name="notifications" size={24} color="#EF4444" />
-                  {unreadCount > 0 && (
-                    <View style={styles.notificationBadge}>
-                      <Text style={styles.notificationBadgeText}>
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.footerButtonText}>Notificaciones</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.footerButton}
                 onPress={() => navigation.navigate('Settings')}
               >
-                <Ionicons name="settings" size={24} color="#10B981" />
+                <Ionicons name="settings" size={24} color={colors.text.muted} />
                 <Text style={styles.footerButtonText}>Configurar</Text>
               </TouchableOpacity>
             </>
@@ -964,7 +945,7 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.footerButton}
                 onPress={() => setShowMenu(true)}
               >
-                <Ionicons name="menu" size={24} color="#6B7280" />
+                <Ionicons name="menu" size={24} color={colors.text.muted} />
                 <Text style={styles.footerButtonText}>Menú</Text>
               </TouchableOpacity>
 
@@ -972,7 +953,7 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.footerButton}
                 onPress={() => navigation.navigate('UnifiedSearch', { initialTab: 'nearby' })}
               >
-                <Ionicons name="search" size={24} color="#10B981" />
+                <Ionicons name="search" size={24} color={colors.primary} />
                 <Text style={styles.footerButtonText}>Buscar</Text>
               </TouchableOpacity>
 
@@ -988,7 +969,7 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.footerButton}
                 onPress={() => navigation.navigate('Settings')}
               >
-                <Ionicons name="settings" size={24} color="#10B981" />
+                <Ionicons name="settings" size={24} color={colors.text.muted} />
                 <Text style={styles.footerButtonText}>Configurar</Text>
               </TouchableOpacity>
             </>
@@ -1745,48 +1726,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   footerContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingTop: 12,
+    borderTopColor: colors.border,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   footerContent: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   footerButton: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    flex: 1,
+    minWidth: 60,
   },
   footerButtonText: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.text.muted,
     marginTop: 4,
-    textAlign: 'center',
-  },
-  notificationIconContainer: {
-    position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  notificationBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
     textAlign: 'center',
   },
 });

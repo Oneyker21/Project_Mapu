@@ -14,7 +14,6 @@ import MisServiciosScreen from '../screens/Management/MisServiciosScreen';
 import ServicesMainScreen from '../screens/Services/ServicesMainScreen';
 import MapPickerScreen from '../screens/Map/MapPickerScreen';
 import ReviewsScreen from '../screens/Reviews/ReviewsScreen';
-import UserNotificationsScreen from '../screens/Notifications/NotificationsScreen';
 import ReservationsScreen from '../screens/Management/ReservationsScreen';
 import StatisticsScreen from '../screens/Management/StatisticsScreen';
 import PromotionsScreen from '../screens/Management/PromotionsScreen';
@@ -109,11 +108,6 @@ export function AppNavigator() {
         options={{ headerShown: false }}
       />
       <Stack.Screen name="Reviews" component={ReviewsScreen} />
-      <Stack.Screen 
-        name="UserNotifications" 
-        component={UserNotificationsScreen}
-        options={{ headerShown: false }}
-      />
       <Stack.Screen 
         name="Reservations" 
         component={ReservationsScreen}
