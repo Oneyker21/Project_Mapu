@@ -9,7 +9,8 @@ import {
   ActivityIndicator, 
   Animated,
   Dimensions,
-  Alert
+  Alert,
+  Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -268,12 +269,28 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
     >
       <View style={styles.centerInfo}>
         <View style={styles.centerHeader}>
-          <View style={styles.centerIconContainer}>
-            <Ionicons 
-              name={getCategoryIcon(item.category)} 
-              size={20} 
-              color="#3B82F6" 
-            />
+          {/* Imagen del centro turístico */}
+          <View style={styles.centerImageContainer}>
+            {item.imagenPrincipal || item.fotoPrincipal || item.image ? (
+              <Image
+                source={{ 
+                  uri: item.imagenPrincipal || item.fotoPrincipal || item.image 
+                }}
+                style={styles.centerImage}
+                resizeMode="cover"
+                onError={() => {
+                  console.log('Error cargando imagen para:', item.businessName);
+                }}
+              />
+            ) : (
+              <View style={styles.centerImagePlaceholder}>
+                <Ionicons 
+                  name={getCategoryIcon(item.category)} 
+                  size={24} 
+                  color="#9CA3AF" 
+                />
+              </View>
+            )}
           </View>
           <View style={styles.centerTextContainer}>
             <Text style={styles.centerName}>{item.businessName}</Text>
@@ -282,6 +299,34 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
             {item.address && (
               <Text style={styles.centerAddress}>{item.address}</Text>
             )}
+            {/* Rating si está disponible */}
+            {item.calificacion && (
+              <View style={styles.ratingContainer}>
+                <Ionicons name="star" size={12} color="#F59E0B" />
+                <Text style={styles.ratingText}>
+                  {item.calificacion.toFixed(1)} ({item.totalResenas || 0})
+                </Text>
+              </View>
+            )}
+            {/* Estado del centro (abierto/cerrado) */}
+            <View style={styles.statusContainer}>
+              <View style={[
+                styles.statusIndicator,
+                { backgroundColor: item.isOpen !== false ? '#10B981' : '#EF4444' }
+              ]}>
+                <Ionicons 
+                  name={item.isOpen !== false ? "checkmark" : "close"} 
+                  size={10} 
+                  color="#FFFFFF" 
+                />
+              </View>
+              <Text style={[
+                styles.statusText,
+                { color: item.isOpen !== false ? '#10B981' : '#EF4444' }
+              ]}>
+                {item.isOpen !== false ? 'Abierto' : 'Cerrado'}
+              </Text>
+            </View>
           </View>
         </View>
         {item.distance && (
@@ -291,7 +336,16 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
           </View>
         )}
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+      <View style={styles.cardActions}>
+        <TouchableOpacity 
+          style={styles.reviewButton}
+          onPress={() => navigation.navigate('Reviews', { center: item })}
+        >
+          <Ionicons name="star" size={16} color="#F59E0B" />
+          <Text style={styles.reviewButtonText}>Reseñas</Text>
+        </TouchableOpacity>
+        <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+      </View>
     </TouchableOpacity>
   );
 
@@ -649,18 +703,18 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 8,
+    borderRadius: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   centerInfo: {
     flex: 1,
@@ -670,14 +724,28 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 8,
   },
-  centerIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#EBF4FF',
+  centerImageContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 14,
+    marginRight: 16,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: '#F3F4F6',
+  },
+  centerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  centerImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#F9FAFB',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
   },
   centerTextContainer: {
     flex: 1,
@@ -703,6 +771,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
   },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  ratingText: {
+    fontSize: 11,
+    color: '#92400E',
+    marginLeft: 3,
+    fontWeight: '600',
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  statusIndicator: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   distanceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -716,6 +817,25 @@ const styles = StyleSheet.create({
     color: '#10B981',
     fontWeight: '600',
     marginLeft: 4,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  reviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  reviewButtonText: {
+    fontSize: 11,
+    color: '#92400E',
+    marginLeft: 4,
+    fontWeight: '600',
   },
   emptyContainer: {
     alignItems: 'center',

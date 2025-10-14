@@ -7,11 +7,13 @@ import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore'
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors } from '../../config/colors';
+import { useNotifications } from '../../hooks/useNotifications';
 
 
 const HomeScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { user: authUser } = useAuth();
+  const { unreadCount } = useNotifications(authUser?.uid);
   const [centers, setCenters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState(null);
@@ -526,6 +528,17 @@ const HomeScreen = ({ navigation }) => {
             setShowMenu(false);
             navigation.navigate('Notifications');
           }
+        },
+        {
+          id: 'reviews',
+          title: 'Reseñas',
+          subtitle: 'Ver reseñas del centro',
+          icon: 'star',
+          color: '#F59E0B',
+          onPress: () => {
+            setShowMenu(false);
+            navigation.navigate('Reviews', { center: { ...userData, id: authUser?.uid } });
+          }
         }
       ];
     } else {
@@ -909,6 +922,31 @@ const HomeScreen = ({ navigation }) => {
               >
                 <Ionicons name="bar-chart" size={24} color="#8B5CF6" />
                 <Text style={styles.footerButtonText}>Estadísticas</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.footerButton}
+                onPress={() => navigation.navigate('Reviews', { center: { ...userData, id: authUser?.uid } })}
+              >
+                <Ionicons name="star" size={24} color="#F59E0B" />
+                <Text style={styles.footerButtonText}>Reseñas</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.footerButton}
+                onPress={() => navigation.navigate('UserNotifications')}
+              >
+                <View style={styles.notificationIconContainer}>
+                  <Ionicons name="notifications" size={24} color="#EF4444" />
+                  {unreadCount > 0 && (
+                    <View style={styles.notificationBadge}>
+                      <Text style={styles.notificationBadgeText}>
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.footerButtonText}>Notificaciones</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -1705,6 +1743,51 @@ const styles = StyleSheet.create({
   sliderLabelText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  footerContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingTop: 12,
+  },
+  footerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  footerButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    flex: 1,
+  },
+  footerButtonText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  notificationIconContainer: {
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
 

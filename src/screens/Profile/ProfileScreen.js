@@ -100,7 +100,7 @@ const ProfileScreen = ({ navigation }) => {
           title: 'Reseñas y Calificaciones',
           icon: 'star',
           description: 'Ver y responder reseñas',
-          onPress: () => Alert.alert('Reseñas', 'Sistema de reseñas en desarrollo')
+          onPress: () => navigation.navigate('Reviews')
         },
         {
           id: 'analytics',
@@ -164,7 +164,7 @@ const ProfileScreen = ({ navigation }) => {
           title: 'Mis Reseñas',
           icon: 'star',
           description: 'Reseñas que has escrito',
-          onPress: () => Alert.alert('Mis Reseñas', 'Tus reseñas y calificaciones')
+          onPress: () => navigation.navigate('Reviews')
         },
         {
           id: 'notifications',
