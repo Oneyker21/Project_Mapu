@@ -162,3 +162,4 @@ El sistema registra automáticamente:
 - Navegación integrada
 
 El sistema está listo para producción y maneja todos los casos edge, incluyendo la falta de índices de Firebase.
+
