@@ -36,3 +36,14 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Android
+android/
+
+# iOS
+ios/
+
+# Web
+web/
+
+# Linux

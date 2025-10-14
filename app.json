@@ -4,26 +4,43 @@
     "slug": "mapu",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/Images/Mapu-Icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "ios": {
-      "supportsTablet": true
+      "image": "./assets/Images/Mapu-Charging.png",
+      "resizeMode": "cover",
+      "backgroundColor": "#ffffff",
+      "hideExponentText": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/Images/Mapu-Icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "splash": {
+        "image": "./assets/Images/Mapu-Charging.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.anonymous.mapu"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "splash": {
+        "image": "./assets/Images/Mapu-Charging.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#ffffff"
+      }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/Images/Mapu-Icon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "73011e09-fce7-45be-82f3-b7b565dd837e"
+      }
     }
   }
 }
