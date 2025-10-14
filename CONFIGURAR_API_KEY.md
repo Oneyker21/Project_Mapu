@@ -11,7 +11,7 @@
    - **Maps JavaScript API** (para mapas)
    - **Geocoding API** (para direcciones)
 4. Ve a "Credenciales" → "Crear credenciales" → "Clave de API"
-5. Copia tu API Key
+5. Copia tu API key
 
 ### 2. **Configurar la API Key en tu proyecto**
 
