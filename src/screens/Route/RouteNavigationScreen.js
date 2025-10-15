@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, Polyline, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { buildDirectionsUrl, validateApiKey } from '../../config/googleMaps';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../../database/FirebaseConfig.js';
 
 const RouteNavigationScreen = ({ navigation, route }) => {
   const { route: routeCenters, currentIndex = 0, userLocation: passedUserLocation } = route.params;
@@ -26,10 +28,11 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   const [distance, setDistance] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isRotating, setIsRotating] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
   const [destinationBearing, setDestinationBearing] = useState(0);
   const [mapHeading, setMapHeading] = useState(0);
   const rotationAnim = useRef(new Animated.Value(0)).current;
+  const [navigating, setNavigating] = useState(false);
+  const [centers, setCenters] = useState([]);
 
   useEffect(() => {
     if (userLocation && currentCenter) {
@@ -37,6 +40,34 @@ const RouteNavigationScreen = ({ navigation, route }) => {
       calculateDistance();
     }
   }, [userLocation, currentCenter]);
+
+  // Cargar todos los centros registrados para mostrarlos como marcadores de referencia
+  useEffect(() => {
+    const loadCenters = async () => {
+      try {
+        const centersSnapshot = await getDocs(collection(db, 'centrosTuristicos'));
+        const centersData = [];
+        centersSnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const lat = parseFloat(data.latitud || data.latitude);
+          const lng = parseFloat(data.longitud || data.longitude);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            centersData.push({
+              id: docSnap.id,
+              businessName: data.nombreNegocio || data.businessName,
+              category: data.categoriaNegocio || data.category,
+              isOpen: data.isOpen || data.abierto || true,
+              coordinate: { latitude: lat, longitude: lng },
+            });
+          }
+        });
+        setCenters(centersData);
+      } catch (err) {
+        console.log('Error cargando centros para navegación:', err?.message || err);
+      }
+    };
+    loadCenters();
+  }, []);
 
   // Obtener dirección del móvil en tiempo real
   useEffect(() => {
@@ -181,7 +212,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
 
   // Iniciar navegación
   const startNavigation = () => {
-    setIsNavigating(true);
+    setNavigating(true);
     
     // Centrar el mapa en la ruta completa
     if (mapRef.current && routePolyline.length > 0) {
@@ -212,19 +243,26 @@ const RouteNavigationScreen = ({ navigation, route }) => {
 
   // Calcular ruta usando Google Directions API
   const calculateRoute = async () => {
-    if (!userLocation || !currentCenter) return;
-    
+    if (!userLocation) return;
+
+    // Construir ruta con múltiples paradas: todos los centros seleccionados en orden
+    const selectedCenters = (routeCenters || []).filter(c => c && c.id !== 'start' && c.coordinate);
+    if (selectedCenters.length === 0) return;
+
     setLoading(true);
     try {
       const origin = `${userLocation.latitude},${userLocation.longitude}`;
-      const destination = `${currentCenter.coordinate.latitude},${currentCenter.coordinate.longitude}`;
-      
-      console.log('🗺️ Calculando ruta:', { origin, destination });
-      console.log('🗺️ Ubicación usuario:', userLocation);
-      console.log('🗺️ Centro destino:', currentCenter.coordinate);
-      
-      const routeCoordinates = await getGoogleDirections(origin, destination);
-      
+      const destination = `${selectedCenters[selectedCenters.length - 1].coordinate.latitude},${selectedCenters[selectedCenters.length - 1].coordinate.longitude}`;
+
+      // Waypoints: todos menos el último (destino)
+      const waypoints = selectedCenters
+        .slice(0, -1)
+        .map(c => `${c.coordinate.latitude},${c.coordinate.longitude}`);
+
+      console.log('🗺️ Calculando ruta MULTI-STOP:', { origin, destination, waypointsCount: waypoints.length });
+
+      const routeCoordinates = await getGoogleDirections(origin, destination, waypoints);
+
       if (routeCoordinates && routeCoordinates.length > 0) {
         console.log('✅ Ruta obtenida de Google con', routeCoordinates.length, 'puntos');
         setRoutePolyline(routeCoordinates);
@@ -255,7 +293,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   };
 
   // Obtener ruta real usando Google Directions API
-  const getGoogleDirections = async (origin, destination) => {
+  const getGoogleDirections = async (origin, destination, waypointsArr = []) => {
     try {
       // Usar la API key del servicio de GoogleMaps
       const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
@@ -269,6 +307,11 @@ const RouteNavigationScreen = ({ navigation, route }) => {
       }
       
       // Construir URL con parámetros optimizados para rutas detalladas
+      // Construir parámetros; para optimizar el orden de paradas usa 'optimize:true|'
+      const waypointsParam = waypointsArr.length > 0
+        ? `optimize:true|${waypointsArr.join('|')}`
+        : '';
+
       const params = new URLSearchParams({
         origin: origin,
         destination: destination,
@@ -282,8 +325,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
         traffic_model: 'best_guess',
         departure_time: Math.floor(Date.now() / 1000).toString(), // Timestamp actual
         // Parámetros críticos para obtener rutas detalladas
-        waypoints: '', // Sin waypoints para ruta directa
-        optimize: 'false'
+        waypoints: waypointsParam
       });
       
       const url = `https://maps.googleapis.com/maps/api/directions/json?${params.toString()}`;
@@ -741,20 +783,22 @@ const RouteNavigationScreen = ({ navigation, route }) => {
             }
           ]}
         >
-          {/* Marcador del usuario con flecha direccional */}
-          {userLocation && (
-            <Marker
-              coordinate={userLocation}
-              title="Tu ubicación"
-              pinColor="transparent"
-              anchor={{ x: 0.5, y: 0.5 }}
-            >
-              <View style={{
-                transform: [{ rotate: `${heading}deg` }]
-              }}>
-                <Ionicons name="navigate" size={32} color="#10B981" />
-              </View>
-            </Marker>
+          {/* Ocultamos el marcador personalizado del usuario para que solo se vea el punto azul nativo */}
+
+          {/* Marcadores: antes de navegar -> todos; en navegación -> solo los centros seleccionados de la ruta */}
+          {(
+            (navigating
+              ? (routeCenters || []).filter(c => c && c.id !== 'start' && c.coordinate)
+              : centers
+            ).map((center, idx) => (
+              <Marker
+                key={center.id || `route-center-${idx}`}
+                coordinate={center.coordinate}
+                title={center.businessName}
+                description={`${center.category} • ${center.isOpen ? 'Abierto' : 'Cerrado'}`}
+                pinColor={center.isOpen ? '#10B981' : '#EF4444'}
+              />
+            ))
           )}
 
           {/* Marcador del destino con pin personalizado */}
@@ -840,7 +884,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
               strokeColor="#3B82F6"
               strokeWidth={8}
               lineDashPattern={[20, 10]}
-              lineCap="round"
+              lineCap="butt"
               lineJoin="round"
             />
           )}
@@ -860,18 +904,18 @@ const RouteNavigationScreen = ({ navigation, route }) => {
         
         <TouchableOpacity 
           style={[styles.actionButton, styles.primaryButton]}
-          onPress={isNavigating ? () => {
+          onPress={navigating ? () => {
             Alert.alert('Navegación', 'Ya estás navegando hacia el destino');
           } : startRotationAnimation}
           disabled={isRotating}
         >
           <Ionicons 
-            name={isRotating ? "refresh" : isNavigating ? "navigate" : "navigate"} 
+            name={isRotating ? "refresh" : navigating ? "navigate" : "navigate"} 
             size={20} 
             color="#FFFFFF" 
           />
           <Text style={[styles.actionButtonText, styles.primaryButtonText]}>
-            {isRotating ? 'Girando...' : isNavigating ? 'Navegando...' : 'Iniciar Navegación'}
+            {isRotating ? 'Girando...' : navigating ? 'Navegando...' : 'Iniciar Navegación'}
           </Text>
         </TouchableOpacity>
       </View>

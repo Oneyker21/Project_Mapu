@@ -423,8 +423,8 @@ const MapPickerScreen = ({ route, navigation }) => {
           />
         ))}
         
-        {/* Marcador estático para ubicación registrada */}
-        {initial && (
+        {/* Marcador estático para ubicación registrada (controlable por flag) */}
+        {initial && ((route?.params?.showInitialMarker ?? true)) && (
           <Marker
             coordinate={{
               latitude: initial.latitude,
