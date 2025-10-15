@@ -26,6 +26,42 @@ const ReplyReviewModal = ({
   const [reply, setReply] = useState(review?.reply?.message || '');
   const [submitting, setSubmitting] = useState(false);
 
+  const formatReplyDate = (timestamp) => {
+    if (!timestamp) return 'Fecha no disponible';
+    
+    // Si es un timestamp de Firebase (objeto con seconds)
+    if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
+      const date = new Date(timestamp.seconds * 1000);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('es-ES', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+    }
+    
+    const date = new Date(timestamp);
+    
+    // Verificar si la fecha es válida
+    if (isNaN(date.getTime())) {
+      console.warn('Fecha inválida:', timestamp);
+      return 'Fecha no disponible';
+    }
+    
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
   const handleSubmit = async () => {
     if (reply.trim().length < 5) {
       Alert.alert('Error', 'La respuesta debe tener al menos 5 caracteres');
@@ -39,10 +75,13 @@ const ReplyReviewModal = ({
 
     setSubmitting(true);
     try {
+      // Obtener el nombre del centro desde el contexto de la reseña
+      const centerName = review?.centerName || review?.businessName || review?.nombreNegocio || 'Centro Turístico';
+      
       const replyData = {
         message: reply.trim(),
         authorId: authUser.uid,
-        authorName: authUser.displayName || authUser.email?.split('@')[0] || 'Centro Turístico'
+        authorName: centerName
       };
 
       await replyToReview(review.id, replyData);
@@ -141,25 +180,22 @@ const ReplyReviewModal = ({
                 </View>
               </View>
 
-              {/* Respuesta actual (si existe) */}
-              {review?.reply && (
-                <View style={styles.currentReplyContainer}>
-                  <Text style={styles.currentReplyTitle}>Respuesta Actual:</Text>
-                  <View style={styles.currentReply}>
-                    <Text style={styles.currentReplyText}>{review.reply.message}</Text>
-                    <Text style={styles.currentReplyDate}>
-                      Respondido el {new Date(review.reply.createdAt).toLocaleDateString('es-ES')}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {/* Campo de respuesta */}
+              {/* Campo de respuesta unificado */}
               <View style={styles.replySection}>
-                <Text style={styles.sectionTitle}>Tu Respuesta:</Text>
+                <Text style={styles.sectionTitle}>
+                  {review?.reply ? 'Editar tu Respuesta' : 'Tu Respuesta'}
+                </Text>
+                {review?.reply && (
+                  <Text style={styles.replyInfo}>
+                    {review.reply.updatedAt && review.reply.updatedAt !== review.reply.createdAt 
+                      ? `Actualizado el ${formatReplyDate(review.reply.updatedAt)}`
+                      : `Respondido el ${formatReplyDate(review.reply.createdAt)}`
+                    }
+                  </Text>
+                )}
                 <TextInput
                   style={styles.replyInput}
-                  placeholder="Escribe tu respuesta aquí..."
+                  placeholder={review?.reply ? "Edita tu respuesta aquí..." : "Escribe tu respuesta aquí..."}
                   multiline
                   numberOfLines={6}
                   value={reply}
@@ -324,6 +360,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111827',
     marginBottom: 8,
+  },
+  replyInfo: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 8,
+    fontStyle: 'italic',
   },
   replyInput: {
     borderWidth: 1,

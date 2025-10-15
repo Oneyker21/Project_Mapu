@@ -854,7 +854,28 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                 </View>
             </View>
 
-            {/* Sistema de Horario */}
+            {/* Reseñas y Calificaciones */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Reseñas y Calificaciones</Text>
+              <Text style={styles.sectionSubtext}>Ve las reseñas que te han dejado y responde a tus visitantes</Text>
+              <View style={styles.sectionUnderline} />
+              
+              <TouchableOpacity 
+                style={styles.reviewsButton}
+                onPress={() => navigation.navigate('Reviews', { center: userData })}
+              >
+                <View style={styles.reviewsButtonContent}>
+                  <Ionicons name="star" size={24} color={COLOR_PALETTE.primary} />
+                  <View style={styles.reviewsButtonText}>
+                    <Text style={styles.reviewsButtonTitle}>Ver Reseñas</Text>
+                    <Text style={styles.reviewsButtonSubtitle}>Revisa y responde a las reseñas de tus visitantes</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={COLOR_PALETTE.text.light} />
+                </View>
+              </TouchableOpacity>
+            </View>
+
+          {/* Sistema de Horario */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Horario de Atención</Text>
               <Text style={styles.sectionSubtext}>Configura los horarios de atención para cada día de la semana</Text>

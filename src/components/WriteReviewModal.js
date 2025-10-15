@@ -67,11 +67,15 @@ const WriteReviewModal = ({
         rating,
         comment: comment.trim(),
         userId: authUser.uid,
-        userName: authUser.displayName || authUser.email?.split('@')[0] || 'Usuario',
+        userName: authUser.displayName || authUser.name || authUser.email?.split('@')[0] || 'Usuario',
         centerId: center.id,
         centerName: center.businessName || center.nombreNegocio,
+        businessName: center.businessName || center.nombreNegocio,
+        nombreNegocio: center.nombreNegocio || center.businessName,
         date: new Date().toISOString(),
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
       await onSubmitReview(reviewData);

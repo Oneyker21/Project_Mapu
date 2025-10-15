@@ -25,6 +25,9 @@ import {
   updateReview,
   replyToReview,
   deleteReviewReply,
+  likeReview,
+  checkUserLike,
+  reportReview,
   formatReviewDate
 } from '../../services/reviews';
 
@@ -40,6 +43,7 @@ const ReviewsScreen = ({ navigation, route }) => {
   const [showReplyModal, setShowReplyModal] = useState(false);
   const [selectedCenter, setSelectedCenter] = useState(null);
   const [selectedReview, setSelectedReview] = useState(null);
+  const [editingReview, setEditingReview] = useState(null);
   const [reviewStats, setReviewStats] = useState({
     averageRating: 0,
     totalReviews: 0,
@@ -77,6 +81,7 @@ const ReviewsScreen = ({ navigation, route }) => {
       // Verificar si el usuario actual ya escribió una reseña
       if (authUser?.uid) {
         const userReviewData = await getUserReviewForCenter(authUser.uid, center.id);
+        console.log('User review data loaded:', userReviewData);
         setUserReview(userReviewData);
       }
     } catch (error) {
@@ -126,8 +131,11 @@ const ReviewsScreen = ({ navigation, route }) => {
     setShowWriteModal(true);
   };
 
-  const handleEditReview = () => {
-    if (userReview) {
+  const handleEditReview = (review = null) => {
+    // Si se pasa una reseña específica, usarla; sino usar userReview
+    const reviewToEdit = review || userReview;
+    if (reviewToEdit) {
+      setEditingReview(reviewToEdit);
       setShowWriteModal(true);
     }
   };
@@ -161,19 +169,55 @@ const ReviewsScreen = ({ navigation, route }) => {
 
   const handleSubmitReview = async (reviewData) => {
     try {
-      if (userReview) {
+      // Determinar si se está editando una reseña existente
+      const isEditing = editingReview || userReview;
+      const reviewToUpdate = editingReview || userReview;
+      
+      console.log('Submit review - isEditing:', isEditing);
+      console.log('Submit review - editingReview:', editingReview);
+      console.log('Submit review - userReview:', userReview);
+      console.log('Submit review - reviewToUpdate:', reviewToUpdate);
+      
+      if (isEditing && reviewToUpdate) {
         // Actualizar reseña existente
-        await updateReview(userReview.id, reviewData);
-        setUserReview({ ...userReview, ...reviewData });
+        console.log('Updating existing review with ID:', reviewToUpdate.id);
+        await updateReview(reviewToUpdate.id, reviewData);
+        
+        // Actualizar el estado local inmediatamente
+        const updatedReview = { ...reviewToUpdate, ...reviewData, updatedAt: new Date() };
+        
+        if (editingReview) {
+          setEditingReview(updatedReview);
+          // Actualizar también en la lista de reseñas
+          setReviews(prevReviews =>
+            prevReviews.map(review =>
+              review.id === reviewToUpdate.id ? updatedReview : review
+            )
+          );
+        } else {
+          setUserReview(updatedReview);
+        }
       } else {
         // Crear nueva reseña
-        await saveReview(reviewData);
-        setUserReview(reviewData);
+        console.log('Creating new review');
+        const reviewId = await saveReview(reviewData);
+        const newReview = { ...reviewData, id: reviewId, createdAt: new Date() };
+        setUserReview(newReview);
+        
+        // Agregar a la lista de reseñas inmediatamente
+        setReviews(prevReviews => [newReview, ...prevReviews]);
       }
       
-      await loadCenterReviews(); // Recargar para actualizar estadísticas
+      // Recargar solo las estadísticas, no todas las reseñas
+      if (center) {
+        const stats = await getCenterReviewStats(center.id);
+        setReviewStats(stats);
+      }
+      
       setShowWriteModal(false);
+      setEditingReview(null); // Limpiar estado de edición
     } catch (error) {
+      console.error('Error in handleSubmitReview:', error);
       throw error; // Re-lanzar para que el modal maneje el error
     }
   };
@@ -183,10 +227,127 @@ const ReviewsScreen = ({ navigation, route }) => {
     setShowReplyModal(true);
   };
 
+  const formatReplyDate = (timestamp) => {
+    if (!timestamp) return 'Fecha no disponible';
+    
+    // Si es un timestamp de Firebase (objeto con seconds)
+    if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
+      const date = new Date(timestamp.seconds * 1000);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('es-ES', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+    }
+    
+    const date = new Date(timestamp);
+    
+    // Verificar si la fecha es válida
+    if (isNaN(date.getTime())) {
+      console.warn('Fecha inválida:', timestamp);
+      return 'Fecha no disponible';
+    }
+    
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
   const handleReplySubmitted = async () => {
     // Recargar las reseñas para mostrar la respuesta
     if (center) {
       await loadCenterReviews();
+    }
+  };
+
+  const handleLikeReview = async (reviewId) => {
+    if (!authUser?.uid) {
+      Alert.alert('Iniciar sesión', 'Necesitas iniciar sesión para dar like a una reseña');
+      return;
+    }
+
+    try {
+      const result = await likeReview(reviewId, authUser.uid);
+      
+      // Actualizar la reseña en el estado local
+      setReviews(prevReviews => 
+        prevReviews.map(review => 
+          review.id === reviewId 
+            ? { ...review, likes: result.liked ? [...(review.likes || []), authUser.uid] : (review.likes || []).filter(id => id !== authUser.uid), likeCount: result.likeCount }
+            : review
+        )
+      );
+
+      // También actualizar userReview si es la reseña del usuario
+      if (userReview && userReview.id === reviewId) {
+        setUserReview(prev => ({
+          ...prev,
+          likes: result.liked ? [...(prev.likes || []), authUser.uid] : (prev.likes || []).filter(id => id !== authUser.uid),
+          likeCount: result.likeCount
+        }));
+      }
+    } catch (error) {
+      console.error('Error dando like a la reseña:', error);
+      Alert.alert('Error', 'No se pudo dar like a la reseña');
+    }
+  };
+
+  const handleReportReview = async (review) => {
+    Alert.alert(
+      'Reportar Reseña',
+      '¿Por qué quieres reportar esta reseña?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel'
+        },
+        {
+          text: 'Contenido inapropiado',
+          onPress: () => reportReviewAction(review, 'Contenido inapropiado')
+        },
+        {
+          text: 'Información falsa',
+          onPress: () => reportReviewAction(review, 'Información falsa')
+        },
+        {
+          text: 'Spam',
+          onPress: () => reportReviewAction(review, 'Spam')
+        },
+        {
+          text: 'Otro motivo',
+          onPress: () => reportReviewAction(review, 'Otro motivo')
+        }
+      ]
+    );
+  };
+
+  const reportReviewAction = async (review, reason) => {
+    try {
+      await reportReview(
+        review.id, 
+        reason, 
+        authUser.uid, 
+        isCenter ? 'center' : 'user'
+      );
+      
+      Alert.alert(
+        'Reseña Reportada',
+        'La reseña ha sido reportada. Nuestro equipo la revisará pronto.',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error reportando reseña:', error);
+      Alert.alert('Error', 'No se pudo reportar la reseña');
     }
   };
 
@@ -251,12 +412,12 @@ const ReviewsScreen = ({ navigation, route }) => {
                   </View>
                   <View style={styles.userDetails}>
                     <Text style={styles.userName}>
-              {center ? review.userName : review.centerName}
+                      {center ? (review.userName || 'Usuario') : (review.centerName || review.businessName || review.nombreNegocio || 'Centro')}
                     </Text>
             {!center && (
                       <Text style={styles.category}>{review.category}</Text>
                     )}
-            <Text style={styles.date}>{formatReviewDate(review.timestamp)}</Text>
+            <Text style={styles.date}>{formatReviewDate(review.createdAt || review.timestamp || review.date)}</Text>
                   </View>
                 </View>
                 <View style={styles.ratingContainer}>
@@ -272,39 +433,84 @@ const ReviewsScreen = ({ navigation, route }) => {
                   <View style={styles.replyHeader}>
                     <Text style={styles.replyAuthor}>{review.reply.authorName}</Text>
                     <Text style={styles.replyDate}>
-                      {formatReviewDate(review.reply.createdAt)}
+                      {formatReplyDate(review.reply.updatedAt || review.reply.createdAt)}
                     </Text>
                   </View>
                   <Text style={styles.replyText}>{review.reply.message}</Text>
                 </View>
               )}
               
-              {/* Botones de acción */}
-              {!center && review.userId === authUser?.uid && (
-                <View style={styles.reviewActions}>
-                  <TouchableOpacity style={styles.actionButton} onPress={handleEditReview}>
-                    <Ionicons name="create-outline" size={16} color="#3B82F6" />
-                    <Text style={[styles.actionText, { color: '#3B82F6' }]}>Editar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.actionButton} onPress={handleDeleteReview}>
-                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                    <Text style={[styles.actionText, { color: '#EF4444' }]}>Eliminar</Text>
-                  </TouchableOpacity>
+              {/* Botones de acción organizados */}
+              <View style={styles.actionsContainer}>
+                {/* Primera fila: Botón de like (siempre visible para usuarios autenticados) */}
+                {authUser && (
+                  <View style={styles.likeContainer}>
+                    <TouchableOpacity
+                      style={styles.likeButton}
+                      onPress={() => handleLikeReview(review.id)}
+                    >
+                      <Ionicons 
+                        name={checkUserLike(review, authUser.uid) ? "heart" : "heart-outline"} 
+                        size={18} 
+                        color={checkUserLike(review, authUser.uid) ? "#EF4444" : "#6B7280"} 
+                      />
+                      <Text style={[
+                        styles.likeButtonText,
+                        { color: checkUserLike(review, authUser.uid) ? "#EF4444" : "#6B7280" }
+                      ]}>
+                        Me gusta {review.likeCount || 0}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Segunda fila: Botones específicos según el tipo de usuario */}
+                <View style={styles.actionsRow}>
+                  {/* Botones para el propietario de la reseña */}
+                  {review.userId === authUser?.uid && (
+                    <>
+                      <TouchableOpacity 
+                        style={[styles.actionButton, styles.editButton]} 
+                        onPress={() => handleEditReview(review)}
+                      >
+                        <Ionicons name="create-outline" size={16} color="#3B82F6" />
+                        <Text style={[styles.actionText, { color: '#3B82F6' }]}>Editar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.actionButton, styles.deleteButton]} 
+                        onPress={handleDeleteReview}
+                      >
+                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                        <Text style={[styles.actionText, { color: '#EF4444' }]}>Eliminar</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+
+                  {/* Botón para responder (solo para centros turísticos) */}
+                  {center && isCenter && authUser && review.userId !== authUser.uid && (
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.replyButton]}
+                      onPress={() => handleReplyToReview(review)}
+                    >
+                      <Ionicons name="chatbubble-outline" size={16} color="#10B981" />
+                      <Text style={[styles.actionText, { color: '#10B981' }]}>
+                        {review.reply ? 'Editar Respuesta' : 'Responder'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Botón para reportar (para usuarios que no son el autor) */}
+                  {authUser && review.userId !== authUser.uid && (
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.reportButton]}
+                      onPress={() => handleReportReview(review)}
+                    >
+                      <Ionicons name="flag-outline" size={16} color="#F59E0B" />
+                      <Text style={[styles.actionText, { color: '#F59E0B' }]}>Reportar</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
-              )}
-              
-              {/* Botón para responder (solo para centros turísticos) */}
-              {center && isCenter && authUser && (
-                <TouchableOpacity
-                  style={styles.replyButton}
-                  onPress={() => handleReplyToReview(review)}
-                >
-                  <Ionicons name="chatbubble" size={16} color="#3B82F6" />
-                  <Text style={styles.replyButtonText}>
-                    {review.reply ? 'Editar Respuesta' : 'Responder'}
-                  </Text>
-                </TouchableOpacity>
-              )}
+              </View>
     </View>
   );
 
@@ -412,7 +618,7 @@ const ReviewsScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {center ? center.businessName : 'Mis Reseñas'}
+          {center ? 'Reseñas del Centro' : 'Mis Reseñas'}
         </Text>
         <View style={styles.headerSpacer} />
       </View>
@@ -469,13 +675,20 @@ const ReviewsScreen = ({ navigation, route }) => {
       </SafeAreaView>
 
       {/* Modal para escribir reseñas */}
-      {selectedCenter && (
+      {(selectedCenter || editingReview) && (
         <WriteReviewModal
           visible={showWriteModal}
-          onClose={() => setShowWriteModal(false)}
-          center={selectedCenter}
+          onClose={() => {
+            setShowWriteModal(false);
+            setEditingReview(null);
+          }}
+          center={editingReview ? { 
+            id: editingReview.centerId,
+            businessName: editingReview.centerName,
+            nombreNegocio: editingReview.centerName
+          } : selectedCenter}
           onSubmitReview={handleSubmitReview}
-          userReview={userReview}
+          userReview={editingReview || userReview}
         />
       )}
 
@@ -767,20 +980,45 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 12,
   },
-  reviewActions: {
+  actionsContainer: {
+    marginTop: 12,
+  },
+  likeContainer: {
+    marginBottom: 8,
+  },
+  actionsRow: {
     flexDirection: 'row',
-    gap: 16,
-    marginTop: 8,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
   },
   actionText: {
     fontSize: 12,
-    color: '#6B7280',
+    fontWeight: '500',
     marginLeft: 4,
+  },
+  likeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  likeButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -858,21 +1096,21 @@ const styles = StyleSheet.create({
     color: '#047857',
     lineHeight: 20,
   },
-  replyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+  editButton: {
     backgroundColor: '#EFF6FF',
-    borderRadius: 8,
-    alignSelf: 'flex-start',
+    borderColor: '#3B82F6',
   },
-  replyButtonText: {
-    fontSize: 14,
-    color: '#3B82F6',
-    fontWeight: '500',
-    marginLeft: 6,
+  deleteButton: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#EF4444',
+  },
+  replyButton: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#10B981',
+  },
+  reportButton: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#F59E0B',
   },
 });
 

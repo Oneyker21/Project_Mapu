@@ -96,13 +96,18 @@ export const replyToReview = async (reviewId, replyData) => {
       throw new Error('Reseña no encontrada');
     }
     
+    const currentReview = reviewDoc.data();
+    // Obtener la respuesta actual si existe
+    const currentReply = currentReview.reply;
+    
     await updateDoc(reviewRef, {
       reply: {
         message: replyData.message,
         authorId: replyData.authorId,
         authorName: replyData.authorName,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: currentReply?.createdAt || new Date(), // Mantener fecha original si existe
+        updatedAt: new Date(), // Actualizar fecha de modificación
+        lastModified: new Date() // Campo adicional para tracking de última modificación
       },
       updatedAt: new Date()
     });
@@ -136,19 +141,55 @@ export const deleteReviewReply = async (reviewId) => {
 };
 
 /**
- * Eliminar una reseña
+ * Eliminar una reseña (incluye respuesta si existe)
  */
 export const deleteReview = async (reviewId, centerId, rating) => {
   try {
+    // Obtener la reseña antes de eliminarla para verificar si tiene respuesta
+    const reviewDoc = await getDoc(doc(db, REVIEWS_COLLECTION, reviewId));
+    if (!reviewDoc.exists()) {
+      throw new Error('Reseña no encontrada');
+    }
+    
     await deleteDoc(doc(db, REVIEWS_COLLECTION, reviewId));
     
     // Actualizar estadísticas del centro
     await updateCenterStats(centerId, rating, 'remove');
     
-    console.log('✅ Reseña eliminada:', reviewId);
+    console.log('✅ Reseña eliminada (incluyendo respuesta si existía):', reviewId);
     return true;
   } catch (error) {
     console.error('❌ Error eliminando reseña:', error);
+    throw error;
+  }
+};
+
+/**
+ * Reportar una reseña como inapropiada
+ */
+export const reportReview = async (reviewId, reason, reportedBy, reporterType) => {
+  try {
+    const reviewRef = doc(db, REVIEWS_COLLECTION, reviewId);
+    
+    // Obtener la reseña actual
+    const reviewDoc = await getDoc(reviewRef);
+    if (!reviewDoc.exists()) {
+      throw new Error('Reseña no encontrada');
+    }
+    
+    await updateDoc(reviewRef, {
+      reported: true,
+      reportReason: reason,
+      reportedBy: reportedBy,
+      reporterType: reporterType, // 'center' o 'user'
+      reportedAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    console.log('✅ Reseña reportada:', reviewId);
+    return true;
+  } catch (error) {
+    console.error('❌ Error reportando reseña:', error);
     throw error;
   }
 };
@@ -376,27 +417,146 @@ export const getCenterReviewStats = async (centerId) => {
 };
 
 /**
+ * Dar like a una reseña
+ */
+export const likeReview = async (reviewId, userId) => {
+  try {
+    const reviewRef = doc(db, REVIEWS_COLLECTION, reviewId);
+    
+    // Obtener la reseña actual
+    const reviewDoc = await getDoc(reviewRef);
+    if (!reviewDoc.exists()) {
+      throw new Error('Reseña no encontrada');
+    }
+    
+    const currentReview = reviewDoc.data();
+    const likes = currentReview.likes || [];
+    
+    // Verificar si el usuario ya dio like
+    const hasLiked = likes.includes(userId);
+    
+    if (hasLiked) {
+      // Quitar el like
+      const newLikes = likes.filter(id => id !== userId);
+      await updateDoc(reviewRef, {
+        likes: newLikes,
+        likeCount: newLikes.length,
+        updatedAt: new Date()
+      });
+      console.log('✅ Like removido de la reseña:', reviewId);
+      return { liked: false, likeCount: newLikes.length };
+    } else {
+      // Agregar el like
+      const newLikes = [...likes, userId];
+      await updateDoc(reviewRef, {
+        likes: newLikes,
+        likeCount: newLikes.length,
+        updatedAt: new Date()
+      });
+      console.log('✅ Like agregado a la reseña:', reviewId);
+      return { liked: true, likeCount: newLikes.length };
+    }
+  } catch (error) {
+    console.error('❌ Error dando like a la reseña:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verificar si un usuario dio like a una reseña
+ */
+export const checkUserLike = (review, userId) => {
+  if (!review || !userId) return false;
+  const likes = review.likes || [];
+  return likes.includes(userId);
+};
+
+/**
  * Formatear fecha para mostrar
  */
 export const formatReviewDate = (timestamp) => {
+  if (!timestamp) return 'Hoy';
+  
+  // Si es un timestamp de Firebase (objeto con seconds)
+  if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
+    const date = new Date(timestamp.seconds * 1000);
+    if (!isNaN(date.getTime())) {
+      return formatDateRelative(date);
+    }
+  }
+  
   const date = new Date(timestamp);
-  const now = new Date();
-  const diffTime = Math.abs(now - date);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  // Verificar si la fecha es válida
+  if (isNaN(date.getTime())) {
+    console.warn('Fecha inválida:', timestamp);
+    return 'Hoy';
+  }
+  
+  return formatDateRelative(date);
+};
 
-  if (diffDays === 1) {
-    return 'Ayer';
-  } else if (diffDays < 7) {
-    return `Hace ${diffDays} días`;
-  } else if (diffDays < 30) {
-    const weeks = Math.floor(diffDays / 7);
-    return `Hace ${weeks} semana${weeks > 1 ? 's' : ''}`;
-  } else {
-    return date.toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+/**
+ * Formatear fecha relativa
+ */
+const formatDateRelative = (date) => {
+  const now = new Date();
+  
+  // Normalizar fechas para comparar solo día, mes y año
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const diffTime = Math.abs(now - date);
+  const diffMinutes = Math.ceil(diffTime / (1000 * 60));
+  const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
+
+  // Verificar si es el mismo día (hoy)
+  if (dateOnly.getTime() === today.getTime()) {
+    if (diffMinutes < 1) {
+      return 'Hace un momento';
+    } else if (diffMinutes < 60) {
+      return `Hace ${diffMinutes} minutos`;
+    } else {
+      return `Hoy a las ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+    }
+  }
+  // Verificar si es ayer
+  else if (dateOnly.getTime() === yesterday.getTime()) {
+    return `Ayer a las ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+  }
+  // Para fechas más antiguas, mostrar día y mes
+  else {
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 7) {
+      return date.toLocaleDateString('es-ES', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } else if (diffDays < 365) {
+      return date.toLocaleDateString('es-ES', {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } else {
+      return date.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
   }
 };
 
@@ -410,5 +570,8 @@ export default {
   getUserReviews,
   getUserReviewForCenter,
   getCenterReviewStats,
+  likeReview,
+  checkUserLike,
+  reportReview,
   formatReviewDate
 };
