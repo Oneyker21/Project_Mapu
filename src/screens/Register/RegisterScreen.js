@@ -523,7 +523,7 @@ const RegisterScreen = ({ navigation }) => {
           <Ionicons 
             name="business" 
             size={32} 
-            color={formData.role === 'centro_turistico' ? '#3B82F6' : '#6B7280'} 
+            color={formData.role === 'centro_turistico' ? colors.primary : colors.text.muted} 
           />
         </View>
         <View style={styles.roleContent}>
@@ -536,7 +536,7 @@ const RegisterScreen = ({ navigation }) => {
         </View>
         {formData.role === 'centro_turistico' && (
           <View style={styles.roleCheck}>
-            <Ionicons name="checkmark-circle" size={24} color="#3B82F6" />
+            <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
           </View>
         )}
       </TouchableOpacity>
@@ -549,7 +549,7 @@ const RegisterScreen = ({ navigation }) => {
           <Ionicons 
             name="airplane" 
             size={32} 
-            color={formData.role === 'tourist' ? '#3B82F6' : '#6B7280'} 
+            color={formData.role === 'tourist' ? colors.primary : colors.text.muted} 
           />
         </View>
         <View style={styles.roleContent}>
@@ -562,7 +562,7 @@ const RegisterScreen = ({ navigation }) => {
         </View>
         {formData.role === 'tourist' && (
           <View style={styles.roleCheck}>
-            <Ionicons name="checkmark-circle" size={24} color="#3B82F6" />
+            <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
           </View>
         )}
       </TouchableOpacity>
@@ -663,7 +663,7 @@ const RegisterScreen = ({ navigation }) => {
               <Image source={{ uri: formData.profileImage.uri }} style={styles.profileImage} />
             ) : (
               <View style={styles.profileImagePlaceholder}>
-                <Ionicons name="camera" size={24} color="#6B7280" />
+                <Ionicons name="camera" size={24} color={colors.text.muted} />
                 <Text style={styles.profileImageText}>Agregar</Text>
               </View>
             )}
@@ -673,7 +673,7 @@ const RegisterScreen = ({ navigation }) => {
               style={styles.removeImageButton} 
               onPress={() => setFormData(prev => ({ ...prev, profileImage: null }))}
             >
-              <Ionicons name="close-circle" size={16} color="#EF4444" />
+              <Ionicons name="close-circle" size={16} color={colors.error} />
             </TouchableOpacity>
           )}
         </View>
@@ -687,7 +687,7 @@ const RegisterScreen = ({ navigation }) => {
             <Image source={{ uri: formData.coverImage.uri }} style={styles.coverImage} />
           ) : (
             <View style={styles.coverImagePlaceholder}>
-              <Ionicons name="image" size={32} color="#6B7280" />
+              <Ionicons name="image" size={32} color={colors.text.muted} />
               <Text style={styles.coverImageText}>Agregar portada</Text>
             </View>
           )}
@@ -697,7 +697,7 @@ const RegisterScreen = ({ navigation }) => {
             style={styles.removeCoverButton} 
             onPress={() => setFormData(prev => ({ ...prev, coverImage: null }))}
           >
-            <Ionicons name="close-circle" size={20} color="#EF4444" />
+            <Ionicons name="close-circle" size={20} color={colors.error} />
             <Text style={styles.removeCoverText}>Eliminar</Text>
           </TouchableOpacity>
         )}
@@ -747,7 +747,7 @@ const RegisterScreen = ({ navigation }) => {
               <Picker.Item label="Cédula de Identidad" value="cedula" />
               <Picker.Item label="Pasaporte" value="pasaporte" />
             </Picker>
-            <Ionicons name="chevron-down" size={20} color="#6B7280" style={styles.pickerIcon} />
+            <Ionicons name="chevron-down" size={20} color={colors.text.muted} style={styles.pickerIcon} />
           </View>
           {errors.documentType && <Text style={styles.errorText}>{errors.documentType}</Text>}
         </View>
@@ -857,7 +857,7 @@ const RegisterScreen = ({ navigation }) => {
             })}
           </View>
           <TouchableOpacity style={styles.addMoreButton} onPress={openCategoryModal}>
-            <Ionicons name="add-circle-outline" size={20} color="#3B82F6" />
+            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
             <Text style={styles.addMoreText}>Agregar más categorías</Text>
           </TouchableOpacity>
         </View>
@@ -865,7 +865,7 @@ const RegisterScreen = ({ navigation }) => {
       {/* Separador visual */}
       <View style={styles.sectionSeparator}>
         <View style={styles.separatorIcon}>
-          <Ionicons name="mail" size={16} color="#6B7280" />
+          <Ionicons name="mail" size={16} color={colors.text.muted} />
         </View>
         <View style={styles.separatorLine} />
       </View>
@@ -888,7 +888,7 @@ const RegisterScreen = ({ navigation }) => {
       {/* Separador visual */}
       <View style={styles.sectionSeparator}>
         <View style={styles.separatorIcon}>
-          <Ionicons name="call" size={16} color="#6B7280" />
+          <Ionicons name="call" size={16} color={colors.text.muted} />
         </View>
         <View style={styles.separatorLine} />
       </View>
@@ -910,7 +910,7 @@ const RegisterScreen = ({ navigation }) => {
       {/* Separador visual */}
       <View style={styles.sectionSeparator}>
         <View style={styles.separatorIcon}>
-          <Ionicons name="location" size={16} color="#6B7280" />
+          <Ionicons name="location" size={16} color={colors.text.muted} />
         </View>
         <View style={styles.separatorLine} />
       </View>
@@ -925,18 +925,18 @@ const RegisterScreen = ({ navigation }) => {
         </Text>
         {formData.businessDepartment && (
           <View style={styles.departmentInfo}>
-            <Ionicons name="location" size={16} color="#10B981" />
+            <Ionicons name="location" size={16} color={colors.success} />
             <Text style={styles.departmentText}>
               Departamento detectado: {formData.businessDepartment}
             </Text>
           </View>
         )}
         <TouchableOpacity style={styles.mapButton} onPress={openMapPicker}>
-          <Ionicons name="location" size={20} color="#3B82F6" />
+          <Ionicons name="location" size={20} color={colors.primary} />
           <Text style={styles.mapButtonText}>
             {formData.businessLatitude && formData.businessLongitude ? 'Cambiar Ubicación' : 'Seleccionar Ubicación'}
           </Text>
-          <Ionicons name="chevron-forward" size={16} color="#6B7280" />
+          <Ionicons name="chevron-forward" size={16} color={colors.text.muted} />
         </TouchableOpacity>
       </View>
     </View>
@@ -994,7 +994,7 @@ const RegisterScreen = ({ navigation }) => {
               onPress={() => setAcceptTerms(!acceptTerms)}
             >
               <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
-                {acceptTerms && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+                {acceptTerms && <Ionicons name="checkmark" size={16} color={colors.text.primary} />}
               </View>
               <View style={styles.termsTextContainer}>
                 <Text style={styles.termsText}>
@@ -1030,7 +1030,7 @@ const RegisterScreen = ({ navigation }) => {
             onPress={currentStep === 1 ? () => navigation.navigate('Login') : prevStep} 
             disabled={loading}
           >
-            <Ionicons name="arrow-back" size={18} color={loading ? "#9CA3AF" : "#6B7280"} />
+            <Ionicons name="arrow-back" size={18} color={loading ? colors.text.muted : colors.text.muted} />
             <Text style={[styles.backButtonTextWithIcon, loading && styles.disabledButtonText]}>Atrás</Text>
           </TouchableOpacity>
           
@@ -1045,7 +1045,7 @@ const RegisterScreen = ({ navigation }) => {
             <Text style={styles.nextButtonTextWithIcon}>
               {loading ? 'Guardando...' : getButtonTitle()}
             </Text>
-            {!loading && <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />}
+            {!loading && <Ionicons name="arrow-forward" size={18} color={colors.text.primary} />}
           </TouchableOpacity>
         </View>
 
@@ -1079,7 +1079,7 @@ const RegisterScreen = ({ navigation }) => {
                   style={styles.modalCloseButton}
                   onPress={() => setShowCategoryModal(false)}
                 >
-                  <Ionicons name="close" size={24} color="#6B7280" />
+                  <Ionicons name="close" size={24} color={colors.text.muted} />
                 </TouchableOpacity>
               </View>
               
@@ -1144,7 +1144,7 @@ const RegisterScreen = ({ navigation }) => {
         {loading && (
           <View style={styles.loadingOverlay}>
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#3B82F6" />
+              <ActivityIndicator size="large" color={colors.primary} />
               <Text style={styles.loadingText}>Creando tu cuenta...</Text>
               <Text style={styles.loadingSubtext}>Por favor espera</Text>
             </View>
@@ -1230,29 +1230,29 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   stepText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   stepTextActive: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   stepLine: {
     width: 60,
     height: 2,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     marginHorizontal: 16,
   },
   stepLineActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   // Formulario
   form: {
@@ -1277,7 +1277,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -1285,7 +1285,7 @@ const styles = StyleSheet.create({
   backButtonTextWithIcon: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginLeft: 6,
   },
   nextButtonWithIcon: {
@@ -1295,13 +1295,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 20,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     borderRadius: 12,
   },
   nextButtonTextWithIcon: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text.primary,
     marginRight: 6,
   },
   nextButtonWithIconDisabled: {
@@ -1311,7 +1311,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: 20,
-    backgroundColor: '#9CA3AF',
+    backgroundColor: colors.text.muted,
     borderRadius: 12,
   },
   // Selección de rol
@@ -1345,14 +1345,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   roleCardSelected: {
-    borderColor: '#3B82F6',
-    backgroundColor: '#F0F7FF',
+    borderColor: colors.primary,
+    backgroundColor: colors.background,
   },
   roleIcon: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1363,19 +1363,19 @@ const styles = StyleSheet.create({
   roleName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 3,
   },
   roleNameSelected: {
-    color: '#3B82F6',
+    color: colors.primary,
   },
   roleDescription: {
     fontSize: 13,
-    color: '#6B7280',
+    color: colors.text.muted,
     lineHeight: 18,
   },
   roleDescriptionSelected: {
-    color: '#1E40AF',
+    color: colors.primary,
   },
   roleCheck: {
     marginLeft: 16,
@@ -1408,7 +1408,7 @@ const styles = StyleSheet.create({
   profileImageLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 8,
   },
   profileImageWrapper: {
@@ -1421,9 +1421,9 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     overflow: 'hidden',
     borderWidth: 2,
-    borderColor: '#3B82F6',
+    borderColor: colors.primary,
     borderStyle: 'dashed',
-    backgroundColor: '#F0F7FF',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1437,7 +1437,7 @@ const styles = StyleSheet.create({
   },
   profileImageText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 4,
   },
   // Chips de intereses
@@ -1459,7 +1459,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1469,7 +1469,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   Picker: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
     borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
@@ -1482,7 +1482,7 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   logoImage: {
     width: '100%',
@@ -1495,7 +1495,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1506,7 +1506,7 @@ const styles = StyleSheet.create({
   },
   coverText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   coverImage: {
     width: '100%',
@@ -1523,20 +1523,20 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     marginRight: 8,
     marginBottom: 8,
   },
   chipSelected: {
-    borderColor: '#3B82F6',
-    backgroundColor: '#F0F7FF',
+    borderColor: colors.primary,
+    backgroundColor: colors.background,
   },
   chipText: {
-    color: '#111827',
+    color: colors.text.primary,
     fontSize: 14,
   },
   chipTextSelected: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontWeight: '600',
   },
   footer: {
@@ -1551,7 +1551,7 @@ const styles = StyleSheet.create({
   },
   coverContainer: {
     height: 140,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     borderRadius: 16,
     marginBottom: 60,
     position: 'relative',
@@ -1572,14 +1572,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   coverText: {
-    color: '#64748B',
+    color: colors.text.muted,
     fontSize: 16,
     fontWeight: '600',
     marginTop: 12,
     textAlign: 'center',
   },
   coverSubtext: {
-    color: '#94A3B8',
+    color: colors.text.muted,
     fontSize: 12,
     marginTop: 4,
     textAlign: 'center',
@@ -1588,7 +1588,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -1604,7 +1604,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   editButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
@@ -1619,7 +1619,7 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: '#FFFFFF',
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -1638,9 +1638,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F0F9FF',
+    backgroundColor: colors.background,
     borderWidth: 2,
-    borderColor: '#3B82F6',
+    borderColor: colors.primary,
     borderStyle: 'dashed',
     borderRadius: 40,
   },
@@ -1657,13 +1657,13 @@ const styles = StyleSheet.create({
   categoryLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
   },
   categoryCounter: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
-    backgroundColor: '#F3F4F6',
+    color: colors.text.muted,
+    backgroundColor: colors.background,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1676,31 +1676,31 @@ const styles = StyleSheet.create({
   categoryChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   categoryChipSelected: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   categoryChipText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     fontWeight: '500',
   },
   categoryChipTextSelected: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontWeight: '600',
   },
   categoryChipDisabled: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
     borderColor: '#E5E7EB',
     opacity: 0.5,
   },
   categoryChipTextDisabled: {
-    color: '#9CA3AF',
+    color: colors.text.muted,
   },
   addMoreButton: {
     flexDirection: 'row',
@@ -1709,16 +1709,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 8,
     paddingHorizontal: 16,
-    backgroundColor: '#F0F9FF',
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: '#3B82F6',
+    borderColor: colors.primary,
     borderStyle: 'dashed',
     borderRadius: 8,
   },
   addMoreText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#3B82F6',
+    color: colors.primary,
     marginLeft: 6,
   },
   // Separador de secciones
@@ -1731,13 +1731,13 @@ const styles = StyleSheet.create({
   separatorLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     marginLeft: 12,
   },
   separatorIcon: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -1750,7 +1750,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     width: '90%',
     maxWidth: 400,
@@ -1775,7 +1775,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
   },
   modalCloseButton: {
     padding: 4,
@@ -1785,7 +1785,7 @@ const styles = StyleSheet.create({
   },
   modalSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 16,
   },
   modalButtons: {
@@ -1804,24 +1804,24 @@ const styles = StyleSheet.create({
   modalCancelText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   modalAddButton: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   modalAddButtonDisabled: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
   },
   modalAddText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   modalAddTextDisabled: {
-    color: '#9CA3AF',
+    color: colors.text.muted,
   },
   // Overlay de carga
   loadingOverlay: {
@@ -1836,7 +1836,7 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   loadingContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 32,
     alignItems: 'center',
@@ -1853,13 +1853,13 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginTop: 16,
     textAlign: 'center',
   },
   loadingSubtext: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 8,
     textAlign: 'center',
   },
@@ -1868,12 +1868,12 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   disabledButtonText: {
-    color: '#9CA3AF',
+    color: colors.text.muted,
   },
   // Botón de ancho completo para el paso 1
   nextButtonWithIconFullWidth: {
     flex: 1,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 24,
@@ -1881,7 +1881,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: '#3B82F6',
+    shadowColor: colors.primary,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -1897,7 +1897,7 @@ const styles = StyleSheet.create({
   scheduleLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 12,
   },
   scheduleRow: {
@@ -1909,7 +1909,7 @@ const styles = StyleSheet.create({
   },
   timeLabel: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 8,
   },
   timeButton: {
@@ -1918,14 +1918,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: '#D1D5DB',
     borderRadius: 8,
   },
   timeText: {
     fontSize: 16,
-    color: '#111827',
+    color: colors.text.primary,
     fontWeight: '500',
   },
   // Estilos para contador de caracteres
@@ -1934,7 +1934,7 @@ const styles = StyleSheet.create({
   },
   characterCount: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: colors.text.muted,
     textAlign: 'right',
     marginTop: -8,
     marginRight: 4,
@@ -1948,25 +1948,25 @@ const styles = StyleSheet.create({
   mapLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   mapSubtext: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 12,
   },
   mapButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0F9FF',
+    backgroundColor: colors.background,
     borderWidth: 2,
-    borderColor: '#3B82F6',
+    borderColor: colors.primary,
     borderStyle: 'dashed',
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 16,
-    shadowColor: '#3B82F6',
+    shadowColor: colors.primary,
     shadowOffset: {
       width: 0,
       height: 2,
@@ -1978,7 +1978,7 @@ const styles = StyleSheet.create({
   mapButtonText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#3B82F6',
+    color: colors.primary,
     marginLeft: 12,
     flex: 1,
   },
@@ -2000,18 +2000,18 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   footerText: {
-    color: '#6B7280',
+    color: colors.text.muted,
     fontSize: 14,
     textAlign: 'center',
   },
   footerLink: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontWeight: '600',
   },
   // Nuevos estilos para el formulario del turista mejorado
   profileImageSubtext: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -2022,7 +2022,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -2039,18 +2039,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 2,
   },
   sectionSubtext: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 6,
     lineHeight: 16,
   },
   sectionUnderline: {
     height: 2,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     borderRadius: 1,
     marginBottom: 12,
     width: 30,
@@ -2061,12 +2061,12 @@ const styles = StyleSheet.create({
   pickerLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 8,
   },
   pickerWrapper: {
     position: 'relative',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -2078,7 +2078,7 @@ const styles = StyleSheet.create({
   },
   picker: {
     height: 50,
-    color: '#111827',
+    color: colors.text.primary,
   },
   pickerIcon: {
     position: 'absolute',
@@ -2087,7 +2087,7 @@ const styles = StyleSheet.create({
     pointerEvents: 'none',
   },
   errorText: {
-    color: '#EF4444',
+    color: colors.error,
     fontSize: 14,
     marginTop: 4,
     marginLeft: 4,
@@ -2100,7 +2100,7 @@ const styles = StyleSheet.create({
   },
   interestsCounter: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
     fontStyle: 'italic',
   },
@@ -2114,7 +2114,7 @@ const styles = StyleSheet.create({
   coverImageLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 8,
   },
   coverImageButton: {
@@ -2124,7 +2124,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#E5E7EB',
     borderStyle: 'dashed',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   coverImage: {
     width: '100%',
@@ -2135,11 +2135,11 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F0F7FF',
+    backgroundColor: colors.background,
   },
   coverImageText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 8,
     fontWeight: '500',
   },
@@ -2149,7 +2149,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.background,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#FECACA',
@@ -2157,7 +2157,7 @@ const styles = StyleSheet.create({
   },
   removeCoverText: {
     fontSize: 12,
-    color: '#EF4444',
+    color: colors.error,
     marginLeft: 4,
     fontWeight: '500',
   },
@@ -2177,15 +2177,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 2,
     borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
     marginTop: 2,
   },
   checkboxChecked: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   termsTextContainer: {
     flex: 1,
@@ -2196,7 +2196,7 @@ const styles = StyleSheet.create({
     color: '#374151',
   },
   termsLink: {
-    color: '#3B82F6',
+    color: colors.primary,
     textDecorationLine: 'underline',
     fontWeight: '500',
   },

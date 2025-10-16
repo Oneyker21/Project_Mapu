@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { colors } from '../../config/colors';
 
 const Stepper = ({ currentStep, totalSteps, stepTitles = [] }) => {
   const renderStep = (stepNumber) => {
@@ -71,42 +72,42 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   stepCircleActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   stepCircleCurrent: {
-    backgroundColor: '#1D4ED8',
-    borderColor: '#1D4ED8',
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   stepNumber: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#9CA3AF',
+    color: colors.text.muted,
   },
   stepNumberActive: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   stepLine: {
     width: 28,
     height: 2,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     marginHorizontal: 6,
     borderRadius: 1,
   },
   stepLineActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   currentStepTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     textAlign: 'left',
     marginRight: 16,
   },

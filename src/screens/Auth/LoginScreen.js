@@ -186,23 +186,23 @@ const LoginScreen = ({ navigation }) => {
           {/* Mensaje de error de login */}
           {loginError ? (
             <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle" size={16} color="#EF4444" />
+              <Ionicons name="alert-circle" size={16} color={colors.error} />
               <Text style={styles.errorText}>{loginError}</Text>
             </View>
           ) : null}
 
-          <View style={styles.divider}>
+          {/* <View style={styles.divider}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>o</Text>
             <View style={styles.dividerLine} />
-          </View>
+          </View> */}
 
-          <Button
+          {/* <Button
             title="Continuar con Google"
             onPress={() => Alert.alert('Info', 'Funcionalidad de Google pendiente')}
             variant="secondary"
             style={styles.googleButton}
-          />
+          /> */}
         </View>
 
         <View style={styles.footer}>
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   headerSpacer: {
     width: 40, // Same width as back button to center title
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     marginBottom: 16,
-    backgroundColor: '#4ADE80', // Verde más brillante para modo oscuro
+    backgroundColor: colors.success,
     borderRadius: 12,
     shadowColor: '#4ADE80',
     shadowOffset: {
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2D1B1B',
+    backgroundColor: colors.error,
     borderWidth: 1,
     borderColor: '#5B2C2C',
     borderRadius: 8,
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   errorText: {
-    color: '#F87171',
+    color: colors.error,
     fontSize: 14,
     marginLeft: 8,
     flex: 1,
@@ -380,17 +380,17 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#DAA621',
+    backgroundColor: colors.warning,
   },
   dividerText: {
     marginHorizontal: 16,
-    color: '#4ADE80', // Verde más brillante para modo oscuro
+    color: colors.success,
     fontSize: 14,
     fontWeight: '600',
   },
   googleButton: {
     marginBottom: 32,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: colors.surface,
     borderWidth: 2,
     borderColor: '#DAA621',
     borderRadius: 12,
@@ -400,12 +400,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   footerText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 14,
     textAlign: 'center',
   },
   footerLink: {
-    color: '#4ADE80', // Verde más brillante para modo oscuro
+    color: colors.success,
     fontWeight: '700',
   },
 });

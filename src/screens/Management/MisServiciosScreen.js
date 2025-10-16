@@ -25,30 +25,8 @@ import {
   orderBy 
 } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig';
+import { colors } from '../../config/colors';
 
-const COLOR_PALETTE = {
-  primary: '#2E7D32',
-  secondary: '#4CAF50',
-  background: {
-    primary: '#FFFFFF',
-    secondary: '#F5F5F5',
-  },
-  text: {
-    primary: '#212121',
-    secondary: '#757575',
-    light: '#BDBDBD',
-  },
-  gray: {
-    50: '#FAFAFA',
-    100: '#F5F5F5',
-    200: '#EEEEEE',
-    300: '#E0E0E0',
-  },
-  green: '#4CAF50',
-  orange: '#FF9800',
-  red: '#F44336',
-  blue: '#2196F3',
-};
 
 const MisServiciosScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -449,7 +427,7 @@ const MisServiciosScreen = ({ navigation }) => {
               <Ionicons 
                 name={tipoInfo?.icon || 'business'} 
                 size={20} 
-                color={COLOR_PALETTE.primary} 
+                color={colors.primary} 
               />
             </View>
             <View style={styles.serviceDetails}>
@@ -467,7 +445,7 @@ const MisServiciosScreen = ({ navigation }) => {
             <TouchableOpacity
               style={[
                 styles.statusButton,
-                { backgroundColor: service.activo ? COLOR_PALETTE.green : COLOR_PALETTE.red }
+                { backgroundColor: service.activo ? colors.success : colors.error }
               ]}
               onPress={() => toggleServiceStatus(service)}
             >
@@ -483,14 +461,14 @@ const MisServiciosScreen = ({ navigation }) => {
             style={styles.actionButton}
             onPress={() => handleEditService(service)}
           >
-            <Ionicons name="create" size={18} color={COLOR_PALETTE.blue} />
+            <Ionicons name="create" size={18} color={colors.primary} />
             <Text style={styles.actionButtonText}>Editar</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => handleDeleteService(service.id)}
           >
-            <Ionicons name="trash" size={18} color={COLOR_PALETTE.red} />
+            <Ionicons name="trash" size={18} color={colors.error} />
             <Text style={styles.actionButtonText}>Eliminar</Text>
           </TouchableOpacity>
         </View>
@@ -516,7 +494,7 @@ const MisServiciosScreen = ({ navigation }) => {
                 <Ionicons
                   name="cube"
                   size={20}
-                  color={COLOR_PALETTE.blue}
+                  color={colors.primary}
                 />
               )}
             </View>
@@ -542,7 +520,7 @@ const MisServiciosScreen = ({ navigation }) => {
             <TouchableOpacity
               style={[
                 styles.statusButton,
-                { backgroundColor: product.disponible ? COLOR_PALETTE.green : COLOR_PALETTE.red }
+                { backgroundColor: product.disponible ? colors.success : colors.error }
               ]}
               onPress={() => toggleProductStatus(product)}
             >
@@ -558,14 +536,14 @@ const MisServiciosScreen = ({ navigation }) => {
             style={styles.actionButton}
             onPress={() => handleEditProduct(product)}
           >
-            <Ionicons name="create" size={18} color={COLOR_PALETTE.blue} />
+            <Ionicons name="create" size={18} color={colors.primary} />
             <Text style={styles.actionButtonText}>Editar</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => handleDeleteProduct(product.id)}
           >
-            <Ionicons name="trash" size={18} color={COLOR_PALETTE.red} />
+            <Ionicons name="trash" size={18} color={colors.error} />
             <Text style={styles.actionButtonText}>Eliminar</Text>
           </TouchableOpacity>
         </View>
@@ -586,7 +564,7 @@ const MisServiciosScreen = ({ navigation }) => {
             style={styles.closeButton}
             onPress={() => setShowAddModal(false)}
           >
-            <Ionicons name="close" size={24} color="#1F2937" />
+            <Ionicons name="close" size={24} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
         
@@ -606,7 +584,7 @@ const MisServiciosScreen = ({ navigation }) => {
                   <Ionicons 
                     name={tipo.icon} 
                     size={20} 
-                    color={newService.tipo === tipo.id ? '#FFFFFF' : COLOR_PALETTE.primary} 
+                    color={newService.tipo === tipo.id ? colors.text.primary : colors.primary} 
                   />
                   <Text style={[
                     styles.tipoButtonText,
@@ -621,7 +599,7 @@ const MisServiciosScreen = ({ navigation }) => {
               style={styles.addNewServiceButton}
               onPress={() => setShowAddServiceTypeModal(true)}
             >
-              <Ionicons name="add" size={16} color={COLOR_PALETTE.primary} />
+              <Ionicons name="add" size={16} color={colors.primary} />
               <Text style={styles.addNewServiceText}>Agregar nuevo servicio</Text>
             </TouchableOpacity>
           </View>
@@ -633,6 +611,7 @@ const MisServiciosScreen = ({ navigation }) => {
               value={newService.descripcion}
               onChangeText={(text) => setNewService({...newService, descripcion: text})}
               placeholder="Describe tu servicio..."
+              placeholderTextColor={colors.text.muted}
               multiline
               numberOfLines={3}
             />
@@ -658,7 +637,7 @@ const MisServiciosScreen = ({ navigation }) => {
         {saving && (
           <View style={styles.loadingOverlay}>
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#4ADE80" />
+              <ActivityIndicator size="large" color={colors.success} />
               <Text style={styles.loadingText}>Actualizando servicios...</Text>
             </View>
           </View>
@@ -677,7 +656,7 @@ const MisServiciosScreen = ({ navigation }) => {
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Editar Servicio</Text>
           <TouchableOpacity onPress={() => setShowEditModal(false)}>
-            <Ionicons name="close" size={24} color={COLOR_PALETTE.text.primary} />
+            <Ionicons name="close" size={24} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
         
@@ -697,7 +676,7 @@ const MisServiciosScreen = ({ navigation }) => {
                   <Ionicons 
                     name={tipo.icon} 
                     size={20} 
-                    color={editingService?.tipo === tipo.id ? '#FFFFFF' : COLOR_PALETTE.primary} 
+                    color={editingService?.tipo === tipo.id ? colors.text.primary : colors.primary} 
                   />
                   <Text style={[
                     styles.tipoButtonText,
@@ -712,7 +691,7 @@ const MisServiciosScreen = ({ navigation }) => {
               style={styles.addNewServiceButton}
               onPress={() => setShowAddServiceTypeModal(true)}
             >
-              <Ionicons name="add" size={16} color={COLOR_PALETTE.primary} />
+              <Ionicons name="add" size={16} color={colors.primary} />
               <Text style={styles.addNewServiceText}>Agregar nuevo servicio</Text>
             </TouchableOpacity>
           </View>
@@ -724,6 +703,7 @@ const MisServiciosScreen = ({ navigation }) => {
               value={editingService?.descripcion || ''}
               onChangeText={(text) => setEditingService({...editingService, descripcion: text})}
               placeholder="Describe tu servicio..."
+              placeholderTextColor={colors.text.muted}
               multiline
               numberOfLines={3}
             />
@@ -749,7 +729,7 @@ const MisServiciosScreen = ({ navigation }) => {
         {saving && (
           <View style={styles.loadingOverlay}>
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#4ADE80" />
+              <ActivityIndicator size="large" color={colors.success} />
               <Text style={styles.loadingText}>Actualizando servicios...</Text>
             </View>
           </View>
@@ -770,7 +750,7 @@ const MisServiciosScreen = ({ navigation }) => {
             style={styles.closeButton}
             onPress={() => setShowAddProductModal(false)}
           >
-            <Ionicons name="close" size={24} color="#1F2937" />
+            <Ionicons name="close" size={24} color={colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.modalTitle}>Agregar Producto</Text>
           <TouchableOpacity
@@ -833,14 +813,14 @@ const MisServiciosScreen = ({ navigation }) => {
                         );
                       }}
                     >
-                      <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+                      <Ionicons name="sparkles" size={16} color={colors.text.primary} />
                       <Text style={styles.premiumButtonText}>Mejorar con IA</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : (
                 <View style={styles.imagePlaceholder}>
-                  <Ionicons name="camera" size={32} color="#6B7280" />
+                  <Ionicons name="camera" size={32} color={colors.text.muted} />
                   <Text style={styles.imagePlaceholderText}>Toca para agregar imagen</Text>
                   <Text style={styles.imagePlaceholderSubtext}>✨ Mejora con IA disponible</Text>
                 </View>
@@ -855,6 +835,7 @@ const MisServiciosScreen = ({ navigation }) => {
               value={newProduct.nombre}
               onChangeText={(text) => setNewProduct({...newProduct, nombre: text})}
               placeholder="Nombre del producto"
+              placeholderTextColor={colors.text.muted}
             />
           </View>
 
@@ -891,6 +872,7 @@ const MisServiciosScreen = ({ navigation }) => {
               value={newProduct.descripcion}
               onChangeText={(text) => setNewProduct({...newProduct, descripcion: text})}
               placeholder="Describe el producto..."
+              placeholderTextColor={colors.text.muted}
               multiline
               numberOfLines={3}
             />
@@ -906,6 +888,7 @@ const MisServiciosScreen = ({ navigation }) => {
                 value={newProduct.precio}
                 onChangeText={(text) => setNewProduct({...newProduct, precio: text})}
                 placeholder="250"
+                placeholderTextColor={colors.text.muted}
                 keyboardType="numeric"
               />
             </View>
@@ -924,7 +907,7 @@ const MisServiciosScreen = ({ navigation }) => {
                 <Ionicons 
                   name="checkmark-circle" 
                   size={20} 
-                  color={newProduct.disponible ? '#FFFFFF' : '#10B981'} 
+                  color={newProduct.disponible ? colors.text.primary : colors.success} 
                 />
                 <Text style={[
                   styles.availabilityText,
@@ -944,7 +927,7 @@ const MisServiciosScreen = ({ navigation }) => {
                 <Ionicons 
                   name="close-circle" 
                   size={20} 
-                  color={!newProduct.disponible ? '#FFFFFF' : '#EF4444'} 
+                  color={!newProduct.disponible ? colors.text.primary : colors.error} 
                 />
                 <Text style={[
                   styles.availabilityText,
@@ -961,7 +944,7 @@ const MisServiciosScreen = ({ navigation }) => {
         {saving && (
           <View style={styles.loadingOverlay}>
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#4ADE80" />
+              <ActivityIndicator size="large" color={colors.success} />
               <Text style={styles.loadingText}>Actualizando productos...</Text>
             </View>
           </View>
@@ -982,7 +965,7 @@ const MisServiciosScreen = ({ navigation }) => {
             style={styles.closeButton}
             onPress={() => setShowEditProductModal(false)}
           >
-            <Ionicons name="close" size={24} color="#1F2937" />
+            <Ionicons name="close" size={24} color={colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.modalTitle}>Editar Producto</Text>
           <TouchableOpacity
@@ -1045,14 +1028,14 @@ const MisServiciosScreen = ({ navigation }) => {
                         );
                       }}
                     >
-                      <Ionicons name="sparkles" size={16} color="#FFFFFF" />
+                      <Ionicons name="sparkles" size={16} color={colors.text.primary} />
                       <Text style={styles.premiumButtonText}>Mejorar con IA</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : (
                 <View style={styles.imagePlaceholder}>
-                  <Ionicons name="camera" size={32} color="#6B7280" />
+                  <Ionicons name="camera" size={32} color={colors.text.muted} />
                   <Text style={styles.imagePlaceholderText}>Toca para agregar imagen</Text>
                   <Text style={styles.imagePlaceholderSubtext}>✨ Mejora con IA disponible</Text>
                 </View>
@@ -1067,6 +1050,7 @@ const MisServiciosScreen = ({ navigation }) => {
               value={editingProduct?.nombre || ''}
               onChangeText={(text) => setEditingProduct({...editingProduct, nombre: text})}
               placeholder="Nombre del producto"
+              placeholderTextColor={colors.text.muted}
             />
           </View>
 
@@ -1103,6 +1087,7 @@ const MisServiciosScreen = ({ navigation }) => {
               value={editingProduct?.descripcion || ''}
               onChangeText={(text) => setEditingProduct({...editingProduct, descripcion: text})}
               placeholder="Describe el producto..."
+              placeholderTextColor={colors.text.muted}
               multiline
               numberOfLines={3}
             />
@@ -1118,6 +1103,7 @@ const MisServiciosScreen = ({ navigation }) => {
                 value={editingProduct?.precio || ''}
                 onChangeText={(text) => setEditingProduct({...editingProduct, precio: text})}
                 placeholder="250"
+                placeholderTextColor={colors.text.muted}
                 keyboardType="numeric"
               />
             </View>
@@ -1173,7 +1159,7 @@ const MisServiciosScreen = ({ navigation }) => {
         {saving && (
           <View style={styles.loadingOverlay}>
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#4ADE80" />
+              <ActivityIndicator size="large" color={colors.success} />
               <Text style={styles.loadingText}>Actualizando productos...</Text>
             </View>
           </View>
@@ -1195,7 +1181,7 @@ const MisServiciosScreen = ({ navigation }) => {
             style={styles.closeButton}
             onPress={() => setShowAddServiceTypeModal(false)}
           >
-            <Ionicons name="close" size={24} color="#1F2937" />
+            <Ionicons name="close" size={24} color={colors.text.primary} />
           </TouchableOpacity>
         </View>
 
@@ -1207,6 +1193,7 @@ const MisServiciosScreen = ({ navigation }) => {
               value={newServiceType.nombre}
               onChangeText={(text) => setNewServiceType({...newServiceType, nombre: text})}
               placeholder="Ej: Bar, Spa, Tour"
+              placeholderTextColor={colors.text.muted}
             />
           </View>
 
@@ -1225,7 +1212,7 @@ const MisServiciosScreen = ({ navigation }) => {
                   <Ionicons 
                     name={icon} 
                     size={24} 
-                    color={newServiceType.icon === icon ? '#FFFFFF' : '#6B7280'} 
+                    color={newServiceType.icon === icon ? colors.text.primary : colors.text.muted} 
                   />
                 </TouchableOpacity>
               ))}
@@ -1252,7 +1239,7 @@ const MisServiciosScreen = ({ navigation }) => {
         {saving && (
           <View style={styles.loadingOverlay}>
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#4ADE80" />
+              <ActivityIndicator size="large" color={colors.success} />
               <Text style={styles.loadingText}>Agregando tipo de servicio...</Text>
             </View>
           </View>
@@ -1265,7 +1252,7 @@ const MisServiciosScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLOR_PALETTE.primary} />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando servicios...</Text>
         </View>
       </SafeAreaView>
@@ -1279,7 +1266,7 @@ const MisServiciosScreen = ({ navigation }) => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mis Servicios</Text>
         <View style={styles.headerRight} />
@@ -1294,7 +1281,7 @@ const MisServiciosScreen = ({ navigation }) => {
           <Ionicons 
             name="business" 
             size={20} 
-            color={activeTab === 'servicios' ? '#FFFFFF' : '#6B7280'} 
+            color={activeTab === 'servicios' ? colors.text.primary : colors.text.muted} 
           />
           <Text style={[
             styles.tabText, 
@@ -1310,7 +1297,7 @@ const MisServiciosScreen = ({ navigation }) => {
           <Ionicons 
             name="cube" 
             size={20} 
-            color={activeTab === 'productos' ? '#FFFFFF' : '#6B7280'} 
+            color={activeTab === 'productos' ? colors.text.primary : colors.text.muted} 
           />
           <Text style={[
             styles.tabText, 
@@ -1325,7 +1312,7 @@ const MisServiciosScreen = ({ navigation }) => {
         {activeTab === 'servicios' ? (
           services.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="business" size={64} color={COLOR_PALETTE.gray[300]} />
+              <Ionicons name="business" size={64} color={colors.text.muted} />
               <Text style={styles.emptyTitle}>No tienes servicios</Text>
               <Text style={styles.emptySubtitle}>
                 Agrega tu primer servicio para comenzar a gestionar tu centro
@@ -1346,7 +1333,7 @@ const MisServiciosScreen = ({ navigation }) => {
                 style={styles.addServiceButton}
                 onPress={() => setShowAddModal(true)}
               >
-                <Ionicons name="add" size={24} color="#FFFFFF" />
+                <Ionicons name="add" size={24} color={colors.text.primary} />
                 <Text style={styles.addServiceButtonText}>Agregar Servicio</Text>
               </TouchableOpacity>
             </>
@@ -1372,7 +1359,7 @@ const MisServiciosScreen = ({ navigation }) => {
                   <Ionicons 
                     name={category.icon} 
                     size={20} 
-                    color={activeProductCategory === category.id ? '#FFFFFF' : '#6B7280'} 
+                    color={activeProductCategory === category.id ? colors.text.primary : colors.text.muted} 
                   />
                   <Text style={[
                     styles.categoryTabText,
@@ -1398,7 +1385,7 @@ const MisServiciosScreen = ({ navigation }) => {
             {/* Lista de Productos Filtrados */}
             {getFilteredProducts().length === 0 ? (
               <View style={styles.emptyState}>
-                <Ionicons name="cube" size={64} color={COLOR_PALETTE.gray[300]} />
+                <Ionicons name="cube" size={64} color={colors.text.muted} />
                 <Text style={styles.emptyTitle}>
                   {activeProductCategory === 'todos' ? 'No tienes productos' : `No hay productos de ${getProductCategories().find(c => c.id === activeProductCategory)?.nombre}`}
                 </Text>
@@ -1426,7 +1413,7 @@ const MisServiciosScreen = ({ navigation }) => {
                   style={styles.addServiceButton}
                   onPress={() => setShowAddProductModal(true)}
                 >
-                  <Ionicons name="add" size={24} color="#FFFFFF" />
+                  <Ionicons name="add" size={24} color={colors.text.primary} />
                   <Text style={styles.addServiceButtonText}>Agregar Producto</Text>
                 </TouchableOpacity>
               </>
@@ -1447,7 +1434,7 @@ const MisServiciosScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLOR_PALETTE.background.secondary,
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -1468,7 +1455,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
   },
   header: {
     flexDirection: 'row',
@@ -1476,19 +1463,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   backButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginLeft: 12,
     flex: 1,
   },
@@ -1508,30 +1495,30 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 16,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     textAlign: 'center',
     marginBottom: 24,
     paddingHorizontal: 20,
   },
   addFirstButton: {
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   addFirstButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
   addServiceButton: {
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1546,7 +1533,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   addServiceButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -1555,7 +1542,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   serviceCard: {
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     shadowColor: '#000',
@@ -1580,7 +1567,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLOR_PALETTE.gray[100],
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -1591,19 +1578,19 @@ const styles = StyleSheet.create({
   serviceName: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginBottom: 4,
   },
   serviceType: {
     fontSize: 12,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     marginBottom: 4,
     textTransform: 'uppercase',
     fontWeight: '500',
   },
   serviceDescription: {
     fontSize: 13,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     lineHeight: 18,
   },
   serviceActions: {
@@ -1615,7 +1602,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   statusButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 11,
     fontWeight: '600',
   },
@@ -1623,7 +1610,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     borderTopWidth: 1,
-    borderTopColor: COLOR_PALETTE.gray[200],
+    borderTopColor: colors.border,
     paddingTop: 12,
   },
   actionButton: {
@@ -1632,16 +1619,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: COLOR_PALETTE.gray[50],
+    backgroundColor: colors.background,
   },
   actionButtonText: {
     fontSize: 13,
     fontWeight: '500',
     marginLeft: 6,
+    color: colors.text.primary,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1650,12 +1638,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLOR_PALETTE.gray[200],
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
   },
   modalContent: {
     flex: 1,
@@ -1667,17 +1655,17 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[300],
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
   },
   textArea: {
     height: 80,
@@ -1695,27 +1683,27 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[300],
-    backgroundColor: COLOR_PALETTE.background.primary,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   tipoButtonSelected: {
-    backgroundColor: COLOR_PALETTE.primary,
-    borderColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   tipoButtonText: {
     marginLeft: 6,
     fontSize: 14,
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
   },
   tipoButtonTextSelected: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   modalFooter: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: COLOR_PALETTE.gray[200],
+    borderTopColor: colors.border,
     gap: 12,
   },
   cancelButton: {
@@ -1723,34 +1711,34 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[300],
+    borderColor: colors.border,
     alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: 16,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     fontWeight: '600',
   },
   saveButton: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
   },
   saveButtonText: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontWeight: '600',
   },
   // Tabs styles
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   tab: {
     flex: 1,
@@ -1763,23 +1751,23 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   activeTab: {
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
   },
   tabText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginLeft: 8,
   },
   activeTabText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   // Product styles
   productsList: {
     padding: 16,
   },
   productCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -1803,7 +1791,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#EBF8FF',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1814,23 +1802,23 @@ const styles = StyleSheet.create({
   productName: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginBottom: 4,
   },
   productService: {
     fontSize: 14,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     marginBottom: 4,
   },
   productDescription: {
     fontSize: 14,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     marginBottom: 4,
   },
   productPrice: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLOR_PALETTE.primary,
+    color: colors.primary,
   },
   productActions: {
     marginLeft: 12,
@@ -1840,7 +1828,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: colors.border,
   },
   // Service selector styles
   serviceSelector: {
@@ -1853,25 +1841,25 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   selectedServiceOption: {
-    backgroundColor: COLOR_PALETTE.primary,
-    borderColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   serviceOptionText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   selectedServiceOptionText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   // Modal styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1884,12 +1872,12 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginLeft: 12,
     flex: 1,
   },
@@ -1912,18 +1900,18 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1F2937',
-    backgroundColor: '#FFFFFF',
+    color: colors.text.primary,
+    backgroundColor: colors.surface,
   },
   textArea: {
     height: 80,
@@ -1933,9 +1921,9 @@ const styles = StyleSheet.create({
   imagePicker: {
     height: 140,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderStyle: 'dashed',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.background,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -1953,7 +1941,7 @@ const styles = StyleSheet.create({
   imagePlaceholderText: {
     marginTop: 8,
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
   },
   previewImage: {
@@ -1976,14 +1964,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.primary,
+    borderColor: colors.primary,
     borderStyle: 'dashed',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.background,
   },
   addNewServiceText: {
     fontSize: 14,
     fontWeight: '500',
-    color: COLOR_PALETTE.primary,
+    color: colors.primary,
     marginLeft: 8,
   },
   // Price input with currency symbol
@@ -1991,17 +1979,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   currencySymbol: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#FFFFFF',
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.primary,
     borderTopLeftRadius: 8,
     borderBottomLeftRadius: 8,
   },
@@ -2010,7 +1998,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1F2937',
+    color: colors.text.primary,
   },
   // Icon selector styles
   iconSelector: {
@@ -2023,14 +2011,14 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   selectedIconOption: {
-    backgroundColor: COLOR_PALETTE.primary,
-    borderColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   // Modal footer
   modalFooter: {
@@ -2040,7 +2028,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   cancelButton: {
     flex: 1,
@@ -2048,21 +2036,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     alignItems: 'center',
     marginRight: 8,
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   saveButton: {
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     marginLeft: 8,
   },
@@ -2074,7 +2062,7 @@ const styles = StyleSheet.create({
   // Price subtext
   priceSubtext: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 8,
     fontStyle: 'italic',
   },
@@ -2092,21 +2080,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   selectedAvailabilityOption: {
-    backgroundColor: COLOR_PALETTE.primary,
-    borderColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   availabilityText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginLeft: 8,
   },
   selectedAvailabilityText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   // Modal content container with bottom margin
   modalContentContainer: {
@@ -2137,7 +2125,7 @@ const styles = StyleSheet.create({
   premiumButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(74, 222, 128, 0.9)',
+    backgroundColor: colors.success,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -2148,14 +2136,14 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   premiumButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
   },
   imagePlaceholderSubtext: {
     fontSize: 10,
-    color: '#9CA3AF',
+    color: colors.text.muted,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -2173,19 +2161,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     minWidth: 100,
   },
   activeCategoryTab: {
-    backgroundColor: COLOR_PALETTE.primary,
-    borderColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   categoryTabText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginLeft: 6,
     marginRight: 8,
   },
@@ -2206,7 +2194,7 @@ const styles = StyleSheet.create({
   categoryBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   activeCategoryBadgeText: {
     color: '#FFFFFF',

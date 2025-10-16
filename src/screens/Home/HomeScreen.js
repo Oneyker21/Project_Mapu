@@ -6,7 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
-import { colors } from '../../config/colors';
+import { colors, withOpacity } from '../../config/colors';
+import { getFeaturedRoutes } from '../../services/routes';
 
 
 const HomeScreen = ({ navigation }) => {
@@ -23,6 +24,8 @@ const HomeScreen = ({ navigation }) => {
   const [sliderAnimation] = useState(new Animated.Value(0));
   const [isDragging, setIsDragging] = useState(false);
   const [sliderWidth, setSliderWidth] = useState(300); // Ancho por defecto
+  const [featuredRoutes, setFeaturedRoutes] = useState([]);
+  const [loadingRoutes, setLoadingRoutes] = useState(false);
   
   // PanResponder para el deslizamiento del slider
   const panResponder = PanResponder.create({
@@ -217,10 +220,27 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  // Cargar rutas destacadas
+  const loadFeaturedRoutes = async () => {
+    try {
+      setLoadingRoutes(true);
+      console.log('🔄 Cargando rutas destacadas...');
+      const routes = await getFeaturedRoutes();
+      console.log('✅ Rutas destacadas cargadas:', routes.length);
+      console.log('📋 Detalles de rutas:', routes.map(r => ({ id: r.id, title: r.title, isPublic: r.isPublic })));
+      setFeaturedRoutes(routes);
+    } catch (error) {
+      console.error('❌ Error cargando rutas destacadas:', error);
+    } finally {
+      setLoadingRoutes(false);
+    }
+  };
+
   // Cargar centros turísticos registrados y datos del usuario
   useEffect(() => {
     loadUserData();
     loadCenters();
+    loadFeaturedRoutes();
   }, []);
 
   // Re-cargar centros cuando se determine el rol/datos del usuario
@@ -428,54 +448,65 @@ const HomeScreen = ({ navigation }) => {
     });
   };
 
+  // Función para renderizar rutas destacadas
+  const renderFeaturedRoute = (route) => {
+    return (
+      <TouchableOpacity
+        key={route.id}
+        style={styles.featuredRouteCard}
+        onPress={() => navigation.navigate('ExploreRoutes')}
+      >
+        <View style={styles.featuredRouteImageContainer}>
+          {route.photos && route.photos.length > 0 ? (
+            <Image 
+              source={{ uri: route.photos[0] }}
+              style={styles.featuredRouteImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.featuredRouteNoImage}>
+              <Ionicons name="map" size={32} color={colors.text.muted} />
+            </View>
+          )}
+          <View style={styles.featuredRouteOverlay}>
+            <View style={styles.featuredRouteStats}>
+              <View style={styles.featuredRouteStat}>
+                <Ionicons name="location" size={12} color="#FFFFFF" />
+                <Text style={styles.featuredRouteStatText}>{route.centers.length}</Text>
+              </View>
+              <View style={styles.featuredRouteStat}>
+                <Ionicons name="heart" size={12} color="#FFFFFF" />
+                <Text style={styles.featuredRouteStatText}>{route.likes?.length || 0}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+        
+        <View style={styles.featuredRouteInfo}>
+          <Text style={styles.featuredRouteTitle} numberOfLines={1}>
+            {route.title}
+          </Text>
+          <Text style={styles.featuredRouteAuthor}>
+            Por {route.author.name}
+          </Text>
+          <View style={styles.featuredRouteRating}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Ionicons
+                key={star}
+                name={star <= route.rating ? "star" : "star-outline"}
+                size={12}
+                color={star <= route.rating ? "#F59E0B" : "#D1D5DB"}
+              />
+            ))}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   // Función para obtener las acciones de turista optimizadas
   const getTouristQuickActions = () => {
-    return [
-      {
-        id: 'explore_centers',
-        title: 'Explorar',
-        subtitle: 'Buscar centros turísticos',
-        icon: 'search',
-        color: '#3B82F6',
-        onPress: () => {
-          setShowMenu(false);
-          navigation.navigate('UnifiedSearch', { initialTab: 'all' });
-        }
-      },
-      {
-        id: 'nearby_centers',
-        title: 'Cercanos',
-        subtitle: 'Lugares cerca de ti',
-        icon: 'compass',
-        color: '#EC4899',
-        onPress: () => {
-          setShowMenu(false);
-          navigation.navigate('UnifiedSearch', { initialTab: 'nearby' });
-        }
-      },
-      {
-        id: 'share_routes',
-        title: 'Compartir',
-        subtitle: 'Rutas y experiencias',
-        icon: 'share-social',
-        color: '#10B981',
-        onPress: () => {
-          setShowMenu(false);
-          Alert.alert('Compartir', 'Comparte tus rutas y experiencias');
-        }
-      },
-      {
-        id: 'photo_albums',
-        title: 'Álbumes',
-        subtitle: 'Fotos de tus viajes',
-        icon: 'camera',
-        color: '#8B5CF6',
-        onPress: () => {
-          setShowMenu(false);
-          Alert.alert('Álbumes', 'Gestiona tus fotos de viajes');
-        }
-      }
-    ];
+    return []; // Sin botones - ahora están en el footer
   };
 
   // Función para opciones del menú (diferentes a las opciones principales)
@@ -554,28 +585,6 @@ const HomeScreen = ({ navigation }) => {
           }
         },
         {
-          id: 'share_routes',
-          title: 'Compartir Rutas',
-          subtitle: 'Comparte tus rutas favoritas',
-          icon: 'share-social',
-          color: '#3B82F6',
-          onPress: () => {
-            setShowMenu(false);
-            Alert.alert('Compartir Rutas', 'Comparte tus rutas con otros turistas');
-          }
-        },
-        {
-          id: 'photo_albums',
-          title: 'Álbumes de Fotos',
-          subtitle: 'Crea álbumes de tus viajes',
-          icon: 'camera',
-          color: '#8B5CF6',
-          onPress: () => {
-            setShowMenu(false);
-            Alert.alert('Álbumes', 'Gestiona tus fotos de viajes');
-          }
-        },
-        {
           id: 'favorites',
           title: 'Favoritos',
           subtitle: 'Centros guardados',
@@ -583,31 +592,9 @@ const HomeScreen = ({ navigation }) => {
           color: '#EF4444',
           onPress: () => {
             setShowMenu(false);
-            Alert.alert('Favoritos', 'Centros turísticos favoritos');
+            navigation.navigate('FavoriteRoutes');
           }
         },
-        {
-          id: 'reviews',
-          title: 'Mis Reseñas',
-          subtitle: 'Tus reseñas y calificaciones',
-          icon: 'star',
-          color: '#F59E0B',
-          onPress: () => {
-            setShowMenu(false);
-            navigation.navigate('Reviews');
-          }
-        },
-        {
-          id: 'settings',
-          title: 'Configuración',
-          subtitle: 'Ajustes de la aplicación',
-          icon: 'settings',
-          color: '#6B7280',
-          onPress: () => {
-            setShowMenu(false);
-            navigation.navigate('Settings');
-          }
-        }
       ];
     }
   };
@@ -684,14 +671,6 @@ const HomeScreen = ({ navigation }) => {
                     authUser?.displayName || 'Usuario'
                   }
                 </Text>
-                {isCenterUser && (
-                  <TouchableOpacity 
-                    style={styles.notificationIcon}
-                    onPress={() => navigation.navigate('Notifications')}
-                  >
-                    <Ionicons name="notifications" size={24} color="#3B82F6" />
-                  </TouchableOpacity>
-                )}
               </View>
               <Text style={styles.userRole}>
                 {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? 'Centro Turístico' : 'Turista'}
@@ -718,37 +697,30 @@ const HomeScreen = ({ navigation }) => {
           {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? (
             <>
               <TouchableOpacity 
-                style={[styles.quickActionCard, { backgroundColor: '#EBF4FF' }]}
+                style={styles.quickActionCard}
                 onPress={() => navigation.navigate('MisServicios')}
               >
-                <Ionicons name="analytics" size={24} color="#3B82F6" />
-                <Text style={[styles.quickActionText, { color: '#3B82F6' }]}>Mis Servicios</Text>
+                <Ionicons name="analytics" size={24} color={colors.primary} />
+                <Text style={[styles.quickActionText, { color: colors.primary }]}>Mis Servicios</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity 
-                style={[styles.quickActionCard, { backgroundColor: '#F0FDF4' }]}
-                onPress={() => Alert.alert('Asistente Virtual', 'Próximamente: Chat con IA para gestión del centro')}
-              >
-                <Ionicons name="chatbubble-ellipses" size={24} color="#10B981" />
-                <Text style={[styles.quickActionText, { color: '#10B981' }]}>Asistente Virtual</Text>
-              </TouchableOpacity>
             </>
           ) : (
             <>
               <TouchableOpacity 
-                style={[styles.quickActionCard, { backgroundColor: '#FEF2F2' }]}
-                onPress={() => Alert.alert('Favoritos', 'Centros turísticos favoritos')}
+                style={styles.quickActionCard}
+                onPress={() => navigation.navigate('FavoriteRoutes')}
               >
-                <Ionicons name="heart" size={24} color="#EF4444" />
-                <Text style={[styles.quickActionText, { color: '#EF4444' }]}>Favoritos</Text>
+                <Ionicons name="heart" size={24} color={colors.error} />
+                <Text style={[styles.quickActionText, { color: colors.error }]}>Favoritos</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={[styles.quickActionCard, { backgroundColor: '#EBF4FF' }]}
-                onPress={() => Alert.alert('Buscar', 'Buscar centros turísticos cercanos')}
+                style={styles.quickActionCard}
+                onPress={() => navigation.navigate('Groups')}
               >
-                <Ionicons name="search" size={24} color="#3B82F6" />
-                <Text style={[styles.quickActionText, { color: '#3B82F6' }]}>Buscar</Text>
+                <Ionicons name="people" size={24} color={colors.primary} />
+                <Text style={[styles.quickActionText, { color: colors.primary }]}>Crear Grupo</Text>
               </TouchableOpacity>
             </>
           )}
@@ -757,74 +729,24 @@ const HomeScreen = ({ navigation }) => {
         {/* Estado del Centro - Solo para centros turísticos */}
           {isCenterUser && (
             <View style={styles.centerStatusSection}>
-              <Text style={styles.statusSectionTitle}>Estado del Centro</Text>
-              
               <View style={styles.statusContainer}>
-                {/* Botones de Estado */}
-                <View style={styles.statusButtonsContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.statusButton,
-                      {
-                        backgroundColor: centerStatus === 'abierto' ? '#10B981' : '#F3F4F6',
-                        borderColor: centerStatus === 'abierto' ? '#10B981' : '#D1D5DB',
-                      }
-                    ]}
-                    onPress={() => updateCenterStatus('abierto')}
-                    disabled={updatingStatus}
-                  >
-                    {updatingStatus && centerStatus === 'abierto' ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <>
-                        <Ionicons 
-                          name="checkmark-circle" 
-                          size={20} 
-                          color={centerStatus === 'abierto' ? '#FFFFFF' : '#6B7280'} 
-                        />
-                        <Text style={[
-                          styles.statusButtonText,
-                          {
-                            color: centerStatus === 'abierto' ? '#FFFFFF' : '#6B7280',
-                          }
-                        ]}>
-                          Abierto
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.statusButton,
-                      {
-                        backgroundColor: centerStatus === 'cerrado' ? '#EF4444' : '#F3F4F6',
-                        borderColor: centerStatus === 'cerrado' ? '#EF4444' : '#D1D5DB',
-                      }
-                    ]}
-                    onPress={() => updateCenterStatus('cerrado')}
-                    disabled={updatingStatus}
-                  >
-                    {updatingStatus && centerStatus === 'cerrado' ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <>
-                        <Ionicons 
-                          name="close-circle" 
-                          size={20} 
-                          color={centerStatus === 'cerrado' ? '#FFFFFF' : '#6B7280'} 
-                        />
-                        <Text style={[
-                          styles.statusButtonText,
-                          {
-                            color: centerStatus === 'cerrado' ? '#FFFFFF' : '#6B7280',
-                          }
-                        ]}>
-                          Cerrado
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
+                <View style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor: centerStatus === 'abierto' ? colors.success : colors.error,
+                  }
+                ]}>
+                  <Ionicons 
+                    name={centerStatus === 'abierto' ? 'checkmark-circle' : 'close-circle'} 
+                    size={16} 
+                    color={colors.text.primary} 
+                  />
+                  <Text style={[
+                    styles.statusBadgeText,
+                    { color: colors.text.primary }
+                  ]}>
+                    {centerStatus === 'abierto' ? 'Abierto' : 'Cerrado'}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -838,12 +760,12 @@ const HomeScreen = ({ navigation }) => {
                 onPress={() => navigation.navigate('Promotions')}
               >
                 <View style={styles.promotionContent}>
-                  <Ionicons name="gift" size={24} color="#F59E0B" />
+                  <Ionicons name="gift" size={24} color={colors.warning} />
                   <View style={styles.promotionText}>
                     <Text style={styles.promotionTitle}>Promociones</Text>
                     <Text style={styles.promotionSubtitle}>Gestiona tus ofertas especiales</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
                 </View>
               </TouchableOpacity>
             </View>
@@ -881,6 +803,30 @@ const HomeScreen = ({ navigation }) => {
             </View>
           </TouchableOpacity>
           
+          {/* Rutas Destacadas */}
+          {featuredRoutes.length > 0 && (
+            <View style={styles.featuredRoutesSection}>
+              <View style={styles.featuredRoutesHeader}>
+                <Text style={styles.featuredRoutesTitle}>🌟 Rutas Destacadas</Text>
+                <TouchableOpacity 
+                  style={styles.seeAllButton}
+                  onPress={() => navigation.navigate('ExploreRoutes')}
+                >
+                  <Text style={styles.seeAllText}>Ver todas</Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.featuredRoutesScroll}
+              >
+                {featuredRoutes.map(renderFeaturedRoute)}
+              </ScrollView>
+            </View>
+          )}
+
           <View style={styles.touristActionsGrid}>
             {getTouristQuickActions().map((action) => (
               <TouchableOpacity
@@ -927,7 +873,7 @@ const HomeScreen = ({ navigation }) => {
                 style={styles.footerButton}
                 onPress={() => navigation.navigate('Reviews', { center: { ...userData, id: authUser?.uid } })}
               >
-                <Ionicons name="star" size={24} color="#F59E0B" />
+                <Ionicons name="star" size={24} color={colors.warning} />
                 <Text style={styles.footerButtonText}>Reseñas</Text>
               </TouchableOpacity>
 
@@ -944,26 +890,26 @@ const HomeScreen = ({ navigation }) => {
             <>
               <TouchableOpacity 
                 style={styles.footerButton}
-                onPress={() => setShowMenu(true)}
+                onPress={() => navigation.navigate('ExplorarCentros')}
               >
-                <Ionicons name="menu" size={24} color={colors.text.muted} />
-                <Text style={styles.footerButtonText}>Menú</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.footerButton}
-                onPress={() => navigation.navigate('UnifiedSearch', { initialTab: 'nearby' })}
-              >
-                <Ionicons name="search" size={24} color={colors.primary} />
-                <Text style={styles.footerButtonText}>Buscar</Text>
+                <Ionicons name="compass" size={24} color={colors.primary} />
+                <Text style={styles.footerButtonText}>Explorar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
                 style={styles.footerButton}
                 onPress={() => navigation.navigate('Reviews')}
               >
-                <Ionicons name="star" size={24} color="#F59E0B" />
+                <Ionicons name="star" size={24} color={colors.warning} />
                 <Text style={styles.footerButtonText}>Reseñas</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.footerButton}
+                onPress={() => navigation.navigate('ExplorarRutas')}
+              >
+                <Ionicons name="map" size={24} color={colors.success} />
+                <Text style={styles.footerButtonText}>Rutas</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -971,7 +917,7 @@ const HomeScreen = ({ navigation }) => {
                 onPress={() => navigation.navigate('Settings')}
               >
                 <Ionicons name="settings" size={24} color={colors.text.muted} />
-                <Text style={styles.footerButtonText}>Configurar</Text>
+                <Text style={styles.footerButtonText}>Configuración</Text>
               </TouchableOpacity>
             </>
           )}
@@ -1563,12 +1509,12 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   centerStatusSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: colors.shadow.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1577,11 +1523,23 @@ const styles = StyleSheet.create({
   statusSectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 12,
   },
   statusContainer: {
     alignItems: 'center',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    gap: 6,
+  },
+  statusBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   statusButtonsContainer: {
     flexDirection: 'row',
@@ -1636,10 +1594,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   promotionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: colors.shadow.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1656,12 +1614,12 @@ const styles = StyleSheet.create({
   promotionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 2,
   },
   promotionSubtitle: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   sliderContainer: {
     alignItems: 'center',
@@ -1753,6 +1711,102 @@ const styles = StyleSheet.create({
     color: colors.text.muted,
     marginTop: 4,
     textAlign: 'center',
+  },
+  // Estilos para rutas destacadas
+  featuredRoutesSection: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  featuredRoutesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  featuredRoutesTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text.primary,
+  },
+  seeAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  featuredRoutesScroll: {
+    paddingRight: 20,
+  },
+  featuredRouteCard: {
+    width: 160,
+    marginRight: 16,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    shadowColor: colors.shadow.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: 'hidden',
+  },
+  featuredRouteImageContainer: {
+    height: 100,
+    position: 'relative',
+  },
+  featuredRouteImage: {
+    width: '100%',
+    height: '100%',
+  },
+  featuredRouteNoImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  featuredRouteOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: 8,
+  },
+  featuredRouteStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  featuredRouteStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  featuredRouteStatText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  featuredRouteInfo: {
+    padding: 12,
+  },
+  featuredRouteTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 4,
+  },
+  featuredRouteAuthor: {
+    fontSize: 12,
+    color: colors.text.muted,
+    marginBottom: 8,
+  },
+  featuredRouteRating: {
+    flexDirection: 'row',
+    gap: 2,
   },
 });
 

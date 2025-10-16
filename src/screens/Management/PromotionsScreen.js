@@ -30,6 +30,7 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig';
+import { colors } from '../../config/colors';
 
 const PromotionsScreen = ({ navigation }) => {
   const { user: authUser } = useAuth();
@@ -66,9 +67,9 @@ const PromotionsScreen = ({ navigation }) => {
   });
 
   const tiposPromocion = [
-    { id: 'percentage', nombre: 'Descuento Porcentual', icon: 'pricetag', color: '#3B82F6' },
-    { id: 'fixed', nombre: 'Descuento Fijo', icon: 'cash', color: '#F59E0B' },
-    { id: 'special', nombre: 'Oferta Especial', icon: 'gift', color: '#10B981' },
+    { id: 'percentage', nombre: 'Descuento Porcentual', icon: 'pricetag', color: colors.primary },
+    { id: 'fixed', nombre: 'Descuento Fijo', icon: 'cash', color: colors.warning },
+    { id: 'special', nombre: 'Oferta Especial', icon: 'gift', color: colors.success },
   ];
 
   const tabs = [
@@ -663,13 +664,13 @@ const PromotionsScreen = ({ navigation }) => {
             style={styles.actionButton}
             onPress={() => handleSharePromotion(item)}
           >
-            <Ionicons name="share" size={20} color="#4ADE80" />
+            <Ionicons name="share" size={20} color={colors.success} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => handleDeletePromotion(item.id)}
           >
-            <Ionicons name="trash" size={20} color="#EF4444" />
+            <Ionicons name="trash" size={20} color={colors.error} />
           </TouchableOpacity>
         </View>
         </View>
@@ -717,8 +718,8 @@ const PromotionsScreen = ({ navigation }) => {
             style={styles.actionButton}
             onPress={() => handleEditPromotion(item)}
           >
-            <Ionicons name="create" size={16} color="#F59E0B" />
-            <Text style={[styles.actionText, { color: '#F59E0B' }]}>Editar</Text>
+            <Ionicons name="create" size={16} color={colors.warning} />
+            <Text style={[styles.actionText, { color: colors.warning }]}>Editar</Text>
           </TouchableOpacity>
       </View>
     </View>
@@ -767,7 +768,7 @@ const PromotionsScreen = ({ navigation }) => {
                 }
               }}
             >
-              <Ionicons name="close" size={24} color="#1F2937" />
+              <Ionicons name="close" size={24} color={colors.text.primary} />
             </TouchableOpacity>
           <Text style={styles.modalTitle}>Crear Promoción</Text>
           <TouchableOpacity 
@@ -776,7 +777,7 @@ const PromotionsScreen = ({ navigation }) => {
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color={colors.text.primary} />
             ) : (
               <Text style={styles.saveButtonText}>Guardar</Text>
             )}
@@ -791,6 +792,7 @@ const PromotionsScreen = ({ navigation }) => {
               value={newPromotion.titulo}
               onChangeText={(text) => setNewPromotion({...newPromotion, titulo: text})}
               placeholder="Ej: Descuento de Verano"
+              placeholderTextColor={colors.text.muted}
             />
             </View>
 
@@ -801,6 +803,7 @@ const PromotionsScreen = ({ navigation }) => {
               value={newPromotion.descripcion}
               onChangeText={(text) => setNewPromotion({...newPromotion, descripcion: text})}
               placeholder="Describe tu promoción..."
+              placeholderTextColor={colors.text.muted}
               multiline
               numberOfLines={3}
             />
@@ -822,7 +825,7 @@ const PromotionsScreen = ({ navigation }) => {
                         {selectedProduct?.imagen ? (
                           <Image source={{ uri: selectedProduct.imagen }} style={styles.selectedProductImagePreview} />
                         ) : (
-                          <Ionicons name="cube" size={24} color="#6B7280" />
+                          <Ionicons name="cube" size={24} color={colors.text.muted} />
                         )}
                       </View>
                       <View style={styles.selectedProductInfo}>
@@ -838,7 +841,7 @@ const PromotionsScreen = ({ navigation }) => {
                         style={styles.changeProductButton}
                         onPress={() => setShowProductSelector(true)}
                       >
-                        <Ionicons name="swap-horizontal" size={20} color="#4ADE80" />
+                        <Ionicons name="swap-horizontal" size={20} color={colors.success} />
                         <Text style={styles.changeProductText}>Cambiar</Text>
                       </TouchableOpacity>
                     </View>
@@ -850,7 +853,7 @@ const PromotionsScreen = ({ navigation }) => {
                 style={styles.selectProductButton}
                 onPress={() => setShowProductSelector(true)}
               >
-                <Ionicons name="cube" size={32} color="#6B7280" />
+                <Ionicons name="cube" size={32} color={colors.text.muted} />
                 <Text style={styles.selectProductText}>Seleccionar Producto</Text>
                 <Text style={styles.selectProductSubtext}>Toca para elegir de tus productos</Text>
               </TouchableOpacity>
@@ -895,6 +898,7 @@ const PromotionsScreen = ({ navigation }) => {
                 value={newPromotion.descuento}
                 onChangeText={(text) => setNewPromotion({...newPromotion, descuento: text})}
                 placeholder={newPromotion.tipo === 'percentage' ? '30' : '50'}
+                placeholderTextColor={colors.text.muted}
                 keyboardType="numeric"
               />
             </View>
@@ -904,7 +908,7 @@ const PromotionsScreen = ({ navigation }) => {
           <View style={styles.formGroup}>
             <View style={styles.dateSectionContainer}>
               <View style={styles.dateSectionHeader}>
-                <Ionicons name="calendar-outline" size={20} color="#4ADE80" />
+                <Ionicons name="calendar-outline" size={20} color={colors.success} />
                 <Text style={styles.dateSectionTitle}>Establecer fechas</Text>
               </View>
               
@@ -918,11 +922,11 @@ const PromotionsScreen = ({ navigation }) => {
                       setShowStartDatePicker(true);
                     }}
                   >
-                    <Ionicons name="calendar" size={18} color="#4ADE80" />
+                    <Ionicons name="calendar" size={18} color={colors.success} />
                     <Text style={styles.dateText}>
                       {formatDate(newPromotion.fechaInicio)}
                     </Text>
-                    <Ionicons name="chevron-down" size={18} color="#6B7280" />
+                    <Ionicons name="chevron-down" size={18} color={colors.text.muted} />
                   </TouchableOpacity>
                 </View>
                 
@@ -935,11 +939,11 @@ const PromotionsScreen = ({ navigation }) => {
                       setShowEndDatePicker(true);
                     }}
                   >
-                    <Ionicons name="calendar" size={18} color="#4ADE80" />
+                    <Ionicons name="calendar" size={18} color={colors.success} />
                     <Text style={styles.dateText}>
                       {formatDate(newPromotion.fechaFin)}
                     </Text>
-                    <Ionicons name="chevron-down" size={18} color="#6B7280" />
+                    <Ionicons name="chevron-down" size={18} color={colors.text.muted} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1007,6 +1011,7 @@ const PromotionsScreen = ({ navigation }) => {
                   value={newPromotion.limiteUsos}
                   onChangeText={(text) => setNewPromotion({...newPromotion, limiteUsos: text})}
                   placeholder="100"
+                  placeholderTextColor={colors.text.muted}
                   keyboardType="numeric"
                 />
                 <Text style={styles.limitHelpText}>
@@ -1051,7 +1056,7 @@ const PromotionsScreen = ({ navigation }) => {
                 setShowEditModal(false);
               }
             }}>
-              <Ionicons name="close" size={24} color="#1F2937" />
+              <Ionicons name="close" size={24} color={colors.text.primary} />
             </TouchableOpacity>
           <Text style={styles.modalTitle}>Editar Promoción</Text>
           <TouchableOpacity 
@@ -1060,7 +1065,7 @@ const PromotionsScreen = ({ navigation }) => {
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color={colors.text.primary} />
             ) : (
               <Text style={styles.saveButtonText}>Guardar</Text>
             )}
@@ -1075,6 +1080,7 @@ const PromotionsScreen = ({ navigation }) => {
               value={editingPromotion?.titulo || ''}
               onChangeText={(text) => setEditingPromotion({...editingPromotion, titulo: text})}
               placeholder="Ej: Descuento de Verano"
+              placeholderTextColor={colors.text.muted}
             />
             </View>
 
@@ -1085,6 +1091,7 @@ const PromotionsScreen = ({ navigation }) => {
               value={editingPromotion?.descripcion || ''}
               onChangeText={(text) => setEditingPromotion({...editingPromotion, descripcion: text})}
               placeholder="Describe tu promoción..."
+              placeholderTextColor={colors.text.muted}
               multiline
               numberOfLines={3}
             />
@@ -1106,7 +1113,7 @@ const PromotionsScreen = ({ navigation }) => {
                         {selectedProduct?.imagen ? (
                           <Image source={{ uri: selectedProduct.imagen }} style={styles.selectedProductImagePreview} />
                         ) : (
-                          <Ionicons name="cube" size={24} color="#6B7280" />
+                          <Ionicons name="cube" size={24} color={colors.text.muted} />
                         )}
                       </View>
                       <View style={styles.selectedProductInfo}>
@@ -1122,7 +1129,7 @@ const PromotionsScreen = ({ navigation }) => {
                         style={styles.changeProductButton}
                         onPress={() => setShowProductSelector(true)}
                       >
-                        <Ionicons name="swap-horizontal" size={20} color="#4ADE80" />
+                        <Ionicons name="swap-horizontal" size={20} color={colors.success} />
                         <Text style={styles.changeProductText}>Cambiar</Text>
                       </TouchableOpacity>
                     </View>
@@ -1134,7 +1141,7 @@ const PromotionsScreen = ({ navigation }) => {
                 style={styles.selectProductButton}
                 onPress={() => setShowProductSelector(true)}
               >
-                <Ionicons name="cube" size={32} color="#6B7280" />
+                <Ionicons name="cube" size={32} color={colors.text.muted} />
                 <Text style={styles.selectProductText}>Seleccionar Producto</Text>
                 <Text style={styles.selectProductSubtext}>Toca para elegir de tus productos</Text>
               </TouchableOpacity>
@@ -1179,6 +1186,7 @@ const PromotionsScreen = ({ navigation }) => {
                 value={editingPromotion?.descuento || ''}
                 onChangeText={(text) => setEditingPromotion({...editingPromotion, descuento: text})}
                 placeholder={editingPromotion?.tipo === 'percentage' ? '30' : '50'}
+                placeholderTextColor={colors.text.muted}
                 keyboardType="numeric"
               />
             </View>
@@ -1188,7 +1196,7 @@ const PromotionsScreen = ({ navigation }) => {
           <View style={styles.formGroup}>
             <View style={styles.dateSectionContainer}>
               <View style={styles.dateSectionHeader}>
-                <Ionicons name="calendar-outline" size={20} color="#4ADE80" />
+                <Ionicons name="calendar-outline" size={20} color={colors.success} />
                 <Text style={styles.dateSectionTitle}>Establecer fechas</Text>
               </View>
               
@@ -1202,11 +1210,11 @@ const PromotionsScreen = ({ navigation }) => {
                       setShowEditStartDatePicker(true);
                     }}
                   >
-                    <Ionicons name="calendar" size={18} color="#4ADE80" />
+                    <Ionicons name="calendar" size={18} color={colors.success} />
                     <Text style={styles.dateText}>
                       {formatDate(editingPromotion?.fechaInicio)}
                     </Text>
-                    <Ionicons name="chevron-down" size={18} color="#6B7280" />
+                    <Ionicons name="chevron-down" size={18} color={colors.text.muted} />
                   </TouchableOpacity>
                 </View>
                 
@@ -1219,11 +1227,11 @@ const PromotionsScreen = ({ navigation }) => {
                       setShowEditEndDatePicker(true);
                     }}
                   >
-                    <Ionicons name="calendar" size={18} color="#4ADE80" />
+                    <Ionicons name="calendar" size={18} color={colors.success} />
                     <Text style={styles.dateText}>
                       {formatDate(editingPromotion?.fechaFin)}
                     </Text>
-                    <Ionicons name="chevron-down" size={18} color="#6B7280" />
+                    <Ionicons name="chevron-down" size={18} color={colors.text.muted} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1291,6 +1299,7 @@ const PromotionsScreen = ({ navigation }) => {
                   value={editingPromotion?.limiteUsos || ''}
                   onChangeText={(text) => setEditingPromotion({...editingPromotion, limiteUsos: text})}
                   placeholder="100"
+                  placeholderTextColor={colors.text.muted}
                   keyboardType="numeric"
                 />
                 <Text style={styles.limitHelpText}>
@@ -1305,7 +1314,7 @@ const PromotionsScreen = ({ navigation }) => {
         {saving && (
           <View style={styles.loadingOverlay}>
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#4ADE80" />
+              <ActivityIndicator size="large" color={colors.success} />
               <Text style={styles.loadingText}>Actualizando promociones...</Text>
             </View>
           </View>
@@ -1335,20 +1344,20 @@ const PromotionsScreen = ({ navigation }) => {
           {/* Barra de búsqueda */}
           <View style={styles.searchContainer}>
             <View style={styles.searchInputContainer}>
-              <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
+              <Ionicons name="search" size={20} color={colors.text.muted} style={styles.searchIcon} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Buscar productos..."
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.text.muted}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity
                   style={styles.clearSearchButton}
                   onPress={() => setSearchQuery('')}
                 >
-                  <Ionicons name="close-circle" size={20} color="#6B7280" />
+                  <Ionicons name="close-circle" size={20} color={colors.text.muted} />
                 </TouchableOpacity>
               )}
             </View>
@@ -1408,7 +1417,7 @@ const PromotionsScreen = ({ navigation }) => {
                   value={priceRange.min}
                   onChangeText={(text) => setPriceRange({...priceRange, min: text})}
                   keyboardType="numeric"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={colors.text.muted}
                 />
                 <Text style={styles.priceSeparator}>-</Text>
                 <TextInput
@@ -1417,7 +1426,7 @@ const PromotionsScreen = ({ navigation }) => {
                   value={priceRange.max}
                   onChangeText={(text) => setPriceRange({...priceRange, max: text})}
                   keyboardType="numeric"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={colors.text.muted}
                 />
               </View>
             </View>
@@ -1428,7 +1437,7 @@ const PromotionsScreen = ({ navigation }) => {
                 style={styles.clearFiltersButton}
                 onPress={clearFilters}
               >
-                <Ionicons name="refresh" size={16} color="#6B7280" />
+                <Ionicons name="refresh" size={16} color={colors.text.muted} />
                 <Text style={styles.clearFiltersText}>Limpiar filtros</Text>
               </TouchableOpacity>
             )}
@@ -1437,7 +1446,7 @@ const PromotionsScreen = ({ navigation }) => {
           {/* Lista de productos filtrados */}
           {getFilteredProducts().length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="cube-outline" size={64} color="#9CA3AF" />
+              <Ionicons name="cube-outline" size={64} color={colors.text.muted} />
               <Text style={styles.emptyStateTitle}>
                 {products.length === 0 ? 'No hay productos' : 'No se encontraron productos'}
               </Text>
@@ -1468,7 +1477,7 @@ const PromotionsScreen = ({ navigation }) => {
                       {product.imagen ? (
                         <Image source={{ uri: product.imagen }} style={styles.productOptionImagePreview} />
                       ) : (
-                        <Ionicons name="cube" size={24} color="#6B7280" />
+                        <Ionicons name="cube" size={24} color={colors.text.muted} />
                       )}
                     </View>
                     <View style={styles.productOptionInfo}>
@@ -1481,7 +1490,7 @@ const PromotionsScreen = ({ navigation }) => {
                       )}
                     </View>
                     {newPromotion.productoId === product.id && (
-                      <Ionicons name="checkmark-circle" size={24} color="#4ADE80" />
+                      <Ionicons name="checkmark-circle" size={24} color={colors.success} />
                     )}
                   </TouchableOpacity>
                 );
@@ -1513,7 +1522,7 @@ const PromotionsScreen = ({ navigation }) => {
           style={styles.backButton}
           onPress={handleBackPress}
         >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Promociones</Text>
         <View style={styles.headerRight} />
@@ -1570,7 +1579,7 @@ const PromotionsScreen = ({ navigation }) => {
       {/* Promotions List */}
       {filteredPromotions.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="gift" size={64} color="#D1D5DB" />
+          <Ionicons name="gift" size={64} color={colors.text.muted} />
           <Text style={styles.emptyTitle}>No hay promociones</Text>
           <Text style={styles.emptySubtitle}>
             {selectedTab === 'active' ? 'Crea tu primera promoción activa' :
@@ -1593,7 +1602,7 @@ const PromotionsScreen = ({ navigation }) => {
         style={styles.fab}
         onPress={() => setShowCreateModal(true)}
       >
-        <Ionicons name="add" size={24} color="#FFFFFF" />
+        <Ionicons name="add" size={24} color={colors.text.primary} />
       </TouchableOpacity>
 
       {renderCreateModal()}
@@ -1708,7 +1717,7 @@ const PromotionsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   loadingContainer: {
     flex: 1,
@@ -1730,7 +1739,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
   },
   // Product selector styles
   selectedProductContainer: {
@@ -1739,17 +1748,17 @@ const styles = StyleSheet.create({
   selectedProductCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.background,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   selectedProductImage: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1765,55 +1774,55 @@ const styles = StyleSheet.create({
   selectedProductName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   selectedProductService: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 4,
   },
   selectedProductPrice: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#059669',
+    color: colors.success,
   },
   changeProductButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: colors.background,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: colors.success,
   },
   changeProductText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#059669',
+    color: colors.success,
     marginLeft: 4,
   },
   selectProductButton: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.background,
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderStyle: 'dashed',
   },
   selectProductText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 8,
     marginBottom: 4,
   },
   selectProductSubtext: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.text.muted,
   },
   // Product selector modal styles
   productsList: {
@@ -1822,22 +1831,22 @@ const styles = StyleSheet.create({
   productOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   selectedProductOption: {
-    borderColor: '#4ADE80',
-    backgroundColor: '#F0FDF4',
+    borderColor: colors.success,
+    backgroundColor: colors.background,
   },
   productOptionImage: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -1853,12 +1862,12 @@ const styles = StyleSheet.create({
   productOptionName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   productOptionService: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 4,
   },
   productOptionPrice: {
@@ -1870,12 +1879,12 @@ const styles = StyleSheet.create({
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     borderRadius: 12,
     paddingHorizontal: 12,
     borderWidth: 1,
@@ -1888,17 +1897,17 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#1F2937',
+    color: colors.text.primary,
   },
   clearSearchButton: {
     padding: 4,
   },
   filtersContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   categoriesScrollView: {
     marginBottom: 12,
@@ -1912,19 +1921,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     marginRight: 8,
   },
   activeCategoryFilter: {
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.success,
     borderColor: '#4ADE80',
   },
   categoryFilterText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginLeft: 4,
     marginRight: 6,
   },
@@ -1945,7 +1954,7 @@ const styles = StyleSheet.create({
   categoryFilterBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   activeCategoryFilterBadgeText: {
     color: '#FFFFFF',
@@ -1958,7 +1967,7 @@ const styles = StyleSheet.create({
   priceFilterLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginRight: 12,
   },
   priceInputsContainer: {
@@ -1968,12 +1977,12 @@ const styles = StyleSheet.create({
   },
   priceInput: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 14,
-    color: '#1F2937',
+    color: colors.text.primary,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     textAlign: 'center',
@@ -1981,14 +1990,14 @@ const styles = StyleSheet.create({
   priceSeparator: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginHorizontal: 8,
   },
   clearFiltersButton: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -1998,7 +2007,7 @@ const styles = StyleSheet.create({
   clearFiltersText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginLeft: 4,
   },
   header: {
@@ -2007,19 +2016,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   backButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginLeft: 12,
     flex: 1,
   },
@@ -2033,7 +2042,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   statCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 10,
@@ -2050,21 +2059,21 @@ const styles = StyleSheet.create({
   statNumber: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
     lineHeight: 22,
   },
   statLabel: {
     fontSize: 10,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 2,
     textAlign: 'center',
   },
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   tab: {
     flex: 1,
@@ -2075,12 +2084,12 @@ const styles = StyleSheet.create({
   },
   selectedTab: {
     borderBottomWidth: 2,
-    borderBottomColor: '#4ADE80',
+    borderBottomColor: colors.success,
   },
   tabText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   selectedTabText: {
     color: '#4ADE80',
@@ -2089,7 +2098,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.success,
     borderRadius: 10,
   },
   badgeText: {
@@ -2109,7 +2118,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 16,
   },
   emptySubtitle: {
@@ -2120,7 +2129,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   promotionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     marginBottom: 16,
     padding: 16,
@@ -2155,12 +2164,12 @@ const styles = StyleSheet.create({
   promotionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 2,
   },
   promotionType: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     textTransform: 'uppercase',
     fontWeight: '500',
   },
@@ -2169,7 +2178,7 @@ const styles = StyleSheet.create({
   },
   promotionDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 16,
     lineHeight: 20,
   },
@@ -2184,11 +2193,11 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 2,
   },
   progressContainer: {
@@ -2196,18 +2205,18 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 6,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     borderRadius: 3,
     marginBottom: 4,
   },
   progress: {
     height: 6,
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.success,
     borderRadius: 3,
   },
   progressText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'right',
   },
   promotionActions: {
@@ -2234,7 +2243,7 @@ const styles = StyleSheet.create({
     right: 20,
     width: 56,
     height: 56,
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.success,
     borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2246,7 +2255,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -2254,17 +2263,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   closeButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginLeft: 12,
     flex: 1,
   },
@@ -2274,14 +2283,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.success,
     marginLeft: 'auto',
   },
   saveButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.success,
     alignItems: 'center',
   },
   saveButtonText: {
@@ -2302,17 +2311,17 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   textArea: {
     height: 80,
@@ -2331,17 +2340,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     minWidth: '45%',
   },
   tipoOptionSelected: {
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.success,
     borderColor: '#4ADE80',
   },
   tipoText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginLeft: 8,
   },
   tipoTextSelected: {
@@ -2350,16 +2359,16 @@ const styles = StyleSheet.create({
   // Estilos para el sistema de fechas
   labelSubtext: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 12,
     marginTop: -4,
   },
   dateSectionContainer: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -2374,7 +2383,7 @@ const styles = StyleSheet.create({
   dateSectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginLeft: 12,
   },
   dateContainer: {
@@ -2386,7 +2395,7 @@ const styles = StyleSheet.create({
   },
   dateLabel: {
     fontSize: 13,
-    color: '#475569',
+    color: colors.text.muted,
     marginBottom: 10,
     fontWeight: '600',
     textTransform: 'uppercase',
@@ -2398,9 +2407,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -2410,7 +2419,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 15,
-    color: '#1F2937',
+    color: colors.text.primary,
     fontWeight: '600',
     flex: 1,
     marginLeft: 12,
@@ -2433,16 +2442,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   usageButtonSelected: {
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.success,
     borderColor: '#4ADE80',
   },
   usageText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginLeft: 8,
   },
   usageTextSelected: {
@@ -2459,7 +2468,7 @@ const styles = StyleSheet.create({
   limitLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 8,
   },
   limitInput: {
@@ -2469,12 +2478,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     marginBottom: 8,
   },
   limitHelpText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     fontStyle: 'italic',
   },
   // Estilos para los date pickers
@@ -2485,7 +2494,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   datePickerContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 20,
     width: '80%',
@@ -2494,7 +2503,7 @@ const styles = StyleSheet.create({
   datePickerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -2505,7 +2514,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -2520,17 +2529,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     alignItems: 'center',
   },
   datePickerButtonPrimary: {
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.success,
     borderColor: '#4ADE80',
   },
   datePickerButtonText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   datePickerButtonTextPrimary: {
     color: '#FFFFFF',
@@ -2544,7 +2553,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   modernDatePickerContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 0,
     width: '90%',
@@ -2568,7 +2577,7 @@ const styles = StyleSheet.create({
   modernDatePickerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
   },
   modernDatePickerClose: {
     padding: 4,
@@ -2576,7 +2585,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
   },
   modernDateTimePicker: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     margin: 20,
     shadowColor: '#000',
@@ -2596,7 +2605,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   changeImageButton: {
     position: 'absolute',
@@ -2637,7 +2646,7 @@ const styles = StyleSheet.create({
   addImageText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 8,
   },
   addImageSubtext: {
@@ -2655,7 +2664,7 @@ const styles = StyleSheet.create({
   promotionImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   promotionActions: {
     flexDirection: 'row',

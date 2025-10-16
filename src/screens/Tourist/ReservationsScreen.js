@@ -211,19 +211,32 @@ const ReservationsScreen = ({ navigation }) => {
       onPress={() => handleCenterSelect(center)}
     >
       <Image
-        source={{ uri: center.logotipo || center.imagenPerfil }}
+        source={{ 
+          uri: center.imagenPerfil || center.logotipo || center.imagenPrincipal || center.fotoPrincipal || center.image
+        }}
         style={styles.centerImage}
         defaultSource={require('../../../assets/icon.png')}
       />
       <View style={styles.centerInfo}>
-        <Text style={styles.centerName}>{center.nombre}</Text>
-        <Text style={styles.centerDescription} numberOfLines={2}>
-          {center.descripcion}
+        <Text style={styles.centerName}>
+          {center.nombreNegocio || center.nombre || center.businessName || 'Centro Turístico'}
         </Text>
-        <View style={styles.centerRating}>
-          <Ionicons name="star" size={16} color="#F59E0B" />
-          <Text style={styles.ratingText}>4.5</Text>
-          <Text style={styles.ratingCount}>(12 reseñas)</Text>
+        <Text style={styles.centerDescription} numberOfLines={2}>
+          {center.description || center.descripcion || 'Sin descripción'}
+        </Text>
+        <View style={styles.centerContact}>
+          {center.telefono && (
+            <View style={styles.contactItem}>
+              <Ionicons name="call" size={14} color="#10B981" />
+              <Text style={styles.contactText}>{center.telefono}</Text>
+            </View>
+          )}
+          {center.departamento && (
+            <View style={styles.contactItem}>
+              <Ionicons name="location" size={14} color="#6B7280" />
+              <Text style={styles.contactText}>{center.departamento}</Text>
+            </View>
+          )}
         </View>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
@@ -376,7 +389,9 @@ const ReservationsScreen = ({ navigation }) => {
             >
               <Ionicons name="close" size={24} color="#1F2937" />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Servicios de {selectedCenter?.nombre}</Text>
+            <Text style={styles.modalTitle}>
+              Servicios de {selectedCenter?.nombreNegocio || selectedCenter?.nombre || selectedCenter?.businessName || 'Centro'}
+            </Text>
             <View style={styles.modalRight} />
           </View>
           
@@ -548,9 +563,18 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 8,
   },
-  centerRating: {
+  centerContact: {
+    marginTop: 4,
+  },
+  contactItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 2,
+  },
+  contactText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginLeft: 4,
   },
   ratingText: {
     fontSize: 14,

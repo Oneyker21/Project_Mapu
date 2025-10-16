@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
+import { colors } from '../../config/colors';
 
 const ServicesMainScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -128,7 +129,7 @@ const ServicesMainScreen = ({ navigation }) => {
           onPress={() => setShowTypeModal(true)}
         >
           <View style={styles.typeCardContent}>
-            <Ionicons name="add-circle" size={48} color="#9CA3AF" />
+            <Ionicons name="add-circle" size={48} color={colors.text.muted} />
             <Text style={styles.typeCardTitle}>Seleccionar Tipo de Centro</Text>
             <Text style={styles.typeCardSubtitle}>
               Configura qué tipo de servicios ofreces
@@ -165,7 +166,7 @@ const ServicesMainScreen = ({ navigation }) => {
     if (!servicios.tipoCentro) {
       return (
         <View style={styles.emptyState}>
-          <Ionicons name="list" size={64} color="#9CA3AF" />
+          <Ionicons name="list" size={64} color={colors.text.muted} />
           <Text style={styles.emptyStateTitle}>Configura tu tipo de centro</Text>
           <Text style={styles.emptyStateSubtitle}>
             Selecciona el tipo de centro para comenzar a agregar servicios
@@ -183,7 +184,7 @@ const ServicesMainScreen = ({ navigation }) => {
         
         {/* Aquí irán las categorías de servicios */}
         <View style={styles.emptyServices}>
-          <Ionicons name="add-circle-outline" size={48} color="#3B82F6" />
+          <Ionicons name="add-circle-outline" size={48} color={colors.primary} />
           <Text style={styles.emptyServicesTitle}>Agregar Primer Servicio</Text>
           <Text style={styles.emptyServicesSubtitle}>
             Comienza agregando servicios a tu centro
@@ -199,7 +200,7 @@ const ServicesMainScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando servicios...</Text>
       </View>
     );
@@ -217,7 +218,7 @@ const ServicesMainScreen = ({ navigation }) => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Servicios y Costos</Text>
           <View style={styles.headerRight} />
@@ -251,7 +252,7 @@ const ServicesMainScreen = ({ navigation }) => {
                   onPress={() => setShowTypeModal(false)}
                   style={styles.modalCloseButton}
                 >
-                  <Ionicons name="close" size={24} color="#6B7280" />
+                  <Ionicons name="close" size={24} color={colors.text.muted} />
                 </TouchableOpacity>
               </View>
               
@@ -287,7 +288,7 @@ const ServicesMainScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   keyboardView: {
     flex: 1,
@@ -296,12 +297,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   header: {
     flexDirection: 'row',
@@ -309,9 +310,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   backButton: {
     padding: 8,
@@ -319,7 +320,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginLeft: 12,
     flex: 1,
   },
@@ -336,19 +337,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 8,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 16,
   },
   typeCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     padding: 24,
     alignItems: 'center',
   },
@@ -358,13 +359,13 @@ const styles = StyleSheet.create({
   typeCardTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginTop: 16,
     marginBottom: 8,
   },
   typeCardSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -372,7 +373,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   changeTypeText: {
     fontSize: 14,
@@ -385,18 +386,18 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
     lineHeight: 20,
   },
   serviciosSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
   },
@@ -407,24 +408,24 @@ const styles = StyleSheet.create({
   emptyServicesTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyServicesSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
     marginBottom: 24,
   },
   addServiceButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
   },
   addServiceButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -436,7 +437,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     width: '100%',
     maxHeight: '80%',
@@ -447,12 +448,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
   },
   modalCloseButton: {
     padding: 4,
@@ -465,7 +466,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 12,
     marginBottom: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   typeOptionContent: {
     flexDirection: 'row',
@@ -483,7 +484,7 @@ const styles = StyleSheet.create({
   },
   typeOptionDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
 });
 

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
+import { colors } from '../../config/colors';
 
 const CreateRouteScreen = ({ navigation }) => {
   const [centers, setCenters] = useState([]);
@@ -151,7 +152,7 @@ const CreateRouteScreen = ({ navigation }) => {
           isSelected && styles.checkedBox
         ]}>
           {isSelected && (
-            <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+            <Ionicons name="checkmark" size={16} color={colors.text.primary} />
           )}
         </View>
       </TouchableOpacity>
@@ -166,7 +167,7 @@ const CreateRouteScreen = ({ navigation }) => {
         onPress={() => toggleCenterSelection(item)}
         style={styles.removeButton}
       >
-        <Ionicons name="close" size={16} color="#EF4444" />
+        <Ionicons name="close" size={16} color={colors.error} />
       </TouchableOpacity>
     </View>
   );
@@ -178,7 +179,7 @@ const CreateRouteScreen = ({ navigation }) => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#3B82F6" />
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Crear Ruta</Text>
         {selectedCenters.length > 0 && (
@@ -260,16 +261,16 @@ const CreateRouteScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   backButton: {
     marginRight: 12,
@@ -278,17 +279,17 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: colors.text.primary,
     flex: 1,
   },
   createButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   createButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontWeight: '600',
   },
   content: {
@@ -301,7 +302,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 16,
   },
   selectedList: {
@@ -310,19 +311,19 @@ const styles = StyleSheet.create({
   selectedCenterItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 8,
   },
   selectedCenterNumber: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontWeight: 'bold',
     marginRight: 8,
   },
   selectedCenterName: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 14,
     marginRight: 8,
     maxWidth: 120,
@@ -339,15 +340,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   selectedCenterItem: {
-    backgroundColor: '#EBF4FF',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.background,
+    borderColor: colors.primary,
   },
   centerInfo: {
     flex: 1,
@@ -360,7 +361,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#EBF4FF',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -371,31 +372,31 @@ const styles = StyleSheet.create({
   centerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   centerCategory: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   selectedCenterText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   selectedCenterSubtext: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: colors.text.muted,
   },
   checkbox: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkedBox: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   modalOverlay: {
     flex: 1,
@@ -404,7 +405,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 24,
     width: '90%',
@@ -413,18 +414,20 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 16,
     textAlign: 'center',
   },
   nameInput: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
     marginBottom: 24,
+    backgroundColor: colors.background,
+    color: colors.text.primary,
   },
   modalButtons: {
     flexDirection: 'row',
@@ -437,18 +440,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   cancelButton: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   saveButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   cancelButtonText: {
-    color: '#6B7280',
+    color: colors.text.muted,
     fontWeight: '600',
     textAlign: 'center',
   },
   saveButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontWeight: '600',
     textAlign: 'center',
   },

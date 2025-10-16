@@ -21,6 +21,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig';
+import { colors } from '../../config/colors';
 
 const { width } = Dimensions.get('window');
 
@@ -269,7 +270,7 @@ const StatisticsScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4ADE80" />
+          <ActivityIndicator size="large" color={colors.success} />
           <Text style={styles.loadingText}>Cargando estadísticas...</Text>
         </View>
       </SafeAreaView>
@@ -286,14 +287,14 @@ const StatisticsScreen = ({ navigation }) => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Estadísticas</Text>
           <View style={styles.headerRight} />
         </View>
         
         <View style={styles.emptyState}>
-          <Ionicons name="bar-chart-outline" size={64} color="#9CA3AF" />
+          <Ionicons name="bar-chart-outline" size={64} color={colors.text.muted} />
           <Text style={styles.emptyStateTitle}>No hay datos aún</Text>
           <Text style={styles.emptyStateText}>
             Agrega promociones, productos y servicios para ver estadísticas reales
@@ -392,11 +393,11 @@ const StatisticsScreen = ({ navigation }) => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Estadísticas</Text>
         <TouchableOpacity style={styles.exportButton}>
-          <Ionicons name="download" size={24} color="#6B7280" />
+          <Ionicons name="download" size={24} color={colors.text.muted} />
         </TouchableOpacity>
       </View>
 
@@ -471,7 +472,7 @@ const StatisticsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   safeAreaContent: {
     flex: 1,
@@ -482,19 +483,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   backButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginLeft: 12,
     flex: 1,
   },
@@ -509,7 +510,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 0,
     marginBottom: 0,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     borderRadius: 12,
     padding: 4,
   },
@@ -520,7 +521,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   selectedPeriod: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -530,10 +531,10 @@ const styles = StyleSheet.create({
   periodText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   selectedPeriodText: {
-    color: '#1F2937',
+    color: colors.text.primary,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -543,7 +544,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: (width - 48) / 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     margin: 4,
@@ -578,15 +579,15 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   statTitle: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   chartContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     margin: 16,
     borderRadius: 12,
     padding: 16,
@@ -599,12 +600,12 @@ const styles = StyleSheet.create({
   chartTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   chartSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 16,
   },
   chart: {
@@ -625,15 +626,15 @@ const styles = StyleSheet.create({
   barValue: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   barLabel: {
     fontSize: 10,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   servicesContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     margin: 16,
     borderRadius: 12,
     padding: 16,
@@ -646,7 +647,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 16,
   },
   serviceCard: {
@@ -669,16 +670,16 @@ const styles = StyleSheet.create({
   serviceName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
   },
   serviceDetails: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 2,
   },
   serviceProgress: {
     height: 4,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     borderRadius: 2,
     marginLeft: 24,
   },
@@ -687,7 +688,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   activityContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     margin: 16,
     borderRadius: 12,
     padding: 16,
@@ -714,11 +715,11 @@ const styles = StyleSheet.create({
   activityText: {
     flex: 1,
     fontSize: 14,
-    color: '#1F2937',
+    color: colors.text.primary,
   },
   activityTime: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   loadingContainer: {
     flex: 1,
@@ -728,7 +729,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 16,
     textAlign: 'center',
   },
@@ -741,26 +742,26 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyStateText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
   },
   emptyStateButton: {
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.success,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
   },
   emptyStateButtonText: {
-    color: 'white',
+    color: colors.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },

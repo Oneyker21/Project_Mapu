@@ -17,11 +17,16 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 
 const RouteNavigationScreen = ({ navigation, route }) => {
-  const { route: routeCenters, currentIndex = 0, userLocation: passedUserLocation } = route.params;
+  const { route: routeCenters, currentIndex = 0, userLocation: passedUserLocation, transportMode = 'driving' } = route.params;
   const mapRef = useRef(null);
   
   const [userLocation, setUserLocation] = useState(passedUserLocation);
-  const [currentCenter, setCurrentCenter] = useState(routeCenters[currentIndex + 1]);
+  const [currentDestinationIndex, setCurrentDestinationIndex] = useState(0);
+  const [currentCenter, setCurrentCenter] = useState(() => {
+    // Siempre empezar con el primer centro real (no el punto de inicio)
+    const selectedCenters = (routeCenters || []).filter(c => c && c.id !== 'start' && c.coordinate);
+    return selectedCenters[0] || null;
+  });
   const [routePolyline, setRoutePolyline] = useState([]);
   const [loading, setLoading] = useState(false);
   const [heading, setHeading] = useState(0); // Dirección del usuario
@@ -33,6 +38,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   const rotationAnim = useRef(new Animated.Value(0)).current;
   const [navigating, setNavigating] = useState(false);
   const [centers, setCenters] = useState([]);
+  const [routeCompleted, setRouteCompleted] = useState(false);
 
   useEffect(() => {
     if (userLocation && currentCenter) {
@@ -241,6 +247,126 @@ const RouteNavigationScreen = ({ navigation, route }) => {
     );
   };
 
+  // Ir al siguiente destino
+  const goToNextDestination = () => {
+    const nextIndex = currentDestinationIndex + 1;
+    const selectedCenters = (routeCenters || []).filter(c => c && c.id !== 'start' && c.coordinate);
+    
+    if (nextIndex < selectedCenters.length) {
+      setCurrentDestinationIndex(nextIndex);
+      setCurrentCenter(selectedCenters[nextIndex]);
+      setNavigating(false); // Resetear navegación para el nuevo destino
+      
+      Alert.alert(
+        'Siguiente Destino',
+        `Ahora te diriges a ${selectedCenters[nextIndex].businessName}`,
+        [
+          {
+            text: 'Continuar',
+            style: 'default'
+          }
+        ]
+      );
+    } else {
+      // Ruta completada
+      setRouteCompleted(true);
+      Alert.alert(
+        '¡Ruta Completada!',
+        'Has llegado a todos los destinos. ¿Cómo te pareció el recorrido?',
+        [
+          {
+            text: 'Evaluar Ruta',
+            style: 'default',
+            onPress: () => {
+              // Navegar a pantalla de evaluación
+              navigation.navigate('RouteEvaluation', {
+                routeCenters: routeCenters,
+                userLocation: userLocation,
+                transportMode: transportMode
+              });
+            }
+          }
+        ]
+      );
+    }
+  };
+
+  // Completar ruta actual
+  const completeCurrentDestination = () => {
+    const selectedCenters = (routeCenters || []).filter(c => c && c.id !== 'start' && c.coordinate);
+    
+    if (currentDestinationIndex < selectedCenters.length - 1) {
+      Alert.alert(
+        '¿Qué quieres hacer?',
+        `Has llegado a ${currentCenter?.businessName}. ¿Qué te gustaría hacer ahora?`,
+        [
+          {
+            text: 'Dar Reseña',
+            style: 'default',
+            onPress: () => {
+              // Navegar a pantalla de reseñas para este centro
+              navigation.navigate('Reviews', { 
+                center: currentCenter,
+                fromRoute: true,
+                routeData: {
+                  routeCenters: routeCenters,
+                  currentDestinationIndex: currentDestinationIndex,
+                  userLocation: userLocation,
+                  transportMode: transportMode
+                }
+              });
+            }
+          },
+          {
+            text: 'Omitir y Continuar',
+            style: 'default',
+            onPress: goToNextDestination
+          },
+          {
+            text: 'Seguir aquí',
+            style: 'cancel'
+          }
+        ]
+      );
+    } else {
+      // Último destino - completar ruta
+      Alert.alert(
+        '¡Último Destino Completado!',
+        `Has llegado a ${currentCenter?.businessName}. ¿Qué te gustaría hacer?`,
+        [
+          {
+            text: 'Dar Reseña',
+            style: 'default',
+            onPress: () => {
+              // Navegar a pantalla de reseñas para este centro
+              navigation.navigate('Reviews', { 
+                center: currentCenter,
+                fromRoute: true,
+                routeData: {
+                  routeCenters: routeCenters,
+                  currentDestinationIndex: currentDestinationIndex,
+                  userLocation: userLocation,
+                  transportMode: transportMode
+                }
+              });
+            }
+          },
+          {
+            text: 'Evaluar Ruta Completa',
+            style: 'default',
+            onPress: () => {
+              navigation.navigate('RouteEvaluation', {
+                routeCenters: routeCenters,
+                userLocation: userLocation,
+                transportMode: transportMode
+              });
+            }
+          }
+        ]
+      );
+    }
+  };
+
   // Calcular ruta usando Google Directions API
   const calculateRoute = async () => {
     if (!userLocation) return;
@@ -261,7 +387,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
 
       console.log('🗺️ Calculando ruta MULTI-STOP:', { origin, destination, waypointsCount: waypoints.length });
 
-      const routeCoordinates = await getGoogleDirections(origin, destination, waypoints);
+      const routeCoordinates = await getGoogleDirections(origin, destination, waypoints, transportMode);
 
       if (routeCoordinates && routeCoordinates.length > 0) {
         console.log('✅ Ruta obtenida de Google con', routeCoordinates.length, 'puntos');
@@ -293,7 +419,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   };
 
   // Obtener ruta real usando Google Directions API
-  const getGoogleDirections = async (origin, destination, waypointsArr = []) => {
+  const getGoogleDirections = async (origin, destination, waypointsArr = [], mode = 'driving') => {
     try {
       // Usar la API key del servicio de GoogleMaps
       const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
@@ -316,13 +442,13 @@ const RouteNavigationScreen = ({ navigation, route }) => {
         origin: origin,
         destination: destination,
         key: API_KEY,
-        mode: 'driving',
+        mode: mode, // Usar el modo de transporte seleccionado
         language: 'es',
         region: 'ni',
         alternatives: false,
-        avoid: 'tolls|ferries', // Evitar peajes y ferries para rutas más directas
+        avoid: mode === 'driving' ? 'tolls|ferries' : '', // Solo evitar peajes/ferries para coche
         units: 'metric',
-        traffic_model: 'best_guess',
+        traffic_model: mode === 'driving' ? 'best_guess' : '',
         departure_time: Math.floor(Date.now() / 1000).toString(), // Timestamp actual
         // Parámetros críticos para obtener rutas detalladas
         waypoints: waypointsParam
@@ -877,47 +1003,81 @@ const RouteNavigationScreen = ({ navigation, route }) => {
             </Marker>
           )}
 
-          {/* Línea de ruta */}
+          {/* Línea de ruta continua */}
           {routePolyline.length > 0 && (
             <Polyline
               coordinates={routePolyline}
               strokeColor="#3B82F6"
-              strokeWidth={8}
-              lineDashPattern={[20, 10]}
-              lineCap="butt"
+              strokeWidth={6}
+              lineCap="round"
               lineJoin="round"
+              strokePattern={null}
             />
           )}
 
         </MapView>
       </View>
 
+      {/* Información del progreso de la ruta */}
+      <View style={styles.routeProgress}>
+        <Text style={styles.progressText}>
+          Destino {currentDestinationIndex + 1} de {routeCenters.filter(c => c && c.id !== 'start' && c.coordinate).length}
+        </Text>
+        <Text style={styles.currentDestination}>
+          {currentCenter?.businessName || currentCenter?.nombreNegocio}
+        </Text>
+      </View>
+
       {/* Botones de acción */}
       <View style={styles.actionButtons}>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={getCurrentLocation}
-        >
-          <Ionicons name="locate" size={20} color="#3B82F6" />
-          <Text style={styles.actionButtonText}>Mi ubicación</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.actionButton, styles.primaryButton]}
-          onPress={navigating ? () => {
-            Alert.alert('Navegación', 'Ya estás navegando hacia el destino');
-          } : startRotationAnimation}
-          disabled={isRotating}
-        >
-          <Ionicons 
-            name={isRotating ? "refresh" : navigating ? "navigate" : "navigate"} 
-            size={20} 
-            color="#FFFFFF" 
-          />
-          <Text style={[styles.actionButtonText, styles.primaryButtonText]}>
-            {isRotating ? 'Girando...' : navigating ? 'Navegando...' : 'Iniciar Navegación'}
-          </Text>
-        </TouchableOpacity>
+        {navigating ? (
+          // Botones cuando está navegando
+          <>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={getCurrentLocation}
+            >
+              <Ionicons name="locate" size={20} color="#3B82F6" />
+              <Text style={styles.actionButtonText}>Mi ubicación</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.successButton]}
+              onPress={completeCurrentDestination}
+            >
+              <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+              <Text style={[styles.actionButtonText, styles.successButtonText]}>
+                Llegué aquí
+              </Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          // Botones cuando no está navegando
+          <>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={getCurrentLocation}
+            >
+              <Ionicons name="locate" size={20} color="#3B82F6" />
+              <Text style={styles.actionButtonText}>Mi ubicación</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.primaryButton]}
+              onPress={startRotationAnimation}
+              disabled={isRotating}
+            >
+              <Ionicons 
+                name={isRotating ? "refresh" : "navigate"} 
+                size={20} 
+                color="#FFFFFF" 
+              />
+              <Text style={[styles.actionButtonText, styles.primaryButtonText]}>
+                {isRotating ? 'Girando...' : 'Iniciar Navegación'}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -995,6 +1155,17 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
   },
+  transportModeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  transportModeText: {
+    fontSize: 12,
+    color: '#F59E0B',
+    fontWeight: '500',
+  },
   mapContainer: {
     flex: 1,
   },
@@ -1007,6 +1178,24 @@ const styles = StyleSheet.create({
     padding: 8,
     borderWidth: 2,
     borderColor: '#3B82F6',
+  },
+  routeProgress: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#F8FAFC',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    alignItems: 'center',
+  },
+  progressText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  currentDestination: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -1033,6 +1222,13 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: '#3B82F6',
     borderColor: '#3B82F6',
+  },
+  successButton: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  successButtonText: {
+    color: '#FFFFFF',
   },
   actionButtonText: {
     fontSize: 16,

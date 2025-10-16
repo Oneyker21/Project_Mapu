@@ -23,35 +23,7 @@ import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
 import { uploadImage } from '../../services/imageStorage';
 import { getDepartmentFromCoordinates, isWithinNicaragua } from '../../utils/geolocation';
-
-// Paleta de colores
-const COLOR_PALETTE = {
-  primary: '#3B82F6',
-  secondary: '#10B981',
-  accent: '#F59E0B',
-  red: '#EF4444',
-  gray: {
-    50: '#F9FAFB',
-    100: '#F3F4F6',
-    200: '#E5E7EB',
-    300: '#D1D5DB',
-    400: '#9CA3AF',
-    500: '#6B7280',
-    600: '#4B5563',
-    700: '#374151',
-    800: '#1F2937',
-    900: '#111827',
-  },
-  text: {
-    primary: '#1F2937',
-    secondary: '#6B7280',
-    light: '#9CA3AF',
-  },
-  background: {
-    primary: '#FFFFFF',
-    secondary: '#F9FAFB',
-  }
-};
+import { colors } from '../../config/colors';
 
 const CentroTuristicoProfileScreen = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
@@ -98,6 +70,8 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
   const [selectedHour, setSelectedHour] = useState(9);
   const [selectedMinute, setSelectedMinute] = useState(0);
   const [selectedAmPm, setSelectedAmPm] = useState('AM');
+  const [showDepartmentEdit, setShowDepartmentEdit] = useState(false);
+  const [customDepartment, setCustomDepartment] = useState('');
 
   const categoriasNegocio = [
     'Hoteles',
@@ -113,6 +87,27 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
     'Gastronomía',
     'Artesanías',
     'Otros'
+  ];
+
+  const departamentosNicaragua = [
+    'Managua',
+    'León',
+    'Chinandega',
+    'Masaya',
+    'Granada',
+    'Estelí',
+    'Matagalpa',
+    'Jinotega',
+    'Rivas',
+    'Boaco',
+    'Carazo',
+    'Chontales',
+    'Madriz',
+    'Nueva Segovia',
+    'Río San Juan',
+    'Región Autónoma del Atlántico Norte',
+    'Región Autónoma del Atlántico Sur',
+    'Otro'
   ];
 
   const diasSemana = [
@@ -139,7 +134,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                             formData.direccion.trim() !== (userData?.direccion || '') ||
                             formData.latitud !== (userData?.latitud || '') ||
                             formData.longitud !== (userData?.longitud || '') ||
-                            formData.departamento.trim() !== (userData?.departamento || '') ||
+                            formData.departamento !== (userData?.departamento || '') ||
                             formData.costo.trim() !== (userData?.costo || '');
       
       // Verificar si hay imágenes seleccionadas (nuevas o cambiadas)
@@ -196,6 +191,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
           setUserData({ ...data, id: userDoc.id });
           
           // Llenar el formulario con los datos existentes
+          const departamentoData = data.departamento || '';
           setFormData({
             nombreNegocio: data.nombreNegocio || '',
             categoriaNegocio: data.categoriaNegocio || '',
@@ -204,12 +200,17 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
             direccion: data.direccion || '',
             latitud: data.latitud ? Number(data.latitud).toFixed(8) : '',
             longitud: data.longitud ? Number(data.longitud).toFixed(8) : '',
-            departamento: data.departamento || '',
+            departamento: departamentoData,
             horario: data.horario || '',
             costo: data.costo || '',
             logotipo: data.logotipo ? { uri: data.logotipo } : null,
             portada: data.portada ? { uri: data.portada } : null,
           });
+          
+          // Si el departamento no está en la lista predefinida, es un departamento personalizado
+          if (departamentoData && !departamentosNicaragua.includes(departamentoData)) {
+            setCustomDepartment(departamentoData);
+          }
 
           // Procesar categorías
           if (data.categoriaNegocio) {
@@ -343,7 +344,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
         direccion: formData.direccion.trim(),
         latitud: formData.latitud ? Number(formData.latitud).toFixed(8) : '',
         longitud: formData.longitud ? Number(formData.longitud).toFixed(8) : '',
-        departamento: formData.departamento.trim(),
+        departamento: formData.departamento,
         horario: convertScheduleTo12h(scheduleData),
         horarioDetallado: scheduleData,
         costo: formData.costo.trim(),
@@ -596,7 +597,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center', paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <ActivityIndicator size="large" color={COLOR_PALETTE.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.loadingText}>Cargando centro...</Text>
       </SafeAreaView>
     );
@@ -610,7 +611,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
           style={styles.backButton}
           onPress={handleBackPress}
         >
-          <Ionicons name="arrow-back" size={24} color={COLOR_PALETTE.text.primary} />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mi Centro</Text>
         <View style={styles.headerButtons}>
@@ -624,13 +625,13 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
             disabled={!hasChanges || saving}
           >
             {saving ? (
-              <ActivityIndicator size="small" color={COLOR_PALETTE.background.primary} />
+              <ActivityIndicator size="small" color={colors.surface} />
             ) : (
               <>
                 <Ionicons 
                   name="checkmark" 
                   size={16} 
-                  color={hasChanges ? COLOR_PALETTE.background.primary : '#9CA3AF'} 
+                  color={hasChanges ? colors.surface : '#9CA3AF'} 
                 />
                 <Text style={[
                   styles.saveButtonText,
@@ -669,7 +670,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                   />
                 ) : (
                   <View style={styles.coverImagePlaceholder}>
-                    <Ionicons name="image" size={32} color={COLOR_PALETTE.text.light} />
+                    <Ionicons name="image" size={32} color={colors.text.muted} />
                     <Text style={styles.coverImageText}>
                       Agregar portada
               </Text>
@@ -681,7 +682,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                   style={styles.removeCoverButton} 
                   onPress={() => setFormData(prev => ({ ...prev, portada: null }))}
                 >
-                  <Ionicons name="close-circle" size={20} color={COLOR_PALETTE.red} />
+                  <Ionicons name="close-circle" size={20} color={colors.error} />
                   <Text style={styles.removeCoverText}>Eliminar</Text>
                 </TouchableOpacity>
               )}
@@ -700,7 +701,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                   />
                 ) : (
                   <View style={styles.logoPlaceholder}>
-                    <Ionicons name="business" size={24} color={COLOR_PALETTE.text.light} />
+                    <Ionicons name="business" size={24} color={colors.text.muted} />
                     <Text style={styles.logoText}>
                       Logo
                 </Text>
@@ -712,7 +713,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                   style={styles.removeLogoButton} 
                   onPress={() => setFormData(prev => ({ ...prev, logotipo: null }))}
                         >
-                  <Ionicons name="close-circle" size={16} color={COLOR_PALETTE.red} />
+                  <Ionicons name="close-circle" size={16} color={colors.error} />
                         </TouchableOpacity>
               )}
                       </View>
@@ -765,7 +766,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                 style={styles.addCategoryButton}
                 onPress={() => setShowAddCategory(true)}
               >
-                    <Ionicons name="add" size={20} color={COLOR_PALETTE.primary} />
+                    <Ionicons name="add" size={20} color={colors.primary} />
                 <Text style={styles.addCategoryButtonText}>Agregar Categoría</Text>
               </TouchableOpacity>
                 )}
@@ -833,23 +834,29 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                   style={styles.locationButton} 
                   onPress={handleLocationPicker}
                 >
-                  <Ionicons name="location" size={20} color={COLOR_PALETTE.primary} />
+                  <Ionicons name="location" size={20} color={colors.primary} />
                 <Text style={styles.locationButtonText}>
                   {formData.latitud && formData.longitud 
                     ? `Editar ubicación: ${parseFloat(formData.latitud).toFixed(4)}, ${parseFloat(formData.longitud).toFixed(4)}`
                       : 'Seleccionar ubicación en el mapa'
                   }
                 </Text>
-                  <Ionicons name="chevron-forward" size={20} color={COLOR_PALETTE.text.light} />
+                  <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
               </TouchableOpacity>
                 {errors.ubicacion && <Text style={styles.errorText}>{errors.ubicacion}</Text>}
                 
                 {formData.departamento && (
                   <View style={styles.departmentInfo}>
-                    <Ionicons name="location" size={16} color={COLOR_PALETTE.secondary} />
+                    <Ionicons name="location" size={16} color={colors.success} />
                     <Text style={styles.departmentText}>
-                      Departamento detectado: {formData.departamento}
-              </Text>
+                      Departamento: {formData.departamento}
+                    </Text>
+                    <TouchableOpacity 
+                      style={styles.editDepartmentButton}
+                      onPress={() => setShowDepartmentEdit(true)}
+                    >
+                      <Ionicons name="create-outline" size={16} color={colors.primary} />
+                    </TouchableOpacity>
                   </View>
                 )}
                 </View>
@@ -866,12 +873,12 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                 onPress={() => navigation.navigate('Reviews', { center: userData })}
               >
                 <View style={styles.reviewsButtonContent}>
-                  <Ionicons name="star" size={24} color={COLOR_PALETTE.primary} />
+                  <Ionicons name="star" size={24} color={colors.primary} />
                   <View style={styles.reviewsButtonText}>
                     <Text style={styles.reviewsButtonTitle}>Ver Reseñas</Text>
                     <Text style={styles.reviewsButtonSubtitle}>Revisa y responde a las reseñas de tus visitantes</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color={COLOR_PALETTE.text.light} />
+                  <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
                 </View>
               </TouchableOpacity>
             </View>
@@ -887,14 +894,14 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                 onPress={() => setShowScheduleModal(true)}
               >
                 <View style={styles.scheduleButtonContent}>
-                  <Ionicons name="time" size={24} color={COLOR_PALETTE.primary} />
+                  <Ionicons name="time" size={24} color={colors.primary} />
                   <View style={styles.scheduleButtonText}>
                     <Text style={styles.scheduleButtonTitle}>Sistema de Horario</Text>
                     <Text style={styles.scheduleButtonSubtitle}>
                       {Object.values(scheduleData).filter(day => day.enabled).length} días configurados
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color={COLOR_PALETTE.text.light} />
+                  <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
                 </View>
               </TouchableOpacity>
 
@@ -945,7 +952,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
               value={nuevaCategoria}
               onChangeText={setNuevaCategoria}
               placeholder="Escribe el nombre de la categoría"
-              placeholderTextColor={COLOR_PALETTE.text.light}
+              placeholderTextColor={colors.text.muted}
               autoFocus={true}
             />
             <View style={styles.modalButtons}>
@@ -984,7 +991,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                   style={styles.scheduleModalCloseButton}
                   onPress={() => setShowScheduleModal(false)}
                 >
-                  <Ionicons name="close" size={24} color={COLOR_PALETTE.text.secondary} />
+                  <Ionicons name="close" size={24} color={colors.text.muted} />
                 </TouchableOpacity>
               </View>
               
@@ -1005,7 +1012,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                           scheduleData[dia.key]?.enabled && styles.checkboxChecked
                         ]}>
                           {scheduleData[dia.key]?.enabled && (
-                            <Ionicons name="checkmark" size={16} color={COLOR_PALETTE.background.primary} />
+                            <Ionicons name="checkmark" size={16} color={colors.surface} />
                           )}
                         </View>
                         <Text style={[
@@ -1030,7 +1037,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                               {convertFrom24h(scheduleData[dia.key]?.open || '09:00').minute.toString().padStart(2, '0')} 
                               {convertFrom24h(scheduleData[dia.key]?.open || '09:00').ampm}
                             </Text>
-                            <Ionicons name="chevron-down" size={16} color={COLOR_PALETTE.text.light} />
+                            <Ionicons name="chevron-down" size={16} color={colors.text.muted} />
                           </TouchableOpacity>
                         </View>
                         
@@ -1047,7 +1054,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                               {convertFrom24h(scheduleData[dia.key]?.close || '18:00').minute.toString().padStart(2, '0')} 
                               {convertFrom24h(scheduleData[dia.key]?.close || '18:00').ampm}
                             </Text>
-                            <Ionicons name="chevron-down" size={16} color={COLOR_PALETTE.text.light} />
+                            <Ionicons name="chevron-down" size={16} color={colors.text.muted} />
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -1075,6 +1082,75 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
           </View>
         </Modal>
 
+        {/* Modal para seleccionar departamento */}
+        <Modal
+          visible={showDepartmentEdit}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Seleccionar Departamento</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setShowDepartmentEdit(false)}
+              >
+                <Ionicons name="close" size={24} color={colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalContent}>
+              {departamentosNicaragua.map((departamento) => (
+                <TouchableOpacity
+                  key={departamento}
+                  style={[
+                    styles.optionItem,
+                    formData.departamento === departamento && styles.selectedOptionItem
+                  ]}
+                  onPress={() => {
+                    if (departamento === 'Otro') {
+                      setShowDepartmentEdit(false);
+                      Alert.prompt(
+                        'Departamento personalizado',
+                        'Ingresa el nombre del departamento:',
+                        [
+                          {
+                            text: 'Cancelar',
+                            style: 'cancel',
+                          },
+                          {
+                            text: 'Guardar',
+                            onPress: (text) => {
+                              if (text && text.trim()) {
+                                setCustomDepartment(text.trim());
+                                setFormData(prev => ({ ...prev, departamento: text.trim() }));
+                              }
+                            },
+                          },
+                        ],
+                        'plain-text'
+                      );
+                    } else {
+                      setFormData(prev => ({ ...prev, departamento }));
+                      setShowDepartmentEdit(false);
+                    }
+                  }}
+                >
+                  <Text style={[
+                    styles.optionText,
+                    formData.departamento === departamento && styles.selectedOptionText
+                  ]}>
+                    {departamento}
+                  </Text>
+                  {formData.departamento === departamento && (
+                    <Ionicons name="checkmark" size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+
         {/* Modal del Selector de Hora */}
         <Modal
           visible={showTimePicker}
@@ -1092,7 +1168,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
                   style={styles.timePickerModalCloseButton}
                   onPress={() => setShowTimePicker(false)}
                 >
-                  <Ionicons name="close" size={24} color={COLOR_PALETTE.text.secondary} />
+                  <Ionicons name="close" size={24} color={colors.text.muted} />
                 </TouchableOpacity>
               </View>
               
@@ -1214,7 +1290,7 @@ const CentroTuristicoProfileScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLOR_PALETTE.background.secondary,
+    backgroundColor: colors.background,
     zIndex: 0,
   },
   header: {
@@ -1222,19 +1298,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLOR_PALETTE.gray[200],
+    borderBottomColor: colors.border,
   },
   backButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: COLOR_PALETTE.gray[100],
+    backgroundColor: colors.background,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginLeft: 12,
     flex: 1,
   },
@@ -1244,7 +1320,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
   },
   saveButtonDisabled: {
     backgroundColor: '#F3F4F6',
@@ -1259,7 +1335,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLOR_PALETTE.background.primary,
+    color: colors.surface,
     marginLeft: 4,
   },
   placeholderButton: {
@@ -1269,7 +1345,7 @@ const styles = StyleSheet.create({
   editButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: COLOR_PALETTE.gray[100],
+    backgroundColor: colors.background,
   },
   headerButtons: {
     flexDirection: 'row',
@@ -1282,14 +1358,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: COLOR_PALETTE.gray[100],
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.primary,
+    borderColor: colors.primary,
   },
   viewButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: COLOR_PALETTE.primary,
+    color: colors.primary,
     marginLeft: 4,
   },
   editModeButton: {
@@ -1298,17 +1374,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
   },
   editModeButtonText: {
     fontSize: 14,
     fontWeight: '500',
-    color: COLOR_PALETTE.background.primary,
+    color: colors.surface,
     marginLeft: 4,
   },
   loadingText: {
     fontSize: 16,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     marginTop: 8,
   },
   keyboardContainer: {
@@ -1318,10 +1394,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100, // Espacio para evitar solapamiento con navegación
+    paddingBottom: 150, // Espacio para evitar solapamiento con navegación
   },
   imageSection: {
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     marginBottom: 16,
   },
   coverImageContainer: {
@@ -1341,11 +1417,11 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLOR_PALETTE.gray[100],
+    backgroundColor: colors.background,
   },
   coverImageText: {
     fontSize: 14,
-    color: COLOR_PALETTE.text.light,
+    color: colors.text.muted,
     marginTop: 8,
     fontWeight: '500',
   },
@@ -1355,7 +1431,7 @@ const styles = StyleSheet.create({
     right: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -1367,7 +1443,7 @@ const styles = StyleSheet.create({
   },
   removeCoverText: {
     fontSize: 12,
-    color: COLOR_PALETTE.red,
+    color: colors.error,
     marginLeft: 4,
     fontWeight: '500',
   },
@@ -1383,8 +1459,8 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     overflow: 'hidden',
     borderWidth: 4,
-    borderColor: COLOR_PALETTE.background.primary,
-    backgroundColor: COLOR_PALETTE.gray[100],
+    borderColor: colors.surface,
+    backgroundColor: colors.background,
   },
   logoImage: {
     width: '100%',
@@ -1395,11 +1471,11 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLOR_PALETTE.gray[100],
+    backgroundColor: colors.background,
   },
   logoText: {
     fontSize: 10,
-    color: COLOR_PALETTE.text.light,
+    color: colors.text.muted,
     marginTop: 2,
   },
   removeLogoButton: {
@@ -1409,7 +1485,7 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -1425,7 +1501,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   sectionContainer: {
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -1438,18 +1514,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginBottom: 2,
   },
   sectionSubtext: {
     fontSize: 12,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     marginBottom: 6,
     lineHeight: 16,
   },
   sectionUnderline: {
     height: 2,
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
     borderRadius: 1,
     marginBottom: 16,
     width: 30,
@@ -1460,25 +1536,25 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginBottom: 8,
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     paddingHorizontal: 4,
     alignSelf: 'flex-start',
     zIndex: 1,
   },
   textInput: {
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[200],
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
-    color: COLOR_PALETTE.text.primary,
-    backgroundColor: COLOR_PALETTE.background.primary,
+    color: colors.text.primary,
+    backgroundColor: colors.surface,
   },
   inputError: {
-    borderColor: COLOR_PALETTE.red,
+    borderColor: colors.error,
   },
   inputDisabled: {
     backgroundColor: '#F3F4F6',
@@ -1518,12 +1594,12 @@ const styles = StyleSheet.create({
   },
   characterCount: {
     fontSize: 11,
-    color: COLOR_PALETTE.text.light,
+    color: colors.text.muted,
     textAlign: 'right',
     marginTop: 4,
   },
   errorText: {
-    color: COLOR_PALETTE.red,
+    color: colors.error,
     fontSize: 12,
     marginTop: 4,
   },
@@ -1536,21 +1612,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: COLOR_PALETTE.gray[100],
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[200],
+    borderColor: colors.border,
   },
   categoryChipSelected: {
-    backgroundColor: COLOR_PALETTE.primary,
-    borderColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   categoryChipText: {
     fontSize: 12,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     fontWeight: '500',
   },
   categoryChipTextSelected: {
-    color: COLOR_PALETTE.background.primary,
+    color: colors.surface,
   },
   addCategoryButton: {
     flexDirection: 'row',
@@ -1560,15 +1636,15 @@ const styles = StyleSheet.create({
   },
   addCategoryButtonText: {
     fontSize: 14,
-    color: COLOR_PALETTE.primary,
+    color: colors.primary,
     marginLeft: 6,
     fontWeight: '500',
   },
   reviewsButton: {
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[200],
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -1587,27 +1663,27 @@ const styles = StyleSheet.create({
   reviewsButtonTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginBottom: 2,
   },
   reviewsButtonSubtitle: {
     fontSize: 14,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
   },
   locationButton: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[200],
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
   },
   locationButtonText: {
     flex: 1,
     fontSize: 16,
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginLeft: 8,
   },
   departmentInfo: {
@@ -1626,6 +1702,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     marginLeft: 6,
+    flex: 1,
+  },
+  editDepartmentButton: {
+    padding: 4,
+    marginLeft: 8,
   },
   editButtonContainer: {
     marginTop: 24,
@@ -1635,11 +1716,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
-    shadowColor: COLOR_PALETTE.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -1648,7 +1729,7 @@ const styles = StyleSheet.create({
   editInfoButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.background.primary,
+    color: colors.surface,
     marginLeft: 8,
   },
   cancelButtonContainer: {
@@ -1659,17 +1740,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.red,
+    borderColor: colors.error,
   },
   cancelButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLOR_PALETTE.red,
+    color: colors.error,
     marginLeft: 8,
   },
   modalOverlay: {
@@ -1679,7 +1760,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 20,
     width: '80%',
@@ -1688,19 +1769,19 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     textAlign: 'center',
     marginBottom: 20,
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[200],
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    color: COLOR_PALETTE.text.primary,
-    backgroundColor: COLOR_PALETTE.background.primary,
+    color: colors.text.primary,
+    backgroundColor: colors.surface,
     marginBottom: 16,
   },
   modalButtons: {
@@ -1715,28 +1796,28 @@ const styles = StyleSheet.create({
   },
   modalCancelButtonText: {
     fontSize: 14,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     fontWeight: '500',
   },
   modalAddButton: {
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
   },
   modalAddButtonText: {
     fontSize: 14,
-    color: COLOR_PALETTE.background.primary,
+    color: colors.surface,
     fontWeight: '600',
   },
   // Estilos para el sistema de horario
   scheduleDayContainer: {
     marginBottom: 16,
     padding: 12,
-    backgroundColor: COLOR_PALETTE.gray[50],
+    backgroundColor: colors.background,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[200],
+    borderColor: colors.border,
   },
   scheduleDayHeader: {
     flexDirection: 'row',
@@ -1752,23 +1833,23 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: COLOR_PALETTE.gray[300],
-    backgroundColor: COLOR_PALETTE.background.primary,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   checkboxChecked: {
-    backgroundColor: COLOR_PALETTE.primary,
-    borderColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   scheduleDayLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
   },
   scheduleDayLabelEnabled: {
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     fontWeight: '600',
   },
   scheduleTimeContainer: {
@@ -1782,37 +1863,37 @@ const styles = StyleSheet.create({
   },
   timeLabel: {
     fontSize: 12,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     marginBottom: 4,
     fontWeight: '500',
   },
   timeInput: {
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[200],
+    borderColor: colors.border,
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 14,
-    color: COLOR_PALETTE.text.primary,
-    backgroundColor: COLOR_PALETTE.background.primary,
+    color: colors.text.primary,
+    backgroundColor: colors.surface,
     textAlign: 'center',
   },
   timeInputDisabled: {
-    backgroundColor: COLOR_PALETTE.gray[100],
-    color: COLOR_PALETTE.text.light,
+    backgroundColor: colors.background,
+    color: colors.text.muted,
   },
   timeSeparator: {
     fontSize: 16,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     marginHorizontal: 12,
     fontWeight: '500',
   },
   // Estilos para el botón del sistema de horario
   scheduleButton: {
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[200],
+    borderColor: colors.border,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -1832,19 +1913,19 @@ const styles = StyleSheet.create({
   scheduleButtonTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginBottom: 2,
   },
   scheduleButtonSubtitle: {
     fontSize: 14,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
   },
   schedulePreview: {
-    backgroundColor: COLOR_PALETTE.gray[50],
+    backgroundColor: colors.background,
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[200],
+    borderColor: colors.border,
     marginBottom: 20, // Espacio extra para evitar solapamiento
     zIndex: 1,
     elevation: 1,
@@ -1852,7 +1933,7 @@ const styles = StyleSheet.create({
   schedulePreviewTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     marginBottom: 4,
   },
   schedulePreviewContent: {
@@ -1864,29 +1945,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: COLOR_PALETTE.gray[100],
+    borderBottomColor: colors.background,
   },
   schedulePreviewDay: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     flex: 1,
   },
   schedulePreviewTime: {
     fontSize: 13,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     fontWeight: '500',
   },
   schedulePreviewEmpty: {
     fontSize: 13,
-    color: COLOR_PALETTE.text.light,
+    color: colors.text.muted,
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 12,
   },
   // Estilos para el modal del sistema de horario
   scheduleModalContent: {
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     borderRadius: 16,
     width: '90%',
     maxWidth: 500,
@@ -1904,12 +1985,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLOR_PALETTE.gray[200],
+    borderBottomColor: colors.border,
   },
   scheduleModalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
   },
   scheduleModalCloseButton: {
     padding: 4,
@@ -1921,7 +2002,7 @@ const styles = StyleSheet.create({
   },
   scheduleModalSubtitle: {
     fontSize: 14,
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
     marginBottom: 20,
     lineHeight: 20,
   },
@@ -1931,7 +2012,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: COLOR_PALETTE.gray[200],
+    borderTopColor: colors.border,
     gap: 12,
   },
   scheduleModalCancelButton: {
@@ -1940,13 +2021,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[300],
+    borderColor: colors.border,
     alignItems: 'center',
   },
   scheduleModalCancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
   },
   scheduleModalSaveButton: {
     flex: 1,
@@ -1955,12 +2036,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
   },
   scheduleModalSaveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.background.primary,
+    color: colors.surface,
   },
   // Estilos para el botón de hora
   timeButton: {
@@ -1968,20 +2049,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[200],
+    borderColor: colors.border,
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
   },
   timeButtonText: {
     fontSize: 14,
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     fontWeight: '500',
   },
   // Estilos para el modal del selector de hora
   timePickerModalContent: {
-    backgroundColor: COLOR_PALETTE.background.primary,
+    backgroundColor: colors.surface,
     borderRadius: 16,
     width: '90%',
     maxWidth: 400,
@@ -1999,12 +2080,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLOR_PALETTE.gray[200],
+    borderBottomColor: colors.border,
   },
   timePickerModalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     flex: 1,
   },
   timePickerModalCloseButton: {
@@ -2023,7 +2104,7 @@ const styles = StyleSheet.create({
   timePickerLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
     textAlign: 'center',
     marginBottom: 12,
   },
@@ -2039,14 +2120,14 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     borderRadius: 12,
     alignItems: 'center',
-    backgroundColor: COLOR_PALETTE.gray[50],
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[200],
+    borderColor: colors.border,
   },
   timePickerItemSelected: {
-    backgroundColor: COLOR_PALETTE.primary,
-    borderColor: COLOR_PALETTE.primary,
-    shadowColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -2055,10 +2136,10 @@ const styles = StyleSheet.create({
   timePickerItemText: {
     fontSize: 18,
     fontWeight: '500',
-    color: COLOR_PALETTE.text.primary,
+    color: colors.text.primary,
   },
   timePickerItemTextSelected: {
-    color: COLOR_PALETTE.background.primary,
+    color: colors.surface,
     fontWeight: '700',
     fontSize: 20,
   },
@@ -2068,7 +2149,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: COLOR_PALETTE.gray[200],
+    borderTopColor: colors.border,
     gap: 12,
   },
   timePickerModalCancelButton: {
@@ -2077,13 +2158,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLOR_PALETTE.gray[300],
+    borderColor: colors.border,
     alignItems: 'center',
   },
   timePickerModalCancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.text.secondary,
+    color: colors.text.muted,
   },
   timePickerModalSaveButton: {
     flex: 1,
@@ -2092,12 +2173,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: COLOR_PALETTE.primary,
+    backgroundColor: colors.primary,
   },
   timePickerModalSaveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLOR_PALETTE.background.primary,
+    color: colors.surface,
   },
 });
 

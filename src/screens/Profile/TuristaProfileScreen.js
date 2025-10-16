@@ -57,6 +57,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
   });
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [customCity, setCustomCity] = useState('');
 
   // Lista de ciudades principales de Nicaragua
   const nicaraguaCities = [
@@ -64,7 +65,8 @@ const TuristaProfileScreen = ({ navigation, route }) => {
     'Matagalpa', 'Jinotega', 'Rivas', 'Boaco', 'Carazo', 'Chontales',
     'Madriz', 'Nueva Segovia', 'Río San Juan', 'Bluefields', 'Puerto Cabezas',
     'San Carlos', 'Ocotal', 'Somoto', 'Jinotepe', 'Diriamba', 'Masatepe',
-    'Nandaime', 'Ticuantepe', 'Tipitapa', 'Ciudad Sandino', 'El Crucero'
+    'Nandaime', 'Ticuantepe', 'Tipitapa', 'Ciudad Sandino', 'El Crucero',
+    'Otro'
   ];
 
   // Lista de países de Centroamérica y otros
@@ -130,17 +132,23 @@ const TuristaProfileScreen = ({ navigation, route }) => {
           setUserData(data);
           
           // Llenar el formulario con los datos existentes
+          const cityData = data.ciudad || data.city || '';
           setFormData({
             firstName: data.nombres || data.firstName || '',
             lastName: data.apellidos || data.lastName || '',
             phone: data.telefono || data.phone || '',
             documentType: data.tipoDocumento || data.documentType || '',
             documentNumber: data.numeroDocumento || data.documentNumber || '',
-            city: data.ciudad || data.city || '',
+            city: cityData,
             country: data.pais || data.country || '',
             profileImage: data.imagenPerfil ? { uri: data.imagenPerfil } : null,
             coverImage: data.portada ? { uri: data.portada } : null,
           });
+          
+          // Si la ciudad no está en la lista predefinida, es una ciudad personalizada
+          if (cityData && !nicaraguaCities.includes(cityData)) {
+            setCustomCity(cityData);
+          }
         }
       }
     } catch (error) {
@@ -595,11 +603,11 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   disabled={readOnly}
                 >
                   <View style={styles.selectorContent}>
-                    <Ionicons name="location" size={20} color="#6B7280" />
+                    <Ionicons name="location" size={20} color={colors.text.muted} />
                     <Text style={[styles.selectorText, !formData.city && styles.selectorPlaceholder]}>
                       {formData.city || 'Seleccionar ciudad'}
                     </Text>
-                    <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                    <Ionicons name="chevron-down" size={20} color={colors.text.muted} />
                   </View>
                 </TouchableOpacity>
                 {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
@@ -613,11 +621,11 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   disabled={readOnly}
                 >
                   <View style={styles.selectorContent}>
-                    <Ionicons name="globe" size={20} color="#6B7280" />
+                    <Ionicons name="globe" size={20} color={colors.text.muted} />
                     <Text style={[styles.selectorText, !formData.country && styles.selectorPlaceholder]}>
                       {formData.country || 'Seleccionar país'}
                     </Text>
-                    <Ionicons name="chevron-down" size={20} color="#6B7280" />
+                    <Ionicons name="chevron-down" size={20} color={colors.text.muted} />
                   </View>
                 </TouchableOpacity>
                 {errors.country && <Text style={styles.errorText}>{errors.country}</Text>}
@@ -651,7 +659,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
               style={styles.closeButton}
               onPress={() => setShowCityPicker(false)}
             >
-              <Ionicons name="close" size={24} color="#1F2937" />
+              <Ionicons name="close" size={24} color={colors.text.primary} />
             </TouchableOpacity>
           </View>
           
@@ -664,8 +672,34 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   formData.city === city && styles.selectedOptionItem
                 ]}
                 onPress={() => {
-                  handleInputChange('city', city);
-                  setShowCityPicker(false);
+                  if (city === 'Otro') {
+                    setCustomCity('');
+                    setShowCityPicker(false);
+                    // Mostrar un modal o input para ciudad personalizada
+                    Alert.prompt(
+                      'Ciudad personalizada',
+                      'Ingresa el nombre de tu ciudad:',
+                      [
+                        {
+                          text: 'Cancelar',
+                          style: 'cancel',
+                        },
+                        {
+                          text: 'Guardar',
+                          onPress: (text) => {
+                            if (text && text.trim()) {
+                              setCustomCity(text.trim());
+                              handleInputChange('city', text.trim());
+                            }
+                          },
+                        },
+                      ],
+                      'plain-text'
+                    );
+                  } else {
+                    handleInputChange('city', city);
+                    setShowCityPicker(false);
+                  }
                 }}
               >
                 <Text style={[
@@ -675,7 +709,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   {city}
                 </Text>
                 {formData.city === city && (
-                  <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                  <Ionicons name="checkmark" size={20} color={colors.primary} />
                 )}
               </TouchableOpacity>
             ))}
@@ -696,7 +730,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
               style={styles.closeButton}
               onPress={() => setShowCountryPicker(false)}
             >
-              <Ionicons name="close" size={24} color="#1F2937" />
+              <Ionicons name="close" size={24} color={colors.text.primary} />
             </TouchableOpacity>
           </View>
           
@@ -720,7 +754,7 @@ const TuristaProfileScreen = ({ navigation, route }) => {
                   {country}
                 </Text>
                 {formData.country === country && (
-                  <Ionicons name="checkmark" size={20} color="#3B82F6" />
+                  <Ionicons name="checkmark" size={20} color={colors.primary} />
                 )}
               </TouchableOpacity>
             ))}
@@ -783,7 +817,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   saveButtonTextDisabled: {
-    color: '#9CA3AF',
+    color: colors.text.muted,
   },
   editButton: {
     padding: 8,
@@ -802,7 +836,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 30, // Margen al final del formulario
+    paddingBottom: 100, // Margen al final del formulario
   },
   imageSection: {
     backgroundColor: colors.surface,
@@ -1060,16 +1094,16 @@ const styles = StyleSheet.create({
   },
   // Estilos para selectores
   selectorButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginTop: 8,
   },
   selectorButtonError: {
-    borderColor: '#EF4444',
+    borderColor: colors.error,
   },
   selectorContent: {
     flexDirection: 'row',
@@ -1078,16 +1112,16 @@ const styles = StyleSheet.create({
   selectorText: {
     flex: 1,
     fontSize: 16,
-    color: '#111827',
+    color: colors.text.primary,
     marginLeft: 12,
   },
   selectorPlaceholder: {
-    color: '#9CA3AF',
+    color: colors.text.muted,
   },
   // Estilos para modales
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1095,20 +1129,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
   },
   closeButton: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1122,23 +1156,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   selectedOptionItem: {
-    backgroundColor: '#EBF4FF',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.background,
+    borderColor: colors.primary,
   },
   optionText: {
     fontSize: 16,
-    color: '#111827',
+    color: colors.text.primary,
     flex: 1,
   },
   selectedOptionText: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontWeight: '600',
   },
 });

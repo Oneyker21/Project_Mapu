@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import WriteReviewModal from '../../components/WriteReviewModal';
 import ReplyReviewModal from '../../components/ReplyReviewModal';
+import colors, { withOpacity } from '../../config/colors';
 import { 
   getCenterReviews, 
   getUserReviews, 
@@ -36,7 +37,22 @@ const ReviewsScreen = ({ navigation, route }) => {
   const { user: authUser } = useAuth();
   const [userData, setUserData] = useState(null);
   const [isCenter, setIsCenter] = useState(false);
+  
+  // Verificar si viene de una ruta
+  const fromRoute = route.params?.fromRoute || false;
+  const routeData = route.params?.routeData || null;
   const [reviews, setReviews] = useState([]);
+  
+  // Función para manejar navegación de regreso
+  const handleBackNavigation = () => {
+    if (fromRoute && routeData) {
+      // Regresar a la navegación de ruta
+      navigation.navigate('RouteNavigation', routeData);
+    } else {
+      // Navegación normal
+      navigation.goBack();
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showWriteModal, setShowWriteModal] = useState(false);
@@ -140,30 +156,61 @@ const ReviewsScreen = ({ navigation, route }) => {
     }
   };
 
-  const handleDeleteReview = () => {
-    if (!userReview) return;
+  const handleDeleteReview = (review = null) => {
+    // Usar la reseña pasada como parámetro o userReview como fallback
+    const reviewToDelete = review || userReview;
+    
+    if (!reviewToDelete) {
+      Alert.alert('Error', 'No se encontró la reseña a eliminar');
+      return;
+    }
     
     Alert.alert(
-      'Eliminar reseña',
-      '¿Estás seguro de que quieres eliminar tu reseña? Esta acción no se puede deshacer.',
+      '🗑️ Eliminar Reseña',
+      `¿Estás seguro de que deseas eliminar tu reseña sobre "${reviewToDelete.centerName || reviewToDelete.businessName || 'este centro'}"?\n\nEsta acción no se puede deshacer y se perderá permanentemente tu calificación y comentario.`,
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: '❌ Cancelar', 
+          style: 'cancel',
+          onPress: () => console.log('Eliminación cancelada')
+        },
         {
-          text: 'Eliminar',
+          text: '🗑️ Eliminar Definitivamente',
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteReview(userReview.id, userReview.centerId, userReview.rating);
-              setUserReview(null);
-              await loadCenterReviews(); // Recargar para actualizar estadísticas
-              Alert.alert('Éxito', 'Reseña eliminada correctamente');
+              console.log('Eliminando reseña:', reviewToDelete);
+              await deleteReview(reviewToDelete.id, reviewToDelete.centerId, reviewToDelete.rating);
+              
+              // Limpiar userReview si es la reseña del usuario
+              if (userReview && userReview.id === reviewToDelete.id) {
+                setUserReview(null);
+              }
+              
+              // Recargar reseñas
+              if (center) {
+                await loadCenterReviews();
+              } else {
+                await loadUserReviews();
+              }
+              
+              Alert.alert(
+                '✅ Reseña Eliminada', 
+                'Tu reseña ha sido eliminada correctamente.',
+                [{ text: 'OK' }]
+              );
             } catch (error) {
               console.error('Error eliminando reseña:', error);
-              Alert.alert('Error', 'No se pudo eliminar la reseña');
+              Alert.alert(
+                '❌ Error', 
+                'No se pudo eliminar la reseña. Por favor, intenta de nuevo.',
+                [{ text: 'OK' }]
+              );
             }
           }
         }
-      ]
+      ],
+      { cancelable: true }
     );
   };
 
@@ -399,14 +446,14 @@ const ReviewsScreen = ({ navigation, route }) => {
                       review.userAvatar ? (
                         <Image source={{ uri: review.userAvatar }} style={styles.avatar} />
                       ) : (
-                        <Ionicons name="person" size={20} color="#6B7280" />
+                        <Ionicons name="person" size={20} color={colors.text.muted} />
                       )
                     ) : (
               // Para reseñas del usuario: mostrar avatar del centro
                       review.centerAvatar ? (
                         <Image source={{ uri: review.centerAvatar }} style={styles.avatar} />
                       ) : (
-                        <Ionicons name="business" size={20} color="#6B7280" />
+                        <Ionicons name="business" size={20} color={colors.text.muted} />
                       )
                     )}
                   </View>
@@ -473,15 +520,15 @@ const ReviewsScreen = ({ navigation, route }) => {
                         style={[styles.actionButton, styles.editButton]} 
                         onPress={() => handleEditReview(review)}
                       >
-                        <Ionicons name="create-outline" size={16} color="#3B82F6" />
-                        <Text style={[styles.actionText, { color: '#3B82F6' }]}>Editar</Text>
+                        <Ionicons name="create-outline" size={16} color={colors.primary} />
+                        <Text style={[styles.actionText, { color: colors.primary }]}>Editar</Text>
                       </TouchableOpacity>
                       <TouchableOpacity 
                         style={[styles.actionButton, styles.deleteButton]} 
-                        onPress={handleDeleteReview}
+                        onPress={() => handleDeleteReview(review)}
                       >
-                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                        <Text style={[styles.actionText, { color: '#EF4444' }]}>Eliminar</Text>
+                        <Ionicons name="trash-outline" size={16} color={colors.error} />
+                        <Text style={[styles.actionText, { color: colors.error }]}>Eliminar</Text>
                       </TouchableOpacity>
                     </>
                   )}
@@ -492,7 +539,7 @@ const ReviewsScreen = ({ navigation, route }) => {
                       style={[styles.actionButton, styles.replyButton]}
                       onPress={() => handleReplyToReview(review)}
                     >
-                      <Ionicons name="chatbubble-outline" size={16} color="#10B981" />
+                      <Ionicons name="chatbubble-outline" size={16} color={colors.success} />
                       <Text style={[styles.actionText, { color: '#10B981' }]}>
                         {review.reply ? 'Editar Respuesta' : 'Responder'}
                       </Text>
@@ -505,7 +552,7 @@ const ReviewsScreen = ({ navigation, route }) => {
                       style={[styles.actionButton, styles.reportButton]}
                       onPress={() => handleReportReview(review)}
                     >
-                      <Ionicons name="flag-outline" size={16} color="#F59E0B" />
+                      <Ionicons name="flag-outline" size={16} color={colors.warning} />
                       <Text style={[styles.actionText, { color: '#F59E0B' }]}>Reportar</Text>
                     </TouchableOpacity>
                   )}
@@ -537,7 +584,7 @@ const ReviewsScreen = ({ navigation, route }) => {
       )}
       {center && isCenter && (
         <View style={styles.centerMessageContainer}>
-          <Ionicons name="information-circle" size={24} color="#3B82F6" />
+          <Ionicons name="information-circle" size={24} color={colors.primary} />
           <Text style={styles.centerMessageText}>
             Como centro turístico, puedes responder a las reseñas para interactuar con tus visitantes.
           </Text>
@@ -560,11 +607,11 @@ const ReviewsScreen = ({ navigation, route }) => {
               </View>
               <View style={styles.userReviewActions}>
                 <TouchableOpacity style={styles.editButton} onPress={handleEditReview}>
-                  <Ionicons name="create-outline" size={16} color="#3B82F6" />
+                  <Ionicons name="create-outline" size={16} color={colors.primary} />
                   <Text style={styles.editButtonText}>Editar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteReview}>
-                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                  <Ionicons name="trash-outline" size={16} color={colors.error} />
                   <Text style={styles.deleteButtonText}>Eliminar</Text>
                   </TouchableOpacity>
               </View>
@@ -576,7 +623,7 @@ const ReviewsScreen = ({ navigation, route }) => {
           </View>
         ) : (
           <TouchableOpacity style={styles.writeFirstReviewButton} onPress={handleWriteReview}>
-            <Ionicons name="add-circle-outline" size={24} color="#3B82F6" />
+            <Ionicons name="add-circle-outline" size={24} color={colors.primary} />
             <Text style={styles.writeFirstReviewText}>Escribir tu reseña</Text>
           </TouchableOpacity>
         )}
@@ -590,9 +637,9 @@ const ReviewsScreen = ({ navigation, route }) => {
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity 
             style={styles.backButton}
-            onPress={() => navigation.goBack()}
+            onPress={handleBackNavigation}
           >
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            <Ionicons name="arrow-back" size={24} color={colors.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
             {center ? 'Reseñas del Centro' : 'Mis Reseñas'}
@@ -600,7 +647,7 @@ const ReviewsScreen = ({ navigation, route }) => {
           <View style={styles.headerSpacer} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando reseñas...</Text>
         </View>
       </View>
@@ -615,12 +662,28 @@ const ReviewsScreen = ({ navigation, route }) => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {center ? 'Reseñas del Centro' : 'Mis Reseñas'}
         </Text>
-        <View style={styles.headerSpacer} />
+        {fromRoute ? (
+          <TouchableOpacity 
+            style={styles.continueButton}
+            onPress={() => {
+              if (routeData) {
+                navigation.navigate('RouteNavigation', {
+                  ...routeData,
+                  currentDestinationIndex: routeData.currentDestinationIndex + 1
+                });
+              }
+            }}
+          >
+            <Text style={styles.continueButtonText}>Continuar Ruta</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
       </View>
 
       <SafeAreaView style={styles.safeAreaContent}>
@@ -708,7 +771,7 @@ const ReviewsScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   safeAreaContent: {
     flex: 1,
@@ -719,19 +782,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   backButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.text.primary,
     marginLeft: 12,
     flex: 1,
   },
@@ -746,19 +809,19 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   content: {
     flex: 1,
   },
   statsContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 16,
     padding: 20,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadow.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -771,7 +834,7 @@ const styles = StyleSheet.create({
   averageRating: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#000000',
+    color: colors.text.primary,
     marginBottom: 8,
   },
   starsContainer: {
@@ -780,7 +843,7 @@ const styles = StyleSheet.create({
   },
   totalReviews: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   distributionContainer: {
     marginTop: 16,
@@ -788,7 +851,7 @@ const styles = StyleSheet.create({
   distributionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 12,
   },
   ratingBar: {
@@ -799,33 +862,33 @@ const styles = StyleSheet.create({
   ratingNumber: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#000000',
+    color: colors.text.primary,
     width: 20,
   },
   barContainer: {
     flex: 1,
     height: 8,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.background,
     borderRadius: 4,
     marginHorizontal: 8,
   },
   bar: {
     height: '100%',
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.warning,
     borderRadius: 4,
   },
   ratingCount: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     width: 20,
   },
   userReviewSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginBottom: 16,
     padding: 20,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadow.primary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -834,15 +897,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 16,
   },
   userReviewCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   userReviewHeader: {
     flexDirection: 'row',
@@ -859,12 +922,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: '#EBF4FF',
+    backgroundColor: withOpacity(colors.primary, 0.1),
     borderRadius: 6,
   },
   editButtonText: {
     fontSize: 12,
-    color: '#3B82F6',
+    color: colors.primary,
     marginLeft: 4,
     fontWeight: '500',
   },
@@ -873,39 +936,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: withOpacity(colors.error, 0.1),
     borderRadius: 6,
   },
   deleteButtonText: {
     fontSize: 12,
-    color: '#EF4444',
+    color: colors.error,
     marginLeft: 4,
     fontWeight: '500',
   },
   userReviewComment: {
     fontSize: 14,
-    color: '#374151',
+    color: colors.text.primary,
     lineHeight: 20,
     marginBottom: 8,
   },
   userReviewDate: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.text.muted,
   },
   writeFirstReviewButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     borderStyle: 'dashed',
   },
   writeFirstReviewText: {
     fontSize: 16,
-    color: '#3B82F6',
+    color: colors.primary,
     fontWeight: '500',
     marginLeft: 8,
   },
@@ -915,15 +978,15 @@ const styles = StyleSheet.create({
   reviewsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.text.primary,
     marginBottom: 16,
   },
   reviewCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadow.primary,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -943,7 +1006,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -959,24 +1022,24 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: colors.text.primary,
     marginBottom: 2,
   },
   category: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 2,
   },
   date: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.text.muted,
   },
   ratingContainer: {
     flexDirection: 'row',
   },
   comment: {
     fontSize: 14,
-    color: '#374151',
+    color: colors.text.primary,
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -1010,10 +1073,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
   },
   likeButtonText: {
     fontSize: 14,
@@ -1028,53 +1091,53 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
   },
   writeReviewButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   writeReviewButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
   centerMessageContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: withOpacity(colors.primary, 0.1),
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: colors.primary,
     marginTop: 16,
   },
   centerMessageText: {
     flex: 1,
     fontSize: 14,
-    color: '#1E40AF',
+    color: colors.primary,
     marginLeft: 12,
     lineHeight: 20,
   },
   replyContainer: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: withOpacity(colors.success, 0.1),
     padding: 12,
     borderRadius: 8,
     marginTop: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#10B981',
+    borderLeftColor: colors.success,
   },
   replyHeader: {
     flexDirection: 'row',
@@ -1085,32 +1148,43 @@ const styles = StyleSheet.create({
   replyAuthor: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#047857',
+    color: colors.success,
   },
   replyDate: {
     fontSize: 12,
-    color: '#065F46',
+    color: colors.success,
   },
   replyText: {
     fontSize: 14,
-    color: '#047857',
+    color: colors.success,
     lineHeight: 20,
   },
+  continueButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  continueButtonText: {
+    color: colors.text.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   editButton: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#3B82F6',
+    backgroundColor: withOpacity(colors.primary, 0.1),
+    borderColor: colors.primary,
   },
   deleteButton: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#EF4444',
+    backgroundColor: withOpacity(colors.error, 0.1),
+    borderColor: colors.error,
   },
   replyButton: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#10B981',
+    backgroundColor: withOpacity(colors.success, 0.1),
+    borderColor: colors.success,
   },
   reportButton: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#F59E0B',
+    backgroundColor: withOpacity(colors.warning, 0.1),
+    borderColor: colors.warning,
   },
 });
 

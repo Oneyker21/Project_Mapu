@@ -8,190 +8,55 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import colors from '../../config/colors';
 
 const PrivacyPolicyScreen = ({ navigation }) => {
   const sections = [
     {
       title: '1. Información que Recopilamos',
-      content: `Mapu recopila información necesaria para brindarte la mejor experiencia en el descubrimiento de centros turísticos en Nicaragua.
+      content: `Recopilamos información necesaria para brindarte la mejor experiencia:
 
-Información Personal:
-• Nombre completo y datos de contacto
-• Información de perfil (foto, descripción)
-• Preferencias de viaje y intereses turísticos
-• Ubicación actual (con tu consentimiento)
-
-Información de Uso:
-• Centros turísticos visitados y favoritos
+• Datos personales (nombre, email, foto de perfil)
+• Ubicación (con tu consentimiento)
 • Reseñas y calificaciones que publiques
-• Búsquedas realizadas en la aplicación
-• Interacciones con el contenido (likes, comentarios)
-
-Información Técnica:
-• Dirección IP y datos del dispositivo
-• Sistema operativo y versión de la app
-• Logs de uso y errores técnicos`,
+• Centros turísticos que visites y marques como favoritos`,
     },
     {
       title: '2. Cómo Utilizamos tu Información',
       content: `Utilizamos tu información para:
 
-Servicios Principales:
 • Mostrarte centros turísticos relevantes cerca de ti
-• Personalizar recomendaciones basadas en tus intereses
-• Facilitar reservas y contactos con centros turísticos
-• Permitir que publiques reseñas y calificaciones
-
-Mejora del Servicio:
-• Analizar patrones de uso para mejorar la app
-• Desarrollar nuevas funcionalidades
-• Optimizar la experiencia de usuario
-• Realizar estudios de mercado (datos anónimos)
-
-Comunicación:
-• Enviarte notificaciones sobre ofertas especiales
-• Informarte sobre nuevos centros turísticos en tu área
-• Recordarte eventos y promociones relevantes`,
+• Personalizar recomendaciones
+• Facilitar contactos con centros turísticos
+• Mejorar la aplicación`,
     },
     {
       title: '3. Compartir Información',
-      content: `No vendemos tu información personal. Compartimos datos únicamente en estos casos:
+      content: `No vendemos tu información personal. Solo compartimos:
 
-Con Centros Turísticos:
-• Información de contacto cuando realizas una reserva
-• Reseñas y calificaciones que publiques (públicamente)
-• Preferencias para personalizar tu experiencia
-
-Con Proveedores de Servicios:
-• Servicios de mapas (Google Maps) para mostrar ubicaciones
-• Servicios de almacenamiento en la nube (Firebase)
-• Servicios de análisis para mejorar la app
-
-Con Autoridades:
-• Cuando sea requerido por ley
-• Para proteger nuestros derechos legales
-• En casos de emergencia o seguridad`,
+• Reseñas públicas que publiques
+• Información de contacto cuando realices reservas
+• Datos con proveedores de servicios (Google Maps, Firebase)`,
     },
     {
-      title: '4. Seguridad de Datos',
+      title: '4. Seguridad',
       content: `Protegemos tu información con:
 
-Medidas Técnicas:
-• Cifrado de datos en tránsito y en reposo
-• Autenticación de dos factores disponible
+• Cifrado de datos
+• Acceso limitado al personal autorizado
 • Monitoreo continuo de seguridad
-• Copias de seguridad regulares
-
-Medidas Organizacionales:
-• Acceso limitado solo a personal autorizado
-• Capacitación regular en privacidad y seguridad
-• Políticas estrictas de manejo de datos
-• Auditorías de seguridad periódicas
-
-Tu Responsabilidad:
-• Mantén tu contraseña segura
-• No compartas tu cuenta con otros
-• Cierra sesión en dispositivos compartidos
-• Reporta cualquier actividad sospechosa`,
+• Copias de seguridad regulares`,
     },
     {
       title: '5. Tus Derechos',
       content: `Tienes derecho a:
 
-Acceso y Portabilidad:
-• Solicitar una copia de tus datos personales
-• Exportar tu información en formato legible
-• Verificar qué información tenemos sobre ti
-
-Control y Modificación:
+• Acceder a tus datos personales
 • Actualizar o corregir tu información
-• Cambiar tus preferencias de privacidad
-• Desactivar notificaciones no deseadas
-
-Eliminación:
 • Solicitar la eliminación de tu cuenta
-• Borrar reseñas y contenido publicado
 • Retirar el consentimiento en cualquier momento
 
-Para ejercer estos derechos, contacta a: privacidad@mapu.com`,
-    },
-    {
-      title: '6. Cookies y Tecnologías Similares',
-      content: `Utilizamos tecnologías para mejorar tu experiencia:
-
-Cookies Esenciales:
-• Mantener tu sesión activa
-• Recordar tus preferencias
-• Garantizar la seguridad de la app
-
-Cookies de Análisis:
-• Entender cómo usas la app
-• Identificar problemas técnicos
-• Mejorar el rendimiento
-
-Cookies de Personalización:
-• Mostrar contenido relevante
-• Recordar tus búsquedas anteriores
-• Personalizar recomendaciones
-
-Puedes gestionar estas preferencias en la configuración de tu dispositivo.`,
-    },
-    {
-      title: '7. Menores de Edad',
-      content: `Mapu no está dirigida a menores de 13 años.
-
-Si eres menor de 18 años:
-• Necesitas el consentimiento de tus padres
-• Debes tener supervisión adulta
-• No debes compartir información personal
-
-Si descubrimos que recopilamos datos de menores:
-• Eliminaremos la información inmediatamente
-• Notificaremos a los padres si es posible
-• Tomaremos medidas para prevenir futuras recopilaciones
-
-Los padres pueden contactarnos para:
-• Solicitar la eliminación de datos de sus hijos
-• Revisar qué información tenemos
-• Establecer restricciones adicionales`,
-    },
-    {
-      title: '8. Cambios en esta Política',
-      content: `Podemos actualizar esta política ocasionalmente.
-
-Notificaciones de Cambios:
-• Te informaremos por email sobre cambios importantes
-• Mostraremos un aviso en la app
-• Actualizaremos la fecha de "última modificación"
-
-Cambios Menores:
-• Correcciones de errores tipográficos
-• Aclaraciones de lenguaje
-• Actualizaciones de información de contacto
-
-Tu Continuidad:
-• El uso continuado implica aceptación de cambios
-• Puedes revisar la política actualizada en cualquier momento
-• Tienes derecho a discontinuar el uso si no estás de acuerdo`,
-    },
-    {
-      title: '9. Contacto',
-      content: `Para preguntas sobre privacidad:
-
-Email: privacidad@mapu.com
-Teléfono: +505 1234-5678
-Dirección: Managua, Nicaragua
-
-Horario de Atención:
-Lunes a Viernes: 8:00 AM - 6:00 PM
-Sábados: 9:00 AM - 2:00 PM
-
-Tiempo de Respuesta:
-• Consultas generales: 24-48 horas
-• Solicitudes de datos: 7 días hábiles
-• Quejas de privacidad: 72 horas
-
-También puedes contactarnos a través de la app en la sección "Configuraciones > Contactar Soporte".`,
+Contacto: privacidad@mapu.com`,
     },
   ];
 
@@ -202,7 +67,7 @@ También puedes contactarnos a través de la app en la sección "Configuraciones
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Política de Privacidad</Text>
         <View style={styles.headerRight} />
@@ -244,7 +109,7 @@ También puedes contactarnos a través de la app en la sección "Configuraciones
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -252,19 +117,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   backButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginLeft: 12,
     flex: 1,
   },
@@ -275,31 +140,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   intro: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     margin: 20,
     padding: 20,
     borderRadius: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
+    borderLeftColor: colors.success,
   },
   introTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 8,
   },
   introSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 16,
   },
   introText: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#374151',
+    color: colors.text.primary,
   },
   section: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     marginHorizontal: 20,
     marginBottom: 16,
     padding: 20,
@@ -308,16 +173,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 12,
   },
   sectionContent: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#374151',
+    color: colors.text.primary,
   },
   footer: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     margin: 20,
     padding: 20,
     borderRadius: 12,
@@ -325,13 +190,13 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
     marginBottom: 8,
   },
   footerDate: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.text.muted,
   },
 });
 

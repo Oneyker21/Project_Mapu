@@ -26,6 +26,7 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig';
+import { colors } from '../../config/colors';
 
 const ReservationsScreen = ({ navigation }) => {
   const { user: authUser } = useAuth();
@@ -61,14 +62,47 @@ const ReservationsScreen = ({ navigation }) => {
         ...doc.data()
       }));
       
+      // Cargar información adicional del turista para cada reservación
+      const enrichedReservations = await Promise.all(
+        reservationsData.map(async (reservation) => {
+          try {
+            if (reservation.turistaId) {
+              const touristRef = doc(db, 'usuarios', reservation.turistaId);
+              const touristDoc = await getDocs(touristRef);
+              
+              if (touristDoc.exists()) {
+                const touristData = touristDoc.data();
+                return {
+                  ...reservation,
+                  turistaNombre: touristData.nombre || touristData.displayName || 'Turista',
+                  turistaTelefono: touristData.telefono || touristData.phoneNumber || null,
+                  turistaEmail: touristData.email || null,
+                  turistaImagen: touristData.fotoPerfil || touristData.profileImage || null,
+                };
+              }
+            }
+            return {
+              ...reservation,
+              turistaNombre: reservation.turistaNombre || 'Turista',
+              turistaTelefono: reservation.turistaTelefono || null,
+              turistaEmail: reservation.turistaEmail || null,
+              turistaImagen: reservation.turistaImagen || null,
+            };
+          } catch (error) {
+            console.error('Error cargando datos del turista:', error);
+            return reservation;
+          }
+        })
+      );
+      
       // Ordenar client-side para evitar el error de índice
-      reservationsData.sort((a, b) => {
+      enrichedReservations.sort((a, b) => {
         const dateA = new Date(a.fechaCreacion || 0);
         const dateB = new Date(b.fechaCreacion || 0);
         return dateB - dateA; // Descendente
       });
       
-      setReservations(reservationsData);
+      setReservations(enrichedReservations);
     } catch (error) {
       console.error('Error cargando reservaciones:', error);
       Alert.alert('Error', 'No se pudieron cargar las reservaciones');
@@ -143,11 +177,21 @@ const ReservationsScreen = ({ navigation }) => {
       <View style={styles.reservationHeader}>
         <View style={styles.customerInfo}>
           <View style={styles.avatarContainer}>
-            <Ionicons name="person" size={24} color="#6B7280" />
+            {reservation.turistaImagen ? (
+              <Image 
+                source={{ uri: reservation.turistaImagen }} 
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Ionicons name="person" size={24} color={colors.text.muted} />
+            )}
           </View>
           <View style={styles.customerDetails}>
             <Text style={styles.customerName}>{reservation.turistaNombre || 'Turista'}</Text>
             <Text style={styles.customerPhone}>{reservation.turistaTelefono || 'Sin teléfono'}</Text>
+            {reservation.turistaEmail && (
+              <Text style={styles.customerEmail}>{reservation.turistaEmail}</Text>
+            )}
           </View>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(reservation.estado) }]}>
@@ -159,17 +203,17 @@ const ReservationsScreen = ({ navigation }) => {
         <Text style={styles.serviceName}>{reservation.servicioNombre}</Text>
         
         <View style={styles.detailRow}>
-          <Ionicons name="calendar" size={16} color="#6B7280" />
+          <Ionicons name="calendar" size={16} color={colors.text.muted} />
           <Text style={styles.detailText}>{reservation.fecha}</Text>
         </View>
         
         <View style={styles.detailRow}>
-          <Ionicons name="time" size={16} color="#6B7280" />
+          <Ionicons name="time" size={16} color={colors.text.muted} />
           <Text style={styles.detailText}>{reservation.hora}</Text>
         </View>
         
         <View style={styles.detailRow}>
-          <Ionicons name="people" size={16} color="#6B7280" />
+          <Ionicons name="people" size={16} color={colors.text.muted} />
           <Text style={styles.detailText}>{reservation.personas} persona{reservation.personas !== '1' ? 's' : ''}</Text>
         </View>
       </View>
@@ -183,7 +227,7 @@ const ReservationsScreen = ({ navigation }) => {
 
       <View style={styles.reservationActions}>
         <TouchableOpacity style={styles.messageButton}>
-          <Ionicons name="chatbubble" size={16} color="#4ADE80" />
+          <Ionicons name="chatbubble" size={16} color={colors.success} />
           <Text style={styles.actionText}>Mensaje</Text>
         </TouchableOpacity>
         
@@ -222,7 +266,7 @@ const ReservationsScreen = ({ navigation }) => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="calendar-outline" size={64} color="#9CA3AF" />
+      <Ionicons name="calendar-outline" size={64} color={colors.text.muted} />
       <Text style={styles.emptyStateTitle}>No hay reservaciones</Text>
       <Text style={styles.emptyStateText}>
         {selectedTab === 'pending' && 'No tienes reservaciones pendientes'}
@@ -241,13 +285,13 @@ const ReservationsScreen = ({ navigation }) => {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Reservaciones</Text>
           <View style={styles.headerRight} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4ADE80" />
+          <ActivityIndicator size="large" color={colors.success} />
           <Text style={styles.loadingText}>Cargando reservaciones...</Text>
         </View>
       </SafeAreaView>
@@ -263,7 +307,7 @@ const ReservationsScreen = ({ navigation }) => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Reservaciones</Text>
         <View style={styles.headerRight} />
@@ -321,22 +365,22 @@ const ReservationsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -344,7 +388,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginLeft: 8,
   },
   headerRight: {
@@ -358,7 +402,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 20,
     marginBottom: 16,
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 6,
     shadowColor: '#000',
@@ -378,20 +422,20 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   activeTab: {
-    backgroundColor: '#4ADE80',
+    backgroundColor: colors.success,
   },
   tabText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
     marginBottom: 4,
   },
   activeTabText: {
-    color: 'white',
+    color: colors.text.primary,
   },
   tabBadge: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 4,
     paddingVertical: 2,
@@ -399,18 +443,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTabBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: colors.background,
   },
   tabBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   activeTabBadgeText: {
-    color: 'white',
+    color: colors.text.primary,
   },
   reservationCard: {
-    backgroundColor: 'white',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -435,10 +479,16 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   customerDetails: {
     flex: 1,
@@ -446,12 +496,17 @@ const styles = StyleSheet.create({
   customerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 2,
   },
   customerPhone: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
+  },
+  customerEmail: {
+    fontSize: 12,
+    color: colors.text.muted,
+    marginTop: 2,
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -461,7 +516,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '600',
-    color: 'white',
+    color: colors.text.primary,
   },
   reservationDetails: {
     marginBottom: 12,
@@ -469,7 +524,7 @@ const styles = StyleSheet.create({
   serviceName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 8,
   },
   detailRow: {
@@ -479,24 +534,24 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginLeft: 8,
   },
   notesContainer: {
     marginBottom: 12,
     padding: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
     borderRadius: 8,
   },
   notesLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   notesText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   reservationActions: {
     flexDirection: 'row',
@@ -512,30 +567,30 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   messageButton: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: colors.background,
   },
   confirmButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.success,
   },
   rejectButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.error,
   },
   completeButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   actionText: {
     fontSize: 14,
-    color: '#1F2937',
+    color: colors.text.primary,
     marginLeft: 4,
   },
   confirmText: {
-    color: 'white',
+    color: colors.text.primary,
   },
   rejectText: {
-    color: 'white',
+    color: colors.text.primary,
   },
   completeText: {
-    color: 'white',
+    color: colors.text.primary,
   },
   emptyState: {
     alignItems: 'center',
@@ -544,13 +599,13 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
+    color: colors.text.primary,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
   },
   loadingContainer: {
@@ -560,7 +615,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 16,
   },
 });

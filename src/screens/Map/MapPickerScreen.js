@@ -4,6 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Location from 'expo-location';
 import { Button } from '../../components';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { colors } from '../../config/colors';
 
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
@@ -257,7 +258,7 @@ const MapPickerScreen = ({ route, navigation }) => {
   if (!mapReady) {
     return (
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={{ marginTop: 10 }}>Cargando mapa...</Text>
       </SafeAreaView>
     );
@@ -270,7 +271,7 @@ const MapPickerScreen = ({ route, navigation }) => {
         style={[styles.floatingBackButton, { top: insets.top + 16 }]} 
         onPress={() => navigation.goBack()}
       >
-        <Ionicons name="arrow-back" size={24} color="#374151" />
+        <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
       </TouchableOpacity>
 
           {/* Botón flotante para cambiar tipo de mapa */}
@@ -281,7 +282,7 @@ const MapPickerScreen = ({ route, navigation }) => {
             <Ionicons 
               name={mapType === 'standard' ? 'globe' : 'map'} 
               size={20} 
-              color="#374151" 
+              color={colors.text.primary} 
             />
           </TouchableOpacity>
 
@@ -293,7 +294,7 @@ const MapPickerScreen = ({ route, navigation }) => {
             <Ionicons 
               name="search" 
               size={20} 
-              color="#374151" 
+              color={colors.text.primary} 
             />
           </TouchableOpacity>
 
@@ -301,7 +302,7 @@ const MapPickerScreen = ({ route, navigation }) => {
           {showSearch && (
             <View style={[styles.searchContainer, { top: insets.top + 70 }]}>
               <View style={styles.searchInputContainer}>
-                <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
+                <Ionicons name="search" size={20} color={colors.text.muted} style={styles.searchIcon} />
                 <TextInput
                   style={styles.searchInput}
                   placeholder="Buscar lugar (ej: Juigalpa, Granada...)"
@@ -311,7 +312,7 @@ const MapPickerScreen = ({ route, navigation }) => {
                 />
                 {searchQuery.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchQuery('')}>
-                    <Ionicons name="close-circle" size={20} color="#6B7280" />
+                    <Ionicons name="close-circle" size={20} color={colors.text.muted} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -329,7 +330,7 @@ const MapPickerScreen = ({ route, navigation }) => {
                         name={lugares[lugar].tipo === 'Departamento' ? 'map' : 
                               lugares[lugar].tipo === 'Ciudad' ? 'location' : 'business'} 
                         size={16} 
-                        color="#3B82F6" 
+                        color={colors.primary} 
                       />
                       <View style={styles.lugarInfo}>
                         <Text style={styles.lugarText}>{lugar}</Text>
@@ -436,7 +437,7 @@ const MapPickerScreen = ({ route, navigation }) => {
           >
             <View style={styles.centerPinContainer}>
               <View style={styles.centerPin}>
-                <Ionicons name="business" size={18} color="#FFFFFF" />
+                <Ionicons name="business" size={18} color={colors.text.primary} />
               </View>
               <View style={styles.centerPinTail} />
             </View>
@@ -489,10 +490,10 @@ const MapPickerScreen = ({ route, navigation }) => {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator size="small" color="#6B7280" />
+              <ActivityIndicator size="small" color={colors.text.muted} />
             ) : (
               <View style={styles.buttonContent}>
-                <Ionicons name="locate" size={18} color="#374151" />
+                <Ionicons name="locate" size={18} color={colors.text.primary} />
                 <Text style={styles.locationButtonText}>Mi ubicación</Text>
               </View>
             )}
@@ -502,7 +503,7 @@ const MapPickerScreen = ({ route, navigation }) => {
             onPress={confirm}
           >
             <View style={styles.buttonContent}>
-              <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" />
+              <Ionicons name="checkmark-circle" size={18} color={colors.text.primary} />
               <Text style={styles.confirmButtonText}>Confirmar</Text>
             </View>
           </TouchableOpacity>
@@ -519,7 +520,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     zIndex: 1000,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 25,
     width: 50,
     height: 50,
@@ -538,7 +539,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     zIndex: 1000,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 25,
     width: 50,
     height: 50,
@@ -557,7 +558,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 80,
     zIndex: 1000,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 25,
     width: 50,
     height: 50,
@@ -578,7 +579,7 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     zIndex: 1000,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: {
@@ -601,12 +602,12 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#111827',
+    color: colors.text.primary,
   },
   lugaresList: {
     maxHeight: 200,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
   lugarItem: {
     flexDirection: 'row',
@@ -614,7 +615,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   lugarInfo: {
     marginLeft: 12,
@@ -622,12 +623,12 @@ const styles = StyleSheet.create({
   },
   lugarText: {
     fontSize: 14,
-    color: '#374151',
+    color: colors.text.primary,
     fontWeight: '500',
   },
   lugarTipo: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 2,
   },
   map: {
@@ -649,7 +650,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 30,
     height: 4,
-    backgroundColor: '#FF0000', // Rojo más brillante
+    backgroundColor: colors.error, // Rojo más brillante
     borderRadius: 2,
     top: 13, // (30 - 4) / 2 = 13 - PERFECTO CENTRO
     left: 0,
@@ -666,7 +667,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 4,
     height: 30,
-    backgroundColor: '#FF0000', // Rojo más brillante
+    backgroundColor: colors.error, // Rojo más brillante
     borderRadius: 2,
     top: 0,
     left: 13, // (30 - 4) / 2 = 13 - PERFECTO CENTRO
@@ -684,7 +685,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FF0000', // Rojo más brillante
+    backgroundColor: colors.error, // Rojo más brillante
     top: 11, // (30 - 8) / 2 = 11 - PERFECTO CENTRO
     left: 11, // (30 - 8) / 2 = 11 - PERFECTO CENTRO
     borderWidth: 3,
@@ -699,7 +700,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   footer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
@@ -709,7 +710,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 8,
   },
   buttonContainer: { 
@@ -719,7 +720,7 @@ const styles = StyleSheet.create({
   },
   locationButton: { 
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 8,
@@ -728,7 +729,7 @@ const styles = StyleSheet.create({
   },
   confirmButton: { 
     flex: 1,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -736,13 +737,13 @@ const styles = StyleSheet.create({
   locationButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: colors.text.primary,
     textAlign: 'center',
   },
   confirmButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text.primary,
     textAlign: 'center',
   },
   buttonContent: {
@@ -756,7 +757,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   centerPin: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.success,
     width: 34,
     height: 34,
     borderRadius: 17,
@@ -785,7 +786,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 25,
     left: -40,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -793,7 +794,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pinText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 10,
     fontWeight: '600',
   },

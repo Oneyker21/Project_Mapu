@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import colors, { withOpacity } from '../config/colors';
 
 const WriteReviewModal = ({ 
   visible, 
@@ -42,7 +43,7 @@ const WriteReviewModal = ({
           <Ionicons
             name={i <= rating ? 'star' : 'star-outline'}
             size={32}
-            color={i <= rating ? '#F59E0B' : '#D1D5DB'}
+            color={i <= rating ? colors.warning : colors.text.muted}
           />
         </TouchableOpacity>
       );
@@ -118,7 +119,7 @@ const WriteReviewModal = ({
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color="#6B7280" />
+            <Ionicons name="close" size={24} color={colors.text.muted} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
             {userReview ? 'Editar Reseña' : 'Escribir Reseña'}
@@ -194,7 +195,7 @@ const WriteReviewModal = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -202,9 +203,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   closeButton: {
     padding: 8,
@@ -212,7 +213,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     flex: 1,
     textAlign: 'center',
   },
@@ -224,42 +225,42 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   centerCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 12,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   centerName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   centerCategory: {
     fontSize: 14,
-    color: '#3B82F6',
+    color: colors.primary,
     fontWeight: '500',
     marginBottom: 2,
   },
   centerLocation: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   ratingSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     padding: 20,
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     alignItems: 'center',
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 16,
   },
   starsContainer: {
@@ -271,35 +272,35 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     fontWeight: '500',
   },
   commentSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     padding: 20,
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   commentInput: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#F9FAFB',
+    color: colors.text.primary,
+    backgroundColor: colors.background,
     minHeight: 120,
   },
   characterCount: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'right',
     marginTop: 4,
   },
   tipsSection: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: withOpacity(colors.warning, 0.1),
     padding: 16,
     borderRadius: 12,
     marginBottom: 20,
@@ -307,31 +308,31 @@ const styles = StyleSheet.create({
   tipsTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#92400E',
+    color: colors.warning,
     marginBottom: 8,
   },
   tipText: {
     fontSize: 12,
-    color: '#92400E',
+    color: colors.warning,
     marginBottom: 4,
   },
   footer: {
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: colors.border,
   },
   submitButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
   submitButtonDisabled: {
-    backgroundColor: '#9CA3AF',
+    backgroundColor: colors.text.muted,
   },
   submitButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },

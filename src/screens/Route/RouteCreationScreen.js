@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
   Modal,
   TextInput,
-  ScrollView
+  ScrollView,
+  Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +18,7 @@ import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
+import { colors } from '../../config/colors';
 
 const RouteCreationScreen = ({ navigation, route }) => {
   const [centers, setCenters] = useState([]);
@@ -32,6 +34,8 @@ const RouteCreationScreen = ({ navigation, route }) => {
   const [startPoint, setStartPoint] = useState(null);
   const [showStartPoint, setShowStartPoint] = useState(false);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [transportMode, setTransportMode] = useState('driving'); // driving, walking, motorcycling
+  const [showCentersModal, setShowCentersModal] = useState(false);
   const [mapRegion, setMapRegion] = useState({
     latitude: 12.8654, // Centro de Nicaragua
     longitude: -85.2072,
@@ -534,21 +538,15 @@ const RouteCreationScreen = ({ navigation, route }) => {
 
   const startRoute = () => {
     console.log('startRoute - startPoint:', startPoint);
-    console.log('startRoute - showStartPoint:', showStartPoint);
     console.log('startRoute - selectedCenters:', selectedCenters);
     
-    if (!showStartPoint) {
-      Alert.alert('Error', 'Necesitas seleccionar tu punto de inicio para crear una ruta');
-      return;
-    }
-
     if (!startPoint || !startPoint.latitude || !startPoint.longitude) {
-      Alert.alert('Error', 'No se pudo obtener tu punto de inicio. Intenta de nuevo.');
+      Alert.alert('Error', 'Selecciona tu punto de inicio primero');
       return;
     }
 
     if (selectedCenters.length < 1) {
-      Alert.alert('Error', 'Selecciona al menos 1 centro para crear una ruta');
+      Alert.alert('Error', 'Selecciona al menos 1 lugar para visitar');
       return;
     }
 
@@ -593,7 +591,8 @@ const RouteCreationScreen = ({ navigation, route }) => {
             navigation.navigate('RouteNavigation', { 
               route: fullRoute,
               currentIndex: 0,
-              userLocation: startPoint
+              userLocation: startPoint,
+              transportMode: transportMode
             });
           }
         }
@@ -644,7 +643,7 @@ const RouteCreationScreen = ({ navigation, route }) => {
           isSelected && styles.checkedBox
         ]}>
           {isSelected && (
-            <Ionicons key={`checkmark-${item.id}`} name="checkmark" size={16} color="#FFFFFF" />
+            <Ionicons key={`checkmark-${item.id}`} name="checkmark" size={16} color={colors.text.primary} />
           )}
         </View>
       </TouchableOpacity>
@@ -658,7 +657,7 @@ const RouteCreationScreen = ({ navigation, route }) => {
         onPress={() => toggleCenterSelection(item)}
         style={styles.removeButton}
       >
-        <Ionicons key={`close-${item.id}`} name="close" size={16} color="#EF4444" />
+        <Ionicons key={`close-${item.id}`} name="close" size={16} color={colors.error} />
       </TouchableOpacity>
     </View>
   );
@@ -674,12 +673,12 @@ const RouteCreationScreen = ({ navigation, route }) => {
               navigation.goBack();
             }}
           >
-            <Ionicons name="arrow-back" size={24} color="#6B7280" />
+            <Ionicons name="arrow-back" size={24} color={colors.text.muted} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Crear Ruta</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Cargando centros...</Text>
         </View>
       </SafeAreaView>
@@ -696,10 +695,10 @@ const RouteCreationScreen = ({ navigation, route }) => {
             navigation.goBack();
           }}
         >
-          <Ionicons name="arrow-back" size={24} color="#6B7280" />
+          <Ionicons name="arrow-back" size={24} color={colors.text.muted} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Crear Ruta</Text>
-        {showStartPoint && selectedCenters.length > 0 && (
+        {startPoint && selectedCenters.length > 0 && (
           <TouchableOpacity 
             style={styles.startButton}
             onPress={startRoute}
@@ -710,34 +709,75 @@ const RouteCreationScreen = ({ navigation, route }) => {
       </View>
 
       <View style={styles.content}>
-        {/* Sección de Punto de Inicio */}
-        <View style={styles.startPointSection}>
-          <Text style={styles.sectionTitle}>Tu Punto de Inicio</Text>
-          {startPoint ? (
+        {/* Modo de transporte simplificado */}
+        <View style={styles.transportModeSection}>
+          <Text style={styles.transportModeLabel}>¿Cómo vas a viajar?</Text>
+          <View style={styles.transportModeContainer}>
             <TouchableOpacity 
-              style={styles.startPointCard}
-              onPress={() => setShowStartPoint(!showStartPoint)}
+              style={[
+                styles.transportModeButton,
+                transportMode === 'driving' && styles.transportModeButtonSelected
+              ]}
+              onPress={() => setTransportMode('driving')}
             >
+              <Ionicons 
+                name="car" 
+                size={18} 
+                color={transportMode === 'driving' ? colors.text.primary : colors.text.muted} 
+              />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[
+                styles.transportModeButton,
+                transportMode === 'walking' && styles.transportModeButtonSelected
+              ]}
+              onPress={() => setTransportMode('walking')}
+            >
+              <Ionicons 
+                name="walk" 
+                size={18} 
+                color={transportMode === 'walking' ? colors.text.primary : colors.text.muted} 
+              />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[
+                styles.transportModeButton,
+                transportMode === 'motorcycling' && styles.transportModeButtonSelected
+              ]}
+              onPress={() => setTransportMode('motorcycling')}
+            >
+              <Ionicons 
+                name="bicycle" 
+                size={18} 
+                color={transportMode === 'motorcycling' ? colors.text.primary : colors.text.muted} 
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Punto de inicio simplificado */}
+        <View style={styles.startPointSection}>
+          {startPoint ? (
+            <View style={styles.startPointCard}>
               <View style={styles.startPointInfo}>
-                <View style={styles.startPointIcon}>
-                  <Ionicons name="location" size={20} color="#3B82F6" />
-                </View>
+                <Ionicons name="location" size={20} color={colors.success} />
                 <View style={styles.startPointText}>
                   <Text style={styles.startPointTitle}>{startPoint.address}</Text>
-                  <Text style={styles.startPointSubtitle}>
-                    Lat: {startPoint.latitude?.toFixed(4) || 'N/A'}, Lng: {startPoint.longitude?.toFixed(4) || 'N/A'}
-                  </Text>
+                  <Text style={styles.startPointSubtitle}>Punto de inicio seleccionado</Text>
                 </View>
               </View>
-              <View style={[
-                styles.startPointCheckbox,
-                showStartPoint && styles.startPointCheckboxSelected
-              ]}>
-                {showStartPoint && (
-                  <Ionicons key="start-point-checkmark" name="checkmark" size={16} color="#FFFFFF" />
-                )}
-              </View>
-            </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.editButton}
+                onPress={async () => {
+                  console.log('Cambiando punto de inicio...');
+                  await openMapPicker();
+                }}
+              >
+                <Ionicons name="create-outline" size={16} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
           ) : (
             <TouchableOpacity 
               style={styles.selectStartPointButton}
@@ -748,9 +788,9 @@ const RouteCreationScreen = ({ navigation, route }) => {
               disabled={isLoadingLocation}
             >
               {isLoadingLocation ? (
-                <ActivityIndicator size="small" color="#3B82F6" />
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <Ionicons name="map" size={24} color="#3B82F6" />
+                <Ionicons name="map" size={24} color={colors.primary} />
               )}
               <View style={styles.selectStartPointTextContainer}>
                 <Text style={styles.selectStartPointText}>
@@ -764,66 +804,47 @@ const RouteCreationScreen = ({ navigation, route }) => {
           )}
         </View>
 
-        {selectedCenters.length > 0 && (
-          <View style={styles.selectedSection}>
-            <Text style={styles.sectionTitle}>
-              Centros seleccionados ({selectedCenters.length})
-            </Text>
-            <FlatList
-              data={selectedCenters}
-              renderItem={renderSelectedCenter}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.selectedList}
-            />
-          </View>
-        )}
+         {/* Botón para seleccionar centros */}
+         <View style={styles.centersSection}>
+           <TouchableOpacity 
+             style={styles.selectCentersButton}
+             onPress={() => setShowCentersModal(true)}
+           >
+             <View style={styles.selectCentersContent}>
+               <Ionicons name="map-outline" size={20} color={colors.primary} />
+               <View style={styles.selectCentersText}>
+                 <Text style={styles.selectCentersTitle}>
+                   {selectedCenters.length > 0 
+                     ? `${selectedCenters.length} lugar${selectedCenters.length > 1 ? 'es' : ''} seleccionado${selectedCenters.length > 1 ? 's' : ''}`
+                     : 'Seleccionar lugares para visitar'
+                   }
+                 </Text>
+                 {selectedCenters.length > 0 && (
+                   <Text style={styles.selectCentersSubtitle}>
+                     Toca para editar
+                   </Text>
+                 )}
+               </View>
+               <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
+             </View>
+           </TouchableOpacity>
+         </View>
 
-        <View style={styles.searchSection}>
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Buscar centros..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholderTextColor="#6B7280"
-            />
-          </View>
-
-          <TouchableOpacity 
-            style={styles.departmentSelector}
-            onPress={() => setShowDepartmentSelector(true)}
-          >
-            <Ionicons name="location" size={20} color="#3B82F6" />
-            <Text style={styles.departmentSelectorText}>
-              {selectedDepartment || 'Seleccionar departamento'}
-            </Text>
-            <Ionicons name="chevron-down" size={16} color="#6B7280" />
-          </TouchableOpacity>
-
-        </View>
-
-        <Text style={styles.sectionTitle}>
-          Selecciona los centros para tu ruta ({filteredCenters.length} centros)
-        </Text>
-        
-        {filteredCenters.length > 0 ? (
-          <FlatList
-            data={filteredCenters}
-            renderItem={renderCenterItem}
-            keyExtractor={(item) => item.id}
-            style={styles.centersList}
-            showsVerticalScrollIndicator={false}
-          />
-        ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>
-              {loading ? 'Cargando centros...' : 'No se encontraron centros'}
-            </Text>
-          </View>
-        )}
+         {selectedCenters.length > 0 && (
+           <View style={styles.selectedSection}>
+             <Text style={styles.sectionTitle}>
+               Lugares seleccionados ({selectedCenters.length})
+             </Text>
+             <FlatList
+               data={selectedCenters}
+               renderItem={renderSelectedCenter}
+               keyExtractor={(item) => item.id}
+               horizontal
+               showsHorizontalScrollIndicator={false}
+               style={styles.selectedList}
+             />
+           </View>
+         )}
       </View>
 
       {/* Modal para seleccionar departamento */}
@@ -841,7 +862,7 @@ const RouteCreationScreen = ({ navigation, route }) => {
                 style={styles.closeButton}
                 onPress={() => setShowDepartmentSelector(false)}
               >
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <Ionicons name="close" size={24} color={colors.text.muted} />
               </TouchableOpacity>
             </View>
             
@@ -867,18 +888,154 @@ const RouteCreationScreen = ({ navigation, route }) => {
               style={styles.departmentList}
             />
           </View>
-        </View>
-      </Modal>
+         </View>
+       </Modal>
 
+       {/* Modal para seleccionar centros */}
+       <Modal
+         visible={showCentersModal}
+         animationType="slide"
+         presentationStyle="pageSheet"
+         onRequestClose={() => setShowCentersModal(false)}
+       >
+         <SafeAreaView style={styles.modalContainer}>
+           <View style={styles.modalHeader}>
+             <TouchableOpacity 
+               onPress={() => setShowCentersModal(false)}
+               style={styles.modalCloseButton}
+             >
+               <Ionicons name="close" size={24} color={colors.text.muted} />
+             </TouchableOpacity>
+             <Text style={styles.modalTitle}>Seleccionar Lugares</Text>
+             <View style={styles.modalHeaderRight}>
+               <Text style={styles.selectedCount}>
+                 {selectedCenters.length} seleccionado{selectedCenters.length !== 1 ? 's' : ''}
+               </Text>
+             </View>
+           </View>
 
-    </SafeAreaView>
-  );
-};
+           {/* Búsqueda y filtros dentro del modal */}
+           <View style={styles.modalSearchSection}>
+             <View style={styles.searchContainer}>
+               <Ionicons name="search" size={20} color={colors.text.muted} style={styles.searchIcon} />
+               <TextInput
+                 style={styles.searchInput}
+                 placeholder="Buscar centros..."
+                 value={searchQuery}
+                 onChangeText={setSearchQuery}
+                 placeholderTextColor={colors.text.muted}
+               />
+             </View>
+
+             <TouchableOpacity 
+               style={styles.departmentSelector}
+               onPress={() => setShowDepartmentSelector(true)}
+             >
+               <Ionicons name="location" size={20} color={colors.primary} />
+               <Text style={styles.departmentSelectorText}>
+                 {selectedDepartment || 'Seleccionar departamento'}
+               </Text>
+               <Ionicons name="chevron-down" size={16} color={colors.text.muted} />
+             </TouchableOpacity>
+           </View>
+
+           <Text style={styles.modalSectionTitle}>
+             Centros disponibles ({filteredCenters.length})
+           </Text>
+           
+           <FlatList
+             data={filteredCenters}
+             keyExtractor={(item) => item.id}
+             renderItem={({ item }) => {
+               const isSelected = selectedCenters.some(selected => selected.id === item.id);
+               return (
+                 <TouchableOpacity
+                   style={[
+                     styles.centerCard,
+                     isSelected && styles.centerCardSelected
+                   ]}
+                   onPress={() => toggleCenterSelection(item)}
+                 >
+                   <View style={styles.centerInfo}>
+                     <View style={styles.centerImageContainer}>
+                       {(item.logotipo || item.portada) ? (
+                         <Image 
+                           source={{ uri: item.logotipo || item.portada }}
+                           style={styles.centerImage}
+                           resizeMode="cover"
+                           onError={() => {
+                             console.log('Error loading image for center:', item.nombreNegocio || item.businessName);
+                           }}
+                         />
+                       ) : (
+                         <View style={styles.centerIcon}>
+                           <Ionicons 
+                             name={getCategoryIcon(item.category || item.categoriaNegocio)} 
+                             size={20} 
+                             color={isSelected ? colors.text.primary : colors.primary} 
+                           />
+                         </View>
+                       )}
+                     </View>
+                     <View style={styles.centerDetails}>
+                       <Text style={[
+                         styles.centerName,
+                         isSelected && styles.centerNameSelected
+                       ]}>
+                         {item.nombreNegocio || item.businessName}
+                       </Text>
+                       <Text style={[
+                         styles.centerCategory,
+                         isSelected && styles.centerCategorySelected
+                       ]}>
+                         {item.categoriaNegocio || item.category}
+                       </Text>
+                       <Text style={[
+                         styles.centerAddress,
+                         isSelected && styles.centerAddressSelected
+                       ]}>
+                         {item.direccion || item.address}
+                       </Text>
+                     </View>
+                   </View>
+                   <View style={[
+                     styles.selectionIndicator,
+                     isSelected && styles.selectionIndicatorSelected
+                   ]}>
+                     {isSelected && (
+                       <Ionicons name="checkmark" size={16} color={isSelected ? colors.primary : colors.text.primary} />
+                     )}
+                   </View>
+                 </TouchableOpacity>
+               );
+             }}
+             style={styles.modalFlatList}
+             showsVerticalScrollIndicator={false}
+           />
+
+           {selectedCenters.length > 0 && (
+             <View style={styles.modalFooter}>
+               <TouchableOpacity
+                 style={styles.confirmButton}
+                 onPress={() => setShowCentersModal(false)}
+               >
+                 <Text style={styles.confirmButtonText}>
+                   Confirmar ({selectedCenters.length} lugar{selectedCenters.length > 1 ? 'es' : ''})
+                 </Text>
+               </TouchableOpacity>
+             </View>
+           )}
+         </SafeAreaView>
+       </Modal>
+
+     </SafeAreaView>
+   );
+ };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -886,15 +1043,15 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -905,18 +1062,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: colors.text.primary,
     flex: 1,
     textAlign: 'left',
   },
   startButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   startButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontWeight: '600',
   },
   content: {
@@ -931,7 +1088,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 8,
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   selectedSection: {
     marginBottom: 24,
@@ -939,7 +1096,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 16,
   },
   selectedList: {
@@ -948,7 +1105,7 @@ const styles = StyleSheet.create({
   selectedCenterItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
@@ -958,7 +1115,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   selectedCenterName: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 2,
@@ -979,21 +1136,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
   centerItemSelected: {
-    backgroundColor: '#EBF4FF',
+    backgroundColor: colors.background,
     borderColor: '#3B82F6',
     borderWidth: 2,
   },
   selectedCenterItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
@@ -1010,13 +1167,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#EBF4FF',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   centerIconContainerSelected: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   centerTextContainer: {
     flex: 1,
@@ -1024,7 +1181,7 @@ const styles = StyleSheet.create({
   centerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   centerNameSelected: {
@@ -1033,14 +1190,14 @@ const styles = StyleSheet.create({
   },
   centerCategory: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   centerCategorySelected: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontWeight: '500',
   },
   selectedCenterText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   selectedCenterSubtext: {
     color: 'rgba(255, 255, 255, 0.8)',
@@ -1055,7 +1212,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkedBox: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     borderColor: '#3B82F6',
   },
   searchSection: {
@@ -1064,12 +1221,12 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     marginBottom: 12,
   },
   searchIcon: {
@@ -1078,23 +1235,23 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#111827',
+    color: colors.text.primary,
   },
   departmentSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     marginBottom: 12,
   },
   departmentSelectorText: {
     flex: 1,
     fontSize: 16,
-    color: '#111827',
+    color: colors.text.primary,
     marginLeft: 12,
   },
   clearFiltersButton: {
@@ -1103,14 +1260,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.background,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#FECACA',
     alignSelf: 'flex-start',
   },
   clearFiltersText: {
-    color: '#EF4444',
+    color: colors.error,
     fontSize: 12,
     fontWeight: '500',
     marginLeft: 4,
@@ -1121,7 +1278,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   departmentModal: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
@@ -1138,7 +1295,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#111827',
+    color: colors.text.primary,
   },
   closeButton: {
     padding: 4,
@@ -1153,17 +1310,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   selectedDepartmentOption: {
-    backgroundColor: '#EBF4FF',
+    backgroundColor: colors.background,
   },
   departmentOptionText: {
     fontSize: 16,
-    color: '#111827',
+    color: colors.text.primary,
   },
   selectedDepartmentOptionText: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontWeight: '600',
   },
   startPointSection: {
@@ -1173,10 +1330,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.background,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     borderStyle: 'dashed',
     marginBottom: 16,
   },
@@ -1187,36 +1344,28 @@ const styles = StyleSheet.create({
   selectStartPointText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: colors.primary,
   },
   selectStartPointSubtext: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginTop: 2,
   },
   startPointCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   startPointInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-  },
-  startPointIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#EBF4FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+    gap: 12,
   },
   startPointText: {
     flex: 1,
@@ -1224,30 +1373,79 @@ const styles = StyleSheet.create({
   startPointTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
+    color: colors.text.primary,
+    marginBottom: 2,
   },
   startPointSubtitle: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
-  startPointCheckbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+   editButton: {
+     padding: 8,
+     borderRadius: 8,
+     backgroundColor: colors.background,
+   },
+   centersSection: {
+     marginBottom: 20,
+   },
+   selectCentersButton: {
+     backgroundColor: colors.surface,
+     borderRadius: 12,
+     padding: 16,
+     borderWidth: 1,
+     borderColor: colors.border,
+   },
+   selectCentersContent: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     gap: 12,
+   },
+   selectCentersText: {
+     flex: 1,
+   },
+   selectCentersTitle: {
+     fontSize: 16,
+     fontWeight: '600',
+     color: colors.text.primary,
+     marginBottom: 2,
+   },
+   selectCentersSubtitle: {
+     fontSize: 12,
+     color: colors.text.muted,
+   },
+  transportModeSection: {
+    marginBottom: 20,
+  },
+  transportModeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  transportModeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 20,
+  },
+  transportModeButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.background,
     borderWidth: 2,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  startPointCheckboxSelected: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+  transportModeButtonSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   locationErrorCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.background,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
@@ -1256,12 +1454,12 @@ const styles = StyleSheet.create({
   locationErrorText: {
     marginLeft: 12,
     fontSize: 14,
-    color: '#EF4444',
+    color: colors.error,
     flex: 1,
   },
   mapModalContainer: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: colors.text.primary,
   },
   mapFloatingButtons: {
     position: 'absolute',
@@ -1290,7 +1488,7 @@ const styles = StyleSheet.create({
   },
   mapContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
   },
   map: {
     flex: 1,
@@ -1309,7 +1507,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -1329,7 +1527,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 12,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: colors.primary,
     textAlign: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     paddingHorizontal: 8,
@@ -1337,29 +1535,29 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   markerButtonTextDisabled: {
-    color: '#9CA3AF',
+    color: colors.text.muted,
   },
   mapHeader: {
     padding: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   mapTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 4,
   },
   mapSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   mapPlaceholder: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.background,
     margin: 20,
     borderRadius: 12,
     borderWidth: 2,
@@ -1369,19 +1567,19 @@ const styles = StyleSheet.create({
   mapPlaceholderText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: colors.primary,
     marginTop: 16,
     marginBottom: 8,
   },
   mapPlaceholderSubtext: {
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
   },
   mapActions: {
     flexDirection: 'row',
     padding: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
     gap: 12,
@@ -1391,16 +1589,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
   },
   confirmButtonDisabled: {
-    backgroundColor: '#9CA3AF',
+    backgroundColor: colors.text.muted,
   },
   confirmButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -1418,7 +1616,7 @@ const styles = StyleSheet.create({
   locateButtonWithText: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 25,
@@ -1431,13 +1629,13 @@ const styles = StyleSheet.create({
   locateButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: colors.primary,
     marginLeft: 8,
   },
   confirmButtonWithText: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#10B981',
+    backgroundColor: colors.success,
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 25,
@@ -1448,7 +1646,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   confirmButtonWithTextDisabled: {
-    backgroundColor: '#10B981', // Mantiene el mismo color verde
+    backgroundColor: colors.success, // Mantiene el mismo color verde
   },
   confirmButtonDisabled: {
     opacity: 0.5,
@@ -1456,7 +1654,7 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text.primary,
     marginLeft: 8,
   },
   departmentSearchButton: {
@@ -1477,7 +1675,7 @@ const styles = StyleSheet.create({
   departmentSearchText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#374151',
+    color: colors.text.primary,
     marginLeft: 8,
   },
   modalOverlay: {
@@ -1487,7 +1685,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     width: '90%',
     maxHeight: '80%',
@@ -1508,7 +1706,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
   },
   closeButton: {
     padding: 4,
@@ -1522,12 +1720,12 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.border,
   },
   departmentOptionText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#374151',
+    color: colors.text.primary,
     marginLeft: 12,
     flex: 1,
   },
@@ -1544,7 +1742,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   coordinatesText: {
-    color: '#374151',
+    color: colors.text.primary,
     fontSize: 10,
     fontWeight: '500',
     textAlign: 'left',
@@ -1555,11 +1753,155 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 40,
   },
-  emptyStateText: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
+   emptyStateText: {
+     fontSize: 16,
+     color: colors.text.muted,
+     textAlign: 'center',
+   },
+   // Estilos del modal
+   modalContainer: {
+     flex: 1,
+     backgroundColor: colors.background,
+   },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-});
+   modalCloseButton: {
+     padding: 8,
+   },
+   modalTitle: {
+     fontSize: 18,
+     fontWeight: '600',
+     color: colors.text.primary,
+   },
+   modalHeaderRight: {
+     padding: 8,
+   },
+   selectedCount: {
+     fontSize: 14,
+     fontWeight: '500',
+     color: colors.primary,
+   },
+   modalSearchSection: {
+     padding: 20,
+     paddingBottom: 10,
+   },
+   modalFlatList: {
+     flex: 1,
+     paddingHorizontal: 20,
+   },
+   modalFooter: {
+     padding: 20,
+     backgroundColor: colors.surface,
+     borderTopWidth: 1,
+     borderTopColor: colors.border,
+   },
+  confirmButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  modalSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 16,
+    marginLeft: 20,
+  },
+   // Estilos para las tarjetas del modal
+  centerCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  centerCardSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+   centerInfo: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     flex: 1,
+     gap: 12,
+   },
+   centerImageContainer: {
+     width: 50,
+     height: 50,
+     borderRadius: 8,
+     overflow: 'hidden',
+   },
+   centerImage: {
+     width: '100%',
+     height: '100%',
+   },
+   centerIcon: {
+     width: 40,
+     height: 40,
+     borderRadius: 20,
+     backgroundColor: colors.background,
+     justifyContent: 'center',
+     alignItems: 'center',
+   },
+   centerDetails: {
+     flex: 1,
+   },
+  centerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 2,
+  },
+  centerNameSelected: {
+    color: colors.text.primary,
+  },
+  centerCategory: {
+    fontSize: 12,
+    color: colors.text.muted,
+    marginBottom: 2,
+  },
+  centerCategorySelected: {
+    color: colors.text.muted,
+  },
+  centerAddress: {
+    fontSize: 12,
+    color: colors.text.muted,
+  },
+  centerAddressSelected: {
+    color: colors.text.muted,
+  },
+  selectionIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectionIndicatorSelected: {
+    backgroundColor: colors.surface,
+    borderColor: colors.primary,
+    borderWidth: 2,
+  },
+ });
 
 export default RouteCreationScreen;

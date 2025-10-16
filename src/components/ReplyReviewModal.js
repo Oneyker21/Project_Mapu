@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { replyToReview, deleteReviewReply } from '../services/reviews';
+import { colors } from '../config/colors';
 
 const ReplyReviewModal = ({ 
   visible, 
@@ -151,7 +152,7 @@ const ReplyReviewModal = ({
                 {review?.reply ? 'Editar Respuesta' : 'Responder a la Reseña'}
               </Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <Ionicons name="close" size={24} color={colors.text.muted} />
               </TouchableOpacity>
             </View>
 
@@ -168,7 +169,7 @@ const ReplyReviewModal = ({
                           key={star}
                           name={star <= (review?.rating || 0) ? 'star' : 'star-outline'}
                           size={16}
-                          color="#F59E0B"
+                          color={colors.warning}
                         />
                       ))}
                     </View>
@@ -213,7 +214,7 @@ const ReplyReviewModal = ({
                     onPress={handleDeleteReply}
                     disabled={submitting}
                   >
-                    <Ionicons name="trash" size={20} color="#FFFFFF" />
+                    <Ionicons name="trash" size={20} color={colors.text.primary} />
                     <Text style={styles.deleteButtonText}>Eliminar Respuesta</Text>
                   </TouchableOpacity>
                 )}
@@ -224,13 +225,13 @@ const ReplyReviewModal = ({
                   disabled={submitting}
                 >
                   {submitting ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                    <ActivityIndicator color={colors.text.primary} />
                   ) : (
                     <>
                       <Ionicons 
                         name={review?.reply ? "checkmark" : "send"} 
                         size={20} 
-                        color="#FFFFFF" 
+                        color={colors.text.primary} 
                       />
                       <Text style={styles.submitButtonText}>
                         {review?.reply ? 'Actualizar Respuesta' : 'Enviar Respuesta'}
@@ -261,7 +262,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     width: '90%',
     maxHeight: '80%',
@@ -273,12 +274,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
   },
   closeButton: {
     padding: 4,
@@ -292,15 +293,15 @@ const styles = StyleSheet.create({
   originalReviewTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: colors.text.primary,
     marginBottom: 8,
   },
   originalReview: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   reviewHeader: {
     flexDirection: 'row',
@@ -311,20 +312,20 @@ const styles = StyleSheet.create({
   reviewerName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
   },
   starsContainer: {
     flexDirection: 'row',
   },
   reviewComment: {
     fontSize: 14,
-    color: '#374151',
+    color: colors.text.primary,
     lineHeight: 20,
     marginBottom: 8,
   },
   reviewDate: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.text.muted,
   },
   currentReplyContainer: {
     marginBottom: 16,
@@ -332,25 +333,25 @@ const styles = StyleSheet.create({
   currentReplyTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#059669',
+    color: colors.success,
     marginBottom: 8,
   },
   currentReply: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: colors.background,
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: colors.success,
   },
   currentReplyText: {
     fontSize: 14,
-    color: '#047857',
+    color: colors.success,
     lineHeight: 20,
     marginBottom: 8,
   },
   currentReplyDate: {
     fontSize: 12,
-    color: '#065F46',
+    color: colors.success,
   },
   replySection: {
     marginBottom: 20,
@@ -358,28 +359,28 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 8,
   },
   replyInfo: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 8,
     fontStyle: 'italic',
   },
   replyInput: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
-    color: '#111827',
+    color: colors.text.primary,
     textAlignVertical: 'top',
     minHeight: 120,
   },
   charCount: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'right',
     marginTop: 4,
   },
@@ -387,7 +388,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   submitButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -396,12 +397,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   submitButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
   deleteButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.error,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -410,7 +411,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   deleteButtonText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
     fontSize: 14,
     fontWeight: '600',
   },

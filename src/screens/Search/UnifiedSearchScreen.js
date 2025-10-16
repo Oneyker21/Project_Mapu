@@ -10,14 +10,16 @@ import {
   Animated,
   Dimensions,
   Alert,
-  Image
+  Image,
+  Modal,
+  ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
-import { colors } from '../../config/colors';
+import { colors, withOpacity } from '../../config/colors';
 
 const { width } = Dimensions.get('window');
 
@@ -34,14 +36,15 @@ const CATEGORIES = [
 ];
 
 const UnifiedSearchScreen = ({ navigation, route }) => {
-  const [activeTab, setActiveTab] = useState(route?.params?.initialTab || 'all'); // 'all', 'department', 'category', 'nearby'
+  const [activeTab, setActiveTab] = useState(route?.params?.initialTab || 'all'); // 'all', 'nearby'
   const [centers, setCenters] = useState([]);
   const [filteredCenters, setFilteredCenters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDepartment, setSelectedDepartment] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [showFilters, setShowFilters] = useState(false);
+  const [selectedDepartments, setSelectedDepartments] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [showDepartmentModal, setShowDepartmentModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -53,7 +56,7 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     filterCenters();
-  }, [searchQuery, selectedDepartment, selectedCategory, activeTab, centers]);
+  }, [searchQuery, selectedDepartments, selectedCategories, activeTab, centers]);
 
   const loadCenters = async () => {
     try {
@@ -90,11 +93,25 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
             longitude: lng
           }
         });
+        
+        // Debug: Log para ver qué campos de imagen tiene este centro
+        const imageFields = [
+          'imagenPrincipal', 'fotoPrincipal', 'image', 'imagenPerfil', 'fotoPerfil',
+          'profileImage', 'logotipo', 'portada', 'coverImage', 'imagenes'
+        ];
+        const hasImage = imageFields.some(field => data[field]);
+        if (hasImage) {
+          console.log('🖼️ Centro con imagen:', data.nombreNegocio || data.businessName, {
+            availableFields: imageFields.filter(field => data[field]),
+            firstImage: imageFields.find(field => data[field])
+          });
+        }
       });
 
+      console.log('✅ Centros cargados:', centersData.length);
       setCenters(centersData);
     } catch (error) {
-      console.error('Error cargando centros:', error);
+      console.error('❌ Error cargando centros:', error);
       Alert.alert('Error', 'No se pudieron cargar los centros turísticos');
     } finally {
       setLoading(false);
@@ -104,25 +121,42 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
   const filterCenters = () => {
     let filtered = [...centers];
 
+    console.log('🔍 Filtrando centros:', {
+      totalCenters: centers.length,
+      searchQuery,
+      selectedDepartments,
+      selectedCategories,
+      activeTab
+    });
+
     // Filtrar por búsqueda de texto
     if (searchQuery.trim()) {
-      filtered = filtered.filter(center =>
-        center.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        center.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        center.department.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      filtered = filtered.filter(center => {
+        const name = (center.businessName || '').toLowerCase();
+        const category = (center.category || '').toLowerCase();
+        const department = (center.department || '').toLowerCase();
+        const query = searchQuery.toLowerCase();
+        
+        return name.includes(query) || category.includes(query) || department.includes(query);
+      });
     }
 
-    // Filtrar por departamento
-    if (selectedDepartment) {
-      filtered = filtered.filter(center =>
-        center.department.toLowerCase().includes(selectedDepartment.toLowerCase())
-      );
+    // Filtrar por departamentos seleccionados
+    if (selectedDepartments.length > 0) {
+      filtered = filtered.filter(center => {
+        const dept = (center.department || '').toLowerCase();
+        return selectedDepartments.some(selectedDept => 
+          dept.includes(selectedDept.toLowerCase())
+        );
+      });
     }
 
-    // Filtrar por categoría
-    if (selectedCategory) {
-      filtered = filtered.filter(center => center.category === selectedCategory);
+    // Filtrar por categorías seleccionadas
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(center => {
+        const cat = center.category || '';
+        return selectedCategories.includes(cat);
+      });
     }
 
     // Ordenar por proximidad si es tab "nearby"
@@ -138,6 +172,7 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
       })).sort((a, b) => a.distance - b.distance);
     }
 
+    console.log('✅ Centros filtrados:', filtered.length);
     setFilteredCenters(filtered);
   };
 
@@ -182,8 +217,8 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
       'Restaurantes': 'restaurant',
       'Museos': 'library',
       'Parques': 'leaf',
-      'Playas': 'beach',
-      'Montañas': 'mountain',
+      'Playas': 'water',
+      'Montañas': 'trending-up',
       'Centros Históricos': 'library',
       'Aventura': 'bicycle',
       'Ecoturismo': 'leaf',
@@ -202,34 +237,163 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
     return `${distance.toFixed(1)}km`;
   };
 
+  const isCenterOpen = (center) => {
+    try {
+      // Si no hay horarios definidos, asumir que está cerrado
+      if (!center.horarios) {
+        return false;
+      }
+
+      const now = new Date();
+      const currentDay = now.getDay(); // 0 = Domingo, 1 = Lunes, etc.
+      const currentTime = now.getHours() * 60 + now.getMinutes(); // Tiempo en minutos
+
+      // Mapear días de la semana (múltiples variaciones)
+      const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+      const dayNamesEn = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const currentDayName = dayNames[currentDay];
+      const currentDayNameEn = dayNamesEn[currentDay];
+
+      // Si los horarios son un string, intentar parsearlo
+      let horarios = center.horarios;
+      if (typeof horarios === 'string') {
+        try {
+          horarios = JSON.parse(horarios);
+        } catch (e) {
+          // Si contiene "cerrado" o "closed", está cerrado
+          if (horarios.toLowerCase().includes('cerrado') || 
+              horarios.toLowerCase().includes('closed')) {
+            return false;
+          }
+          return true; // Si no se puede parsear, asumir abierto
+        }
+      }
+
+      // Si no es un objeto, verificar si es string de estado
+      if (typeof horarios !== 'object' || horarios === null) {
+        if (typeof horarios === 'string' && 
+            (horarios.toLowerCase().includes('cerrado') || 
+             horarios.toLowerCase().includes('closed'))) {
+          return false;
+        }
+        return true;
+      }
+
+      // Buscar horarios para el día actual (múltiples variaciones)
+      const todaySchedule = horarios[currentDayName] || 
+                           horarios[currentDayNameEn] || 
+                           horarios[currentDay] || 
+                           horarios[`day_${currentDay}`] ||
+                           horarios[`${currentDay}`];
+      
+      if (!todaySchedule) {
+        return false; // Si no hay horario para hoy, asumir cerrado
+      }
+
+      // Si el horario es "cerrado" o similar
+      if (typeof todaySchedule === 'string' && 
+          (todaySchedule.toLowerCase().includes('cerrado') || 
+           todaySchedule.toLowerCase().includes('closed'))) {
+        return false;
+      }
+
+      // Si es un objeto con horarios específicos
+      if (typeof todaySchedule === 'object') {
+        const { apertura, cierre, open, close, inicio, fin, start, end } = todaySchedule;
+        const openTime = apertura || open || inicio || start;
+        const closeTime = cierre || close || fin || end;
+
+        if (!openTime || !closeTime) {
+          return false; // Si no hay horarios específicos, asumir cerrado
+        }
+
+        // Convertir horarios a minutos (mejorar parsing)
+        const parseTime = (timeStr) => {
+          if (!timeStr) return 0;
+          
+          // Limpiar string y manejar diferentes formatos
+          const cleanTime = timeStr.toString().trim();
+          
+          // Si contiene AM/PM
+          if (cleanTime.toLowerCase().includes('am') || cleanTime.toLowerCase().includes('pm')) {
+            const [time, period] = cleanTime.toLowerCase().split(/(am|pm)/);
+            const [hours, minutes] = time.split(':').map(Number);
+            let hour24 = hours || 0;
+            
+            if (period === 'pm' && hour24 !== 12) {
+              hour24 += 12;
+            } else if (period === 'am' && hour24 === 12) {
+              hour24 = 0;
+            }
+            
+            return hour24 * 60 + (minutes || 0);
+          }
+          
+          // Formato 24 horas
+          const [hours, minutes] = cleanTime.split(':').map(Number);
+          return (hours || 0) * 60 + (minutes || 0);
+        };
+
+        const openMinutes = parseTime(openTime);
+        const closeMinutes = parseTime(closeTime);
+
+        // Si el horario de cierre es menor que el de apertura, significa que cierra al día siguiente
+        if (closeMinutes < openMinutes) {
+          return currentTime >= openMinutes || currentTime <= closeMinutes;
+        } else {
+          return currentTime >= openMinutes && currentTime <= closeMinutes;
+        }
+      }
+
+      return false; // Por defecto, asumir cerrado
+    } catch (error) {
+      console.log('Error verificando horarios:', error);
+      return false; // En caso de error, asumir cerrado
+    }
+  };
+
   const clearFilters = () => {
     setSearchQuery('');
-    setSelectedDepartment(null);
-    setSelectedCategory(null);
+    setSelectedDepartments([]);
+    setSelectedCategories([]);
     setActiveTab('all');
   };
 
-  const toggleFilters = () => {
-    const toValue = showFilters ? 0 : 1;
-    Animated.timing(filterAnim, {
-      toValue,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-    setShowFilters(!showFilters);
-  };
 
   const handleTabChange = (tab) => {
     Animated.timing(slideAnim, {
-      toValue: tab === 'all' ? 0 : tab === 'department' ? 1 : tab === 'category' ? 2 : 3,
+      toValue: tab === 'all' ? 0 : 1,
       duration: 300,
       useNativeDriver: false,
     }).start();
+    
     setActiveTab(tab);
     
     if (tab === 'nearby') {
       getCurrentLocation();
     }
+    
+    console.log('🔄 Cambiando a pestaña:', tab);
+  };
+
+  const handleDepartmentToggle = (department) => {
+    setSelectedDepartments(prev => {
+      if (prev.includes(department)) {
+        return prev.filter(d => d !== department);
+      } else {
+        return [...prev, department];
+      }
+    });
+  };
+
+  const handleCategoryToggle = (category) => {
+    setSelectedCategories(prev => {
+      if (prev.includes(category)) {
+        return prev.filter(c => c !== category);
+      } else {
+        return [...prev, category];
+      }
+    });
   };
 
   const renderTabButton = (tab, title, icon) => (
@@ -240,7 +404,7 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
       <Ionicons 
         name={icon} 
         size={20} 
-        color={activeTab === tab ? '#FFFFFF' : '#6B7280'} 
+        color={activeTab === tab ? colors.text.primary : colors.text.muted} 
       />
       <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
         {title}
@@ -264,87 +428,161 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
     <TouchableOpacity 
       style={styles.centerItem}
       onPress={() => {
-        navigation.navigate('CenterDetail', { center: item });
+        // Limpiar datos antes de navegar
+        const cleanCenter = {
+          ...item,
+          nombreNegocio: typeof item.nombreNegocio === 'string' ? item.nombreNegocio : 
+                        (typeof item.businessName === 'string' ? item.businessName : 'Centro Turístico'),
+          categoriaNegocio: typeof item.categoriaNegocio === 'string' ? item.categoriaNegocio : 
+                           (typeof item.category === 'string' ? item.category : 'Otros'),
+          departamento: typeof item.departamento === 'string' ? item.departamento : 
+                       (typeof item.department === 'string' ? item.department : 'Departamento'),
+          description: typeof item.description === 'string' ? item.description : '',
+          servicios: typeof item.servicios === 'string' ? item.servicios : null,
+          horarios: typeof item.horarios === 'string' ? item.horarios : null,
+        };
+        navigation.navigate('CenterDetail', { center: cleanCenter });
       }}
     >
-      <View style={styles.centerInfo}>
-        <View style={styles.centerHeader}>
-          {/* Imagen del centro turístico */}
-          <View style={styles.centerImageContainer}>
-            {item.imagenPrincipal || item.fotoPrincipal || item.image ? (
+      {/* Imagen del centro */}
+      <View style={styles.centerImageContainer}>
+        {(() => {
+          // Buscar imagen en múltiples campos posibles
+          const imageUrl = item.imagenPrincipal || item.fotoPrincipal || item.image || 
+                          item.imagenPerfil || item.fotoPerfil || item.profileImage ||
+                          item.logotipo || item.portada || item.coverImage ||
+                          (item.imagenes && Array.isArray(item.imagenes) && item.imagenes[0]);
+          
+          if (imageUrl) {
+            return (
               <Image
-                source={{ 
-                  uri: item.imagenPrincipal || item.fotoPrincipal || item.image 
-                }}
+                source={{ uri: imageUrl }}
                 style={styles.centerImage}
                 resizeMode="cover"
-                onError={() => {
-                  console.log('Error cargando imagen para:', item.businessName);
+                onError={(error) => {
+                  console.log('❌ Error cargando imagen para:', item.nombreNegocio, 'URL:', imageUrl, error);
+                }}
+                onLoad={() => {
+                  console.log('✅ Imagen cargada para:', item.nombreNegocio);
                 }}
               />
-            ) : (
+            );
+          } else {
+            console.log('🚫 Sin imagen para:', item.nombreNegocio, 'Campos disponibles:', Object.keys(item).filter(key => key.toLowerCase().includes('image') || key.toLowerCase().includes('foto') || key.toLowerCase().includes('imagen')));
+            return (
               <View style={styles.centerImagePlaceholder}>
                 <Ionicons 
-                  name={getCategoryIcon(item.category)} 
-                  size={24} 
-                  color="#9CA3AF" 
+                  name={getCategoryIcon(item.categoriaNegocio || item.category)} 
+                  size={40} 
+                  color={colors.text.muted} 
                 />
               </View>
-            )}
-          </View>
-          <View style={styles.centerTextContainer}>
-            <Text style={styles.centerName}>{item.businessName}</Text>
-            <Text style={styles.centerCategory}>{item.category}</Text>
-            <Text style={styles.centerDepartment}>{item.department}</Text>
-            {item.address && (
-              <Text style={styles.centerAddress}>{item.address}</Text>
-            )}
-            {/* Rating si está disponible */}
+            );
+          }
+        })()}
+      </View>
+
+      {/* Información del centro */}
+      <View style={styles.centerContent}>
+        {/* Header con nombre y badges */}
+        <View style={styles.centerHeader}>
+          <Text style={styles.centerName} numberOfLines={2}>
+            {item.nombreNegocio || item.businessName || 'Centro Turístico'}
+          </Text>
+          <View style={styles.centerBadges}>
+            {/* Rating */}
             {item.calificacion && (
-              <View style={styles.ratingContainer}>
-                <Ionicons name="star" size={12} color="#F59E0B" />
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={12} color={colors.warning} />
                 <Text style={styles.ratingText}>
-                  {item.calificacion.toFixed(1)} ({item.totalResenas || 0})
+                  {item.calificacion.toFixed(1)}
                 </Text>
               </View>
             )}
-            {/* Estado del centro (abierto/cerrado) */}
-            <View style={styles.statusContainer}>
-              <View style={[
-                styles.statusIndicator,
-                { backgroundColor: item.isOpen !== false ? '#10B981' : '#EF4444' }
-              ]}>
-                <Ionicons 
-                  name={item.isOpen !== false ? "checkmark" : "close"} 
-                  size={10} 
-                  color="#FFFFFF" 
-                />
-              </View>
-              <Text style={[
-                styles.statusText,
-                { color: item.isOpen !== false ? '#10B981' : '#EF4444' }
-              ]}>
-                {item.isOpen !== false ? 'Abierto' : 'Cerrado'}
-              </Text>
-            </View>
+            {/* Estado */}
+            {(() => {
+              const isOpen = isCenterOpen(item);
+              return (
+                <View style={[
+                  styles.statusBadge,
+                  { backgroundColor: isOpen ? withOpacity(colors.success, 0.1) : withOpacity(colors.error, 0.1) }
+                ]}>
+                  <View style={[
+                    styles.statusDot,
+                    { backgroundColor: isOpen ? colors.success : colors.error }
+                  ]} />
+                  <Text style={[
+                    styles.statusText,
+                    { color: isOpen ? colors.success : colors.error }
+                  ]}>
+                    {isOpen ? 'Abierto' : 'Cerrado'}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
         </View>
+
+        {/* Categoría */}
+        <Text style={styles.centerCategory}>
+          {item.categoriaNegocio || item.category || 'Otros'}
+        </Text>
+        
+        {/* Ubicación */}
+        <View style={styles.centerLocation}>
+          <Ionicons name="location-outline" size={14} color={colors.text.muted} />
+          <Text style={styles.centerLocationText} numberOfLines={1}>
+            {item.departamento || item.department || 'Departamento'}
+          </Text>
+        </View>
+
+        {/* Dirección */}
+        {item.direccion && (
+          <Text style={styles.centerAddress} numberOfLines={1}>
+            {item.direccion || item.address}
+          </Text>
+        )}
+
+        {/* Distancia */}
         {item.distance && (
           <View style={styles.distanceContainer}>
-            <Ionicons name="location" size={16} color="#10B981" />
+            <Ionicons name="walk" size={14} color={colors.success} />
             <Text style={styles.distanceText}>{formatDistance(item.distance)}</Text>
           </View>
         )}
-      </View>
-      <View style={styles.cardActions}>
-        <TouchableOpacity 
-          style={styles.reviewButton}
-          onPress={() => navigation.navigate('Reviews', { center: item })}
-        >
-          <Ionicons name="star" size={16} color="#F59E0B" />
-          <Text style={styles.reviewButtonText}>Reseñas</Text>
-        </TouchableOpacity>
-        <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+
+        {/* Botones de acción */}
+        <View style={styles.cardActions}>
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: withOpacity(colors.warning, 0.1), borderColor: colors.warning }]}
+            onPress={() => navigation.navigate('Reviews', { center: item })}
+          >
+            <Ionicons name="star-outline" size={16} color={colors.warning} />
+            <Text style={[styles.actionButtonText, { color: colors.warning }]}>Reseñas</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: withOpacity(colors.primary, 0.1), borderColor: colors.primary }]}
+            onPress={() => {
+              // Limpiar datos antes de navegar
+              const cleanCenter = {
+                ...item,
+                nombreNegocio: typeof item.nombreNegocio === 'string' ? item.nombreNegocio : 
+                              (typeof item.businessName === 'string' ? item.businessName : 'Centro Turístico'),
+                categoriaNegocio: typeof item.categoriaNegocio === 'string' ? item.categoriaNegocio : 
+                                 (typeof item.category === 'string' ? item.category : 'Otros'),
+                departamento: typeof item.departamento === 'string' ? item.departamento : 
+                             (typeof item.department === 'string' ? item.department : 'Departamento'),
+                description: typeof item.description === 'string' ? item.description : '',
+                servicios: typeof item.servicios === 'string' ? item.servicios : null,
+                horarios: typeof item.horarios === 'string' ? item.horarios : null,
+              };
+              navigation.navigate('CenterDetail', { center: cleanCenter });
+            }}
+          >
+            <Ionicons name="eye-outline" size={16} color={colors.primary} />
+            <Text style={[styles.actionButtonText, { color: colors.primary }]}>Ver</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -363,18 +601,28 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
       ]}
     >
       <View style={styles.filterContent}>
-        <Text style={styles.filterTitle}>Filtros</Text>
+        <Text style={styles.filterTitle}>Filtros Aplicados</Text>
         <View style={styles.filterRow}>
-          {renderFilterChip(
-            selectedDepartment || 'Departamento',
-            selectedDepartment,
-            () => setSelectedDepartment(null)
-          )}
-          {renderFilterChip(
-            selectedCategory || 'Categoría',
-            selectedCategory,
-            () => setSelectedCategory(null)
-          )}
+          {selectedDepartments.map((dept, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.activeFilterChip}
+              onPress={() => handleDepartmentToggle(dept)}
+            >
+              <Text style={styles.activeFilterChipText}>{dept}</Text>
+              <Ionicons name="close" size={16} color={colors.text.primary} />
+            </TouchableOpacity>
+          ))}
+          {selectedCategories.map((cat, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.activeFilterChip}
+              onPress={() => handleCategoryToggle(cat)}
+            >
+              <Text style={styles.activeFilterChipText}>{cat}</Text>
+              <Ionicons name="close" size={16} color={colors.text.primary} />
+            </TouchableOpacity>
+          ))}
         </View>
         <TouchableOpacity style={styles.clearFiltersButton} onPress={clearFilters}>
           <Text style={styles.clearFiltersText}>Limpiar Filtros</Text>
@@ -390,16 +638,19 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
           key={dept}
           style={[
             styles.filterItem,
-            selectedDepartment === dept && styles.selectedFilterItem
+            selectedDepartments.includes(dept) && styles.selectedFilterItem
           ]}
-          onPress={() => setSelectedDepartment(dept)}
+          onPress={() => handleDepartmentToggle(dept)}
         >
           <Text style={[
             styles.filterItemText,
-            selectedDepartment === dept && styles.selectedFilterItemText
+            selectedDepartments.includes(dept) && styles.selectedFilterItemText
           ]}>
             {dept}
           </Text>
+          {selectedDepartments.includes(dept) && (
+            <Ionicons name="checkmark" size={20} color={colors.text.primary} />
+          )}
         </TouchableOpacity>
       ))}
     </View>
@@ -412,22 +663,25 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
           key={category}
           style={[
             styles.filterItem,
-            selectedCategory === category && styles.selectedFilterItem
+            selectedCategories.includes(category) && styles.selectedFilterItem
           ]}
-          onPress={() => setSelectedCategory(category)}
+          onPress={() => handleCategoryToggle(category)}
         >
           <View style={styles.categoryItemContent}>
             <Ionicons 
               name={getCategoryIcon(category)} 
               size={20} 
-              color={selectedCategory === category ? '#FFFFFF' : '#3B82F6'} 
+              color={selectedCategories.includes(category) ? colors.text.primary : colors.text.muted} 
             />
             <Text style={[
               styles.filterItemText,
-              selectedCategory === category && styles.selectedFilterItemText
+              selectedCategories.includes(category) && styles.selectedFilterItemText
             ]}>
               {category}
             </Text>
+            {selectedCategories.includes(category) && (
+              <Ionicons name="checkmark" size={20} color={colors.text.primary} />
+            )}
           </View>
         </TouchableOpacity>
       ))}
@@ -435,29 +689,27 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
   );
 
   const renderContent = () => {
-    if (activeTab === 'department') {
-      return renderDepartmentList();
-    } else if (activeTab === 'category') {
-      return renderCategoryList();
-    } else {
-      return (
-        <FlatList
-          data={filteredCenters}
-          renderItem={renderCenterItem}
-          keyExtractor={(item) => item.id}
-          style={styles.centersList}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="search-outline" size={48} color="#9CA3AF" />
-              <Text style={styles.emptyText}>
-                {searchQuery ? 'No se encontraron resultados' : 'No hay centros disponibles'}
-              </Text>
-            </View>
-          }
-        />
-      );
-    }
+    return (
+      <FlatList
+        data={filteredCenters}
+        renderItem={renderCenterItem}
+        keyExtractor={(item) => item.id}
+        style={styles.centersList}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.centersListContent}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="search-outline" size={48} color={colors.text.muted} />
+            <Text style={styles.emptyText}>
+              {searchQuery ? 'No se encontraron resultados' : 
+               selectedDepartments.length > 0 || selectedCategories.length > 0 ? 
+               'No hay centros que coincidan con los filtros seleccionados' :
+               'No hay centros disponibles'}
+            </Text>
+          </View>
+        }
+      />
+    );
   };
 
   return (
@@ -467,58 +719,158 @@ const UnifiedSearchScreen = ({ navigation, route }) => {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#3B82F6" />
+          <Ionicons name="arrow-back" size={24} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Explorar Centros</Text>
-        <TouchableOpacity 
-          style={styles.filterButton}
-          onPress={toggleFilters}
-        >
-          <Ionicons name="filter" size={20} color="#3B82F6" />
-        </TouchableOpacity>
       </View>
 
       {/* Barra de búsqueda */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
-          <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+          <Ionicons name="search" size={20} color={colors.text.muted} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Buscar centros turísticos..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.text.muted}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+              <Ionicons name="close-circle" size={20} color={colors.text.muted} />
             </TouchableOpacity>
           )}
         </View>
+        
       </View>
 
-      {/* Pestañas */}
-      <View style={styles.tabsContainer}>
-        {renderTabButton('all', 'Todos', 'grid')}
-        {renderTabButton('department', 'Departamento', 'location')}
-        {renderTabButton('category', 'Categoría', 'list')}
-        {renderTabButton('nearby', 'Cercanos', 'compass')}
+      {/* Filtros */}
+      <View style={styles.filtersContainer}>
+        <View style={styles.filterButtonsRow}>
+          <TouchableOpacity 
+            style={[styles.filterButton, activeTab === 'all' && styles.activeFilterButton]}
+            onPress={() => handleTabChange('all')}
+          >
+            <Ionicons name="grid" size={20} color={activeTab === 'all' ? colors.text.primary : colors.text.muted} />
+            <Text style={[styles.filterButtonText, activeTab === 'all' && styles.activeFilterButtonText]}>
+              Todos
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.filterButton, activeTab === 'nearby' && styles.activeFilterButton]}
+            onPress={() => handleTabChange('nearby')}
+          >
+            <Ionicons name="compass" size={20} color={activeTab === 'nearby' ? colors.text.primary : colors.warning} />
+            <Text style={[styles.filterButtonText, activeTab === 'nearby' && styles.activeFilterButtonText]}>
+              Cercanos
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.filterButtonsRow}>
+          <TouchableOpacity 
+            style={[styles.filterButton, selectedDepartments.length > 0 && styles.activeFilterButton]}
+            onPress={() => setShowDepartmentModal(true)}
+          >
+            <Ionicons name="location" size={20} color={selectedDepartments.length > 0 ? colors.text.primary : colors.text.muted} />
+            <Text style={[styles.filterButtonText, selectedDepartments.length > 0 && styles.activeFilterButtonText]}>
+              Departamentos {selectedDepartments.length > 0 && `(${selectedDepartments.length})`}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.filterButton, selectedCategories.length > 0 && styles.activeFilterButton]}
+            onPress={() => setShowCategoryModal(true)}
+          >
+            <Ionicons name="list" size={20} color={selectedCategories.length > 0 ? colors.text.primary : colors.text.muted} />
+            <Text style={[styles.filterButtonText, selectedCategories.length > 0 && styles.activeFilterButtonText]}>
+              Categorías {selectedCategories.length > 0 && `(${selectedCategories.length})`}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Filtros desplegables */}
-      {renderFilterSection()}
+      {/* Filtros aplicados */}
+      {(selectedDepartments.length > 0 || selectedCategories.length > 0) && renderFilterSection()}
 
       {/* Contenido principal */}
       <View style={styles.content}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3B82F6" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.loadingText}>Cargando centros...</Text>
           </View>
         ) : (
           renderContent()
         )}
       </View>
+
+      {/* Modal de Departamentos */}
+      <Modal
+        visible={showDepartmentModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowDepartmentModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Seleccionar Departamentos</Text>
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={() => setShowDepartmentModal(false)}
+            >
+              <Ionicons name="close" size={24} color={colors.text.muted} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            {renderDepartmentList()}
+          </ScrollView>
+          <View style={styles.modalFooter}>
+            <TouchableOpacity 
+              style={styles.modalApplyButton}
+              onPress={() => setShowDepartmentModal(false)}
+            >
+              <Text style={styles.modalApplyButtonText}>
+                Aplicar ({selectedDepartments.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Modal de Categorías */}
+      <Modal
+        visible={showCategoryModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowCategoryModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Seleccionar Categorías</Text>
+            <TouchableOpacity 
+              style={styles.modalCloseButton}
+              onPress={() => setShowCategoryModal(false)}
+            >
+              <Ionicons name="close" size={24} color={colors.text.muted} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            {renderCategoryList()}
+          </ScrollView>
+          <View style={styles.modalFooter}>
+            <TouchableOpacity 
+              style={styles.modalApplyButton}
+              onPress={() => setShowCategoryModal(false)}
+            >
+              <Text style={styles.modalApplyButtonText}>
+                Aplicar ({selectedCategories.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -571,15 +923,15 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#111827',
+    color: colors.text.primary,
   },
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
   },
   tabButton: {
     flexDirection: 'row',
@@ -591,21 +943,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   activeTabButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   tabText: {
     marginLeft: 6,
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   activeTabText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   filterSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: colors.border,
     overflow: 'hidden',
   },
   filterContent: {
@@ -614,7 +966,7 @@ const styles = StyleSheet.create({
   filterTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: colors.text.primary,
     marginBottom: 12,
   },
   filterRow: {
@@ -633,22 +985,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   activeFilterChip: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   filterChipText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginRight: 4,
   },
   activeFilterChipText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   clearFiltersButton: {
     alignSelf: 'flex-start',
   },
   clearFiltersText: {
     fontSize: 14,
-    color: '#EF4444',
+    color: colors.error,
     fontWeight: '500',
   },
   content: {
@@ -662,7 +1014,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 8,
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
   },
   filterList: {
     flex: 1,
@@ -671,50 +1023,51 @@ const styles = StyleSheet.create({
   filterItem: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.border,
   },
   selectedFilterItem: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   filterItemText: {
     fontSize: 16,
-    color: '#111827',
+    color: colors.text.primary,
   },
   selectedFilterItemText: {
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   categoryItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
   centersList: {
     flex: 1,
     padding: 16,
   },
+  centersListContent: {
+    paddingBottom: 20,
+  },
   centerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginBottom: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    marginBottom: 16,
+    marginHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
+    borderColor: colors.border,
+    shadowColor: colors.shadow.primary,
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+    overflow: 'hidden',
   },
   centerInfo: {
     flex: 1,
@@ -725,13 +1078,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   centerImageContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 14,
-    marginRight: 16,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#F3F4F6',
+    width: '100%',
+    height: 180,
+    backgroundColor: colors.background,
   },
   centerImage: {
     width: '100%',
@@ -740,42 +1089,40 @@ const styles = StyleSheet.create({
   centerImagePlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
   },
-  centerTextContainer: {
-    flex: 1,
+  centerContent: {
+    padding: 16,
   },
   centerName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
+    fontWeight: '700',
+    color: colors.text.primary,
+    flex: 1,
+    marginRight: 8,
   },
   centerCategory: {
     fontSize: 14,
-    color: '#3B82F6',
+    color: colors.text.muted,
     fontWeight: '500',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   centerDepartment: {
     fontSize: 12,
-    color: '#6B7280',
+    color: colors.text.muted,
     marginBottom: 2,
   },
   centerAddress: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: colors.text.muted,
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: withOpacity(colors.warning, 0.1),
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
@@ -783,7 +1130,7 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 11,
-    color: '#92400E',
+    color: colors.warning,
     marginLeft: 3,
     fontWeight: '600',
   },
@@ -807,35 +1154,35 @@ const styles = StyleSheet.create({
   distanceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: withOpacity(colors.success, 0.1),
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
   },
   distanceText: {
     fontSize: 12,
-    color: '#10B981',
+    color: colors.success,
     fontWeight: '600',
     marginLeft: 4,
   },
   cardActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
+    marginTop: 12,
+    gap: 12,
   },
-  reviewButton: {
+  actionButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  reviewButtonText: {
-    fontSize: 11,
-    color: '#92400E',
-    marginLeft: 4,
-    fontWeight: '600',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -844,8 +1191,164 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 8,
     fontSize: 14,
-    color: '#6B7280',
+    color: colors.text.muted,
     textAlign: 'center',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    paddingHorizontal: 16,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  // Nuevos estilos para el diseño mejorado
+  centerBadges: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: withOpacity(colors.warning, 0.1),
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 2,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    gap: 4,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  centerLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+    gap: 4,
+  },
+  centerLocationText: {
+    fontSize: 12,
+    color: colors.text.muted,
+    flex: 1,
+  },
+  filterOptionsContainer: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingVertical: 12,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  filtersContainer: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  filterButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  filterButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  activeFilterButton: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text.muted,
+  },
+  activeFilterButtonText: {
+    color: colors.text.primary,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text.primary,
+  },
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  modalFooter: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  modalApplyButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalApplyButtonText: {
+    color: colors.text.primary,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

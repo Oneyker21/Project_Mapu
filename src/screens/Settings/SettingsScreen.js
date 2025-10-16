@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   Alert,
   Linking,
 } from 'react-native';
@@ -16,9 +15,6 @@ import { colors } from '../../config/colors';
 
 const SettingsScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
-  const [notifications, setNotifications] = useState(true);
-  const [locationServices, setLocationServices] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -97,94 +93,16 @@ const SettingsScreen = ({ navigation }) => {
             }
           }),
         },
-        {
-          icon: 'shield-checkmark-outline',
-          title: 'Privacidad y Seguridad',
-          subtitle: 'Gestionar tu privacidad',
-          onPress: () => navigation.navigate('PrivacyPolicy'),
-        },
-      ],
-    },
-    {
-      title: 'Notificaciones',
-      items: [
-        {
-          icon: 'notifications-outline',
-          title: 'Notificaciones Push',
-          subtitle: 'Recibir notificaciones de la app',
-          rightComponent: (
-            <Switch
-              value={notifications}
-              onValueChange={setNotifications}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={notifications ? colors.text.primary : colors.text.muted}
-            />
-          ),
-        },
-      ],
-    },
-    {
-      title: 'Servicios',
-      items: [
-        {
-          icon: 'location-outline',
-          title: 'Servicios de Ubicación',
-          subtitle: 'Permitir acceso a tu ubicación',
-          rightComponent: (
-            <Switch
-              value={locationServices}
-              onValueChange={setLocationServices}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={locationServices ? colors.text.primary : colors.text.muted}
-            />
-          ),
-        },
-        {
-          icon: 'map-outline',
-          title: 'Mapas',
-          subtitle: 'Configurar preferencias de mapas',
-          onPress: () => Alert.alert('Próximamente', 'Esta función estará disponible pronto'),
-        },
-      ],
-    },
-    {
-      title: 'Apariencia',
-      items: [
-        {
-          icon: 'moon-outline',
-          title: 'Modo Oscuro',
-          subtitle: 'Cambiar tema de la aplicación',
-          rightComponent: (
-            <Switch
-              value={darkMode}
-              onValueChange={setDarkMode}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={darkMode ? colors.text.primary : colors.text.muted}
-            />
-          ),
-        },
       ],
     },
     {
       title: 'Ayuda y Soporte',
       items: [
         {
-          icon: 'help-circle-outline',
-          title: 'Centro de Ayuda',
-          subtitle: 'Preguntas frecuentes y guías',
-          onPress: () => Alert.alert('Próximamente', 'Esta función estará disponible pronto'),
-        },
-        {
           icon: 'chatbubble-outline',
           title: 'Contactar Soporte',
           subtitle: 'Obtener ayuda personalizada',
           onPress: handleContactSupport,
-        },
-        {
-          icon: 'star-outline',
-          title: 'Calificar App',
-          subtitle: 'Deja tu opinión en la tienda',
-          onPress: () => Alert.alert('Próximamente', 'Esta función estará disponible pronto'),
         },
       ],
     },
