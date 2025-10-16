@@ -77,6 +77,9 @@ const GroupDetailScreen = ({ navigation, route }) => {
           
           const loadedRoutes = (await Promise.all(routesPromises)).filter(Boolean);
           setGroupRoutes(loadedRoutes);
+        } else {
+          // Si no hay rutas, limpiar el estado
+          setGroupRoutes([]);
         }
         
         // Cargar datos de los miembros
@@ -108,6 +111,9 @@ const GroupDetailScreen = ({ navigation, route }) => {
           
           const loadedMembers = (await Promise.all(membersPromises)).filter(Boolean);
           setGroupMembers(loadedMembers);
+        } else {
+          // Si no hay miembros, limpiar el estado
+          setGroupMembers([]);
         }
       }
     } catch (error) {
@@ -341,14 +347,14 @@ const GroupDetailScreen = ({ navigation, route }) => {
       <View style={styles.routeActions}>
         <TouchableOpacity 
           style={styles.routeActionButton}
-          onPress={() => navigation.navigate('RouteNavigation', { route })}
+          onPress={() => navigation.navigate('RouteNavigation', { route: route.centers || route })}
         >
           <Ionicons name="navigate" size={18} color="#FFFFFF" />
           <Text style={styles.routeActionText}>Navegar</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.routeActionButton, styles.routeDetailsButton]}
-          onPress={() => navigation.navigate('RouteSummary', { route })}
+          onPress={() => navigation.navigate('RouteSummary', { route: route })}
         >
           <Ionicons name="information-circle" size={18} color={colors.primary} />
           <Text style={[styles.routeActionText, styles.routeDetailsText]}>Detalles</Text>
@@ -603,7 +609,7 @@ const GroupDetailScreen = ({ navigation, route }) => {
           
           <TouchableOpacity 
             style={[styles.createRouteButton, styles.halfButton]}
-            onPress={() => navigation.navigate('CreateRouteMain')}
+            onPress={() => navigation.navigate('RouteCreation')}
           >
             <Ionicons name="map" size={20} color="#FFFFFF" />
             <Text style={styles.createRouteButtonText}>Crear Nueva Ruta +</Text>

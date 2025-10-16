@@ -4,8 +4,8 @@ import {
   Text, 
   StyleSheet, 
   FlatList, 
-  TouchableOpacity, 
-  ScrollView
+  ScrollView,
+  TouchableOpacity
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +18,7 @@ const RouteSummaryScreen = ({ navigation, route }) => {
   // Si es un array (antiguo formato), usarlo directamente
   // Si es un objeto (nuevo formato), usar la propiedad 'centers'
   const routeCenters = Array.isArray(routeData) ? routeData : (routeData?.centers || []);
+
 
   const getCategoryIcon = (category) => {
     const categoryIcons = {
