@@ -720,7 +720,7 @@ const HomeScreen = ({ navigation }) => {
                 onPress={() => navigation.navigate('Groups')}
               >
                 <Ionicons name="people" size={24} color={colors.primary} />
-                <Text style={[styles.quickActionText, { color: colors.primary }]}>Crear Grupo</Text>
+                <Text style={[styles.quickActionText, { color: colors.primary }]}>Grupos</Text>
               </TouchableOpacity>
             </>
           )}

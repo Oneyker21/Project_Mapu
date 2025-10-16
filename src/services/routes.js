@@ -292,6 +292,26 @@ export const getFeaturedRoutes = async () => {
   }
 };
 
+// Obtener una ruta por ID
+export const getRouteById = async (routeId) => {
+  try {
+    const routeRef = doc(db, 'routes', routeId);
+    const routeDoc = await getDoc(routeRef);
+    
+    if (routeDoc.exists()) {
+      return {
+        id: routeDoc.id,
+        ...routeDoc.data(),
+      };
+    } else {
+      throw new Error('Ruta no encontrada');
+    }
+  } catch (error) {
+    console.error('Error obteniendo ruta por ID:', error);
+    throw error;
+  }
+};
+
 // Formatear fecha de creación
 export const formatRouteDate = (timestamp) => {
   if (!timestamp) return 'Fecha no disponible';
