@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { StyleSheet, View, Text, TouchableOpacity, Alert, Image, ScrollView, Modal, ActivityIndicator, PanResponder, Animated, Linking } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
@@ -292,7 +293,8 @@ const HomeScreen = ({ navigation }) => {
     }
   }, [userData, authUser, hasShownWelcome]);
 
-  // Efecto para turistas: solicitar permisos y centrar en ubicación actual SOLO UNA VEZ al entrar por primera vez al Home.
+  // Efecto para turistas: NO solicitar permisos automáticamente en HomeScreen
+  // Los permisos se solicitarán solo cuando el usuario toque "Iniciar Ruta"
   useEffect(() => {
     // Solo ejecutar cuando ya no estamos cargando datos del usuario
     if (loadingUserData) return;
@@ -300,41 +302,9 @@ const HomeScreen = ({ navigation }) => {
     const isCenter = userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico';
 
     if (!isCenter) {
-      // Si ya centramos una vez al usuario, no volver a hacerlo al regresar al Home
-      if (hasCenteredOnUser) return;
-      (async () => {
-        try {
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          if (status !== 'granted') {
-            console.log('Permiso de ubicación no concedido para turista, usando ubicación por defecto (Juigalpa).');
-            // Asegurar que el mapa tenga la ubicación por defecto (Juigalpa)
-            setMapRegion((prev) => prev || INITIAL_REGION);
-            setHasCenteredOnUser(true);
-            return;
-          }
-
-          const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-          const newRegion = {
-            latitude: current.coords.latitude,
-            longitude: current.coords.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          };
-          showFloatingNotification('Ubicación actual detectada');
-          setHasCenteredOnUser(true);
-        } catch (e) {
-          console.log('Error obteniendo ubicación del turista:', e?.message || e);
-          setMapRegion((prev) => prev || INITIAL_REGION);
-          setHasCenteredOnUser(true);
-        }
-      })();
-    } else {
-      // Si es centro turístico pero no tiene coordenadas, asegurar fallback a Juigalpa
-      const userLat = userData?.latitud || userData?.latitude;
-      const userLng = userData?.longitud || userData?.longitude;
-      if (!userLat || !userLng) {
-        setMapRegion((prev) => prev || INITIAL_REGION);
-      }
+      // Para turistas, no solicitar ubicación automáticamente
+      // Solo marcar que ya se procesó el usuario
+      setHasCenteredOnUser(true);
     }
   }, [loadingUserData, userData, hasCenteredOnUser]);
 
@@ -384,7 +354,7 @@ const HomeScreen = ({ navigation }) => {
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       };
-      setMapRegion(centerCoords);
+      // setMapRegion(centerCoords); // Comentado: HomeScreen no tiene mapa
       showFloatingNotification(`Mostrando la ubicación de ${userData?.nombreNegocio || userData?.businessName || 'tu centro'}`);
     } else {
       // Sin alert intrusivo: notificación ligera
@@ -434,7 +404,7 @@ const HomeScreen = ({ navigation }) => {
             latitudeDelta: 0.01,
             longitudeDelta: 0.01,
           };
-          setMapRegion(newRegion);
+          // setMapRegion(newRegion); // Comentado: HomeScreen no tiene mapa
           
 
           await loadCenters();
@@ -618,6 +588,13 @@ const HomeScreen = ({ navigation }) => {
       });
   };
 
+  // Función para iniciar ruta - Solo navega a RouteCreation
+  const handleStartRoute = () => {
+    // Navegar directamente a RouteCreation
+    // Los permisos de ubicación se solicitarán DENTRO de RouteCreation
+    navigation.navigate('RouteCreation');
+  };
+
   const getQuickActions = () => {
     return getMenuActions();
   };
@@ -789,7 +766,7 @@ const HomeScreen = ({ navigation }) => {
           {/* Botón principal de iniciar ruta */}
           <TouchableOpacity 
             style={styles.startRouteButton}
-            onPress={() => navigation.navigate('RouteCreation')}
+            onPress={handleStartRoute}
           >
             <View style={styles.startRouteContent}>
               <View style={styles.startRouteIcon}>

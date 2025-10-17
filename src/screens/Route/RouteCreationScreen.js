@@ -36,6 +36,7 @@ const RouteCreationScreen = ({ navigation, route }) => {
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [transportMode, setTransportMode] = useState('driving'); // driving, walking, motorcycling
   const [showCentersModal, setShowCentersModal] = useState(false);
+  const [locationStatus, setLocationStatus] = useState('checking'); // 'checking', 'detected', 'not_found', 'error'
   const [mapRegion, setMapRegion] = useState({
     latitude: 12.8654, // Centro de Nicaragua
     longitude: -85.2072,
@@ -151,7 +152,43 @@ const RouteCreationScreen = ({ navigation, route }) => {
     loadCenters();
     // Auto-seleccionar departamento basado en ubicación del usuario
     autoSelectDepartment();
+    
+    // SIEMPRE solicitar ubicación al entrar a RouteCreation
+    setLocationStatus('checking');
+    getCurrentLocationForRoute();
   }, []);
+
+  // Función para obtener ubicación actual para la ruta
+  const getCurrentLocationForRoute = async () => {
+    try {
+      setLocationStatus('checking');
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        setLocationStatus('not_found');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      const userLocation = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        address: 'Ubicación actual detectada'
+      };
+
+      setStartPoint(userLocation);
+      setLocationStatus('detected');
+      setShowStartPoint(true);
+      
+      console.log('📍 Ubicación obtenida en RouteCreation:', userLocation);
+    } catch (error) {
+      console.error('Error obteniendo ubicación en RouteCreation:', error);
+      setLocationStatus('error');
+    }
+  };
 
   // Auto-seleccionar departamento basado en ubicación del usuario
   const autoSelectDepartment = async () => {
@@ -537,11 +574,11 @@ const RouteCreationScreen = ({ navigation, route }) => {
   };
 
   const startRoute = () => {
-    console.log('startRoute - startPoint:', startPoint);
+    console.log('startRoute - locationStatus:', locationStatus);
     console.log('startRoute - selectedCenters:', selectedCenters);
     
-    if (!startPoint || !startPoint.latitude || !startPoint.longitude) {
-      Alert.alert('Error', 'Selecciona tu punto de inicio primero');
+    if (locationStatus !== 'detected') {
+      Alert.alert('Error', 'No se puede iniciar la ruta sin ubicación actual. Asegúrate de permitir el acceso a tu ubicación.');
       return;
     }
 
@@ -550,16 +587,16 @@ const RouteCreationScreen = ({ navigation, route }) => {
       return;
     }
 
-    // Crear ruta completa con punto de inicio + centros seleccionados
+    // Crear ruta completa con punto de inicio (ubicación actual) + centros seleccionados
     const fullRoute = [
       {
         id: 'start',
-        businessName: 'Tu Punto de Inicio',
+        businessName: 'Tu Ubicación Actual',
         coordinate: {
           latitude: startPoint.latitude,
           longitude: startPoint.longitude
         },
-        address: startPoint.address || 'Punto de inicio seleccionado',
+        address: 'Ubicación actual detectada',
         category: 'Inicio'
       },
       ...selectedCenters
@@ -567,13 +604,11 @@ const RouteCreationScreen = ({ navigation, route }) => {
     
     console.log('startRoute - fullRoute creada:', fullRoute);
     console.log('startRoute - coordenadas del punto de inicio:', fullRoute[0].coordinate);
-    
-    console.log('startRoute - fullRoute:', fullRoute);
 
     // Mostrar confirmación antes de iniciar
     Alert.alert(
       'Iniciar Ruta',
-      `¿Estás listo para iniciar tu ruta con ${selectedCenters.length} centro(s) turístico(s)?`,
+      `¿Estás listo para iniciar tu ruta desde tu ubicación actual con ${selectedCenters.length} centro(s) turístico(s)?`,
       [
         {
           text: 'Cancelar',
@@ -586,7 +621,6 @@ const RouteCreationScreen = ({ navigation, route }) => {
             console.log('startPoint que se pasa:', startPoint);
             console.log('fullRoute[0] (punto de inicio):', fullRoute[0]);
             console.log('fullRoute[0].coordinate:', fullRoute[0].coordinate);
-            console.log('userLocation que se pasa:', startPoint);
             
             navigation.navigate('RouteNavigation', { 
               route: fullRoute,
@@ -698,7 +732,7 @@ const RouteCreationScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color={colors.text.muted} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Crear Ruta</Text>
-        {startPoint && selectedCenters.length > 0 && (
+        {locationStatus === 'detected' && selectedCenters.length > 0 && (
           <TouchableOpacity 
             style={styles.startButton}
             onPress={startRoute}
@@ -757,51 +791,59 @@ const RouteCreationScreen = ({ navigation, route }) => {
           </View>
         </View>
 
-        {/* Punto de inicio simplificado */}
+        {/* Punto de inicio - Solo muestra estado de ubicación */}
         <View style={styles.startPointSection}>
-          {startPoint ? (
-            <View style={styles.startPointCard}>
-              <View style={styles.startPointInfo}>
-                <Ionicons name="location" size={20} color={colors.success} />
-                <View style={styles.startPointText}>
-                  <Text style={styles.startPointTitle}>{startPoint.address}</Text>
-                  <Text style={styles.startPointSubtitle}>Punto de inicio seleccionado</Text>
-                </View>
-              </View>
-              <TouchableOpacity 
-                style={styles.editButton}
-                onPress={async () => {
-                  console.log('Cambiando punto de inicio...');
-                  await openMapPicker();
-                }}
-              >
-                <Ionicons name="create-outline" size={16} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity 
-              style={styles.selectStartPointButton}
-              onPress={async () => {
-                console.log('Abriendo MapPicker funcional...');
-                await openMapPicker();
-              }}
-              disabled={isLoadingLocation}
-            >
-              {isLoadingLocation ? (
+          <View style={styles.startPointCard}>
+            {locationStatus === 'checking' ? (
+              <>
                 <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <Ionicons name="map" size={24} color={colors.primary} />
-              )}
-              <View style={styles.selectStartPointTextContainer}>
-                <Text style={styles.selectStartPointText}>
-                  {isLoadingLocation ? 'Obteniendo ubicación...' : 'Seleccionar Punto de Inicio'}
-                </Text>
-                <Text style={styles.selectStartPointSubtext}>
-                  {isLoadingLocation ? 'Espera un momento...' : 'Toca para elegir tu punto de partida en el mapa'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          )}
+                <View style={styles.startPointTextContainer}>
+                  <Text style={styles.startPointText}>
+                    Detectando ubicación...
+                  </Text>
+                  <Text style={styles.startPointSubtext}>
+                    Obteniendo tu ubicación actual
+                  </Text>
+                </View>
+              </>
+            ) : locationStatus === 'detected' ? (
+              <>
+                <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+                <View style={styles.startPointTextContainer}>
+                  <Text style={[styles.startPointText, { color: colors.success }]}>
+                    Ubicación actual detectada
+                  </Text>
+                  <Text style={styles.startPointSubtext}>
+                    Tu punto de partida será tu ubicación actual
+                  </Text>
+                </View>
+              </>
+            ) : locationStatus === 'not_found' ? (
+              <>
+                <Ionicons name="location-outline" size={24} color={colors.warning} />
+                <View style={styles.startPointTextContainer}>
+                  <Text style={[styles.startPointText, { color: colors.warning }]}>
+                    Ubicación actual no encontrada
+                  </Text>
+                  <Text style={styles.startPointSubtext}>
+                    No se pudieron obtener permisos de ubicación
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <Ionicons name="alert-circle" size={24} color={colors.error} />
+                <View style={styles.startPointTextContainer}>
+                  <Text style={[styles.startPointText, { color: colors.error }]}>
+                    Error al obtener ubicación
+                  </Text>
+                  <Text style={styles.startPointSubtext}>
+                    No se pudo detectar tu ubicación actual
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
         </View>
 
          {/* Botón para seleccionar centros */}
@@ -1354,37 +1396,26 @@ const styles = StyleSheet.create({
   startPointCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  startPointInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
     gap: 12,
   },
-  startPointText: {
+  startPointTextContainer: {
     flex: 1,
   },
-  startPointTitle: {
+  startPointText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text.primary,
     marginBottom: 2,
   },
-  startPointSubtitle: {
+  startPointSubtext: {
     fontSize: 12,
     color: colors.text.muted,
   },
-   editButton: {
-     padding: 8,
-     borderRadius: 8,
-     backgroundColor: colors.background,
-   },
    centersSection: {
      marginBottom: 20,
    },
