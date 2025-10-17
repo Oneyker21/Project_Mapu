@@ -185,30 +185,59 @@ const GroupDetailScreen = ({ navigation, route }) => {
     try {
       setSearching(true);
       const queryLower = query.toLowerCase().trim();
+      console.log('🔍 Buscando turistas con query:', queryLower);
+      
+      // Solo buscar en turistas (los grupos son solo para turistas)
       const turistasSnapshot = await getDocs(collection(db, 'turistas'));
+      console.log('📊 Total turistas en la base de datos:', turistasSnapshot.size);
       
       const results = [];
+      
       turistasSnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        const fullName = `${data.nombres || ''} ${data.apellidos || ''}`.toLowerCase();
+        const nombres = (data.nombres || '').toLowerCase();
+        const apellidos = (data.apellidos || '').toLowerCase();
         const email = (data.email || '').toLowerCase();
         
-        // Filtrar: que contenga la query Y que no sea el usuario actual Y que no esté ya en el grupo
+        // Crear nombre completo para búsqueda
+        const fullName = `${nombres} ${apellidos}`.trim();
+        
+        console.log('👤 Turista:', { 
+          id: docSnap.id, 
+          nombres: data.nombres, 
+          apellidos: data.apellidos,
+          email: data.email,
+          fullName: fullName
+        });
+        
+        // Búsqueda mejorada: nombre, apellidos, nombre completo o email
+        const matchesQuery = 
+          nombres.includes(queryLower) ||           // Buscar en nombres
+          apellidos.includes(queryLower) ||         // Buscar en apellidos
+          fullName.includes(queryLower) ||          // Buscar en nombre completo
+          email.includes(queryLower);               // Buscar en email
+        
+        // Filtrar: que coincida con la query Y que no sea el usuario actual Y que no esté ya en el grupo
         if (
-          (fullName.includes(queryLower) || email.includes(queryLower)) &&
+          matchesQuery &&
           docSnap.id !== user.uid &&
           (!groupData.members || !groupData.members.includes(docSnap.id))
         ) {
+          console.log('✅ Turista coincide con la búsqueda:', docSnap.id);
           results.push({
             id: docSnap.id,
-            ...data
+            nombres: data.nombres || '',
+            apellidos: data.apellidos || '',
+            email: data.email || '',
+            imagenPerfil: data.imagenPerfil || ''
           });
         }
       });
 
+      console.log('🎯 Resultados finales encontrados:', results.length);
       setSearchResults(results);
     } catch (error) {
-      console.error('Error buscando usuarios:', error);
+      console.error('❌ Error buscando turistas:', error);
       Alert.alert('Error', 'No se pudieron buscar usuarios');
     } finally {
       setSearching(false);
@@ -742,10 +771,12 @@ const GroupDetailScreen = ({ navigation, route }) => {
             contentContainerStyle={styles.searchResultsContent}
             renderItem={({ item }) => {
               const fullName = `${item.nombres || ''} ${item.apellidos || ''}`.trim();
+              const displayName = fullName || 'Usuario';
+              
               return (
                 <TouchableOpacity 
                   style={styles.searchResultItem}
-                  onPress={() => handleInviteUser(item.id, fullName)}
+                  onPress={() => handleInviteUser(item.id, displayName)}
                 >
                   <View style={styles.resultAvatar}>
                     {item.imagenPerfil ? (
@@ -754,11 +785,15 @@ const GroupDetailScreen = ({ navigation, route }) => {
                         style={styles.resultAvatarImage}
                       />
                     ) : (
-                      <Ionicons name="person" size={24} color={colors.text.secondary} />
+                      <Ionicons 
+                        name="person" 
+                        size={24} 
+                        color={colors.text.secondary} 
+                      />
                     )}
                   </View>
                   <View style={styles.resultInfo}>
-                    <Text style={styles.resultName}>{fullName || 'Usuario'}</Text>
+                    <Text style={styles.resultName}>{displayName}</Text>
                     <Text style={styles.resultEmail}>{item.email}</Text>
                   </View>
                   <Ionicons name="person-add" size={24} color={colors.primary} />

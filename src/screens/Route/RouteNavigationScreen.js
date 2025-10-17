@@ -21,6 +21,35 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   const mapRef = useRef(null);
   
   const [userLocation, setUserLocation] = useState(passedUserLocation);
+  
+  // Obtener ubicación actual del usuario al inicializar
+  useEffect(() => {
+    const initializeUserLocation = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          });
+          
+          const currentLocation = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          };
+          
+          console.log('📍 Ubicación actual obtenida:', currentLocation);
+          setUserLocation(currentLocation);
+        } else {
+          console.log('⚠️ Permisos de ubicación denegados, usando ubicación pasada');
+        }
+      } catch (error) {
+        console.error('❌ Error obteniendo ubicación actual:', error);
+        console.log('⚠️ Usando ubicación pasada como fallback');
+      }
+    };
+    
+    initializeUserLocation();
+  }, []);
   const [currentDestinationIndex, setCurrentDestinationIndex] = useState(0);
   const [currentCenter, setCurrentCenter] = useState(() => {
     // Validar que routeCenters sea un array válido
@@ -147,6 +176,27 @@ const RouteNavigationScreen = ({ navigation, route }) => {
     }
   };
 
+  // Centrar mapa en el destino actual
+  const centerOnDestination = () => {
+    if (!currentCenter || !mapRef.current) return;
+    
+    const destinationLocation = {
+      latitude: currentCenter.coordinate.latitude,
+      longitude: currentCenter.coordinate.longitude,
+    };
+    
+    console.log('🎯 Centrando mapa en destino:', currentCenter.businessName);
+    console.log('📍 Coordenadas del destino:', destinationLocation);
+    
+    // Centrar el mapa en el destino con animación
+    mapRef.current.animateToRegion({
+      latitude: destinationLocation.latitude,
+      longitude: destinationLocation.longitude,
+      latitudeDelta: 0.01, // Zoom más cercano para ver mejor el destino
+      longitudeDelta: 0.01,
+    }, 1000);
+  };
+
   // Calcular distancia entre dos puntos
   const calculateDistance = () => {
     if (!userLocation || !currentCenter) return;
@@ -254,14 +304,42 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   };
 
   // Ir al siguiente destino
-  const goToNextDestination = () => {
+  const goToNextDestination = async () => {
     const nextIndex = currentDestinationIndex + 1;
     const selectedCenters = (routeCenters || []).filter(c => c && c.id !== 'start' && c.coordinate);
     
     if (nextIndex < selectedCenters.length) {
+      // Obtener ubicación actual del usuario antes de avanzar
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          });
+          
+          const currentLocation = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          };
+          
+          console.log('📍 Ubicación actualizada para siguiente destino:', currentLocation);
+          setUserLocation(currentLocation);
+        }
+      } catch (error) {
+        console.error('❌ Error obteniendo ubicación actual:', error);
+      }
+      
       setCurrentDestinationIndex(nextIndex);
       setCurrentCenter(selectedCenters[nextIndex]);
       setNavigating(false); // Resetear navegación para el nuevo destino
+      setRoutePolyline([]); // Limpiar ruta anterior
+      
+      // Recalcular ruta automáticamente al nuevo destino
+      setTimeout(() => {
+        if (userLocation && selectedCenters[nextIndex]) {
+          calculateRoute();
+        }
+      }, 500);
       
       Alert.alert(
         'Siguiente Destino',
@@ -375,34 +453,42 @@ const RouteNavigationScreen = ({ navigation, route }) => {
 
   // Calcular ruta usando Google Directions API
   const calculateRoute = async () => {
-    if (!userLocation) return;
-
-    // Construir ruta con múltiples paradas: todos los centros seleccionados en orden
-    const selectedCenters = (routeCenters || []).filter(c => c && c.id !== 'start' && c.coordinate);
-    if (selectedCenters.length === 0) return;
+    console.log('🚀 INICIANDO calculateRoute...');
+    console.log('🚀 userLocation:', userLocation);
+    console.log('🚀 currentCenter:', currentCenter);
+    console.log('🚀 currentDestinationIndex:', currentDestinationIndex);
+    
+    if (!userLocation || !currentCenter) {
+      console.log('❌ No se puede calcular ruta: userLocation o currentCenter faltantes');
+      return;
+    }
 
     setLoading(true);
     try {
       const origin = `${userLocation.latitude},${userLocation.longitude}`;
-      const destination = `${selectedCenters[selectedCenters.length - 1].coordinate.latitude},${selectedCenters[selectedCenters.length - 1].coordinate.longitude}`;
+      const destination = `${currentCenter.coordinate.latitude},${currentCenter.coordinate.longitude}`;
 
-      // Waypoints: todos menos el último (destino)
-      const waypoints = selectedCenters
-        .slice(0, -1)
-        .map(c => `${c.coordinate.latitude},${c.coordinate.longitude}`);
+      console.log('🗺️ Calculando ruta por ETAPAS:', { 
+        origin, 
+        destination, 
+        currentDestination: currentCenter.businessName,
+        stage: `${currentDestinationIndex + 1} de ${(routeCenters || []).filter(c => c && c.id !== 'start' && c.coordinate).length}`
+      });
 
-      console.log('🗺️ Calculando ruta MULTI-STOP:', { origin, destination, waypointsCount: waypoints.length });
-
-      const routeCoordinates = await getGoogleDirections(origin, destination, waypoints, transportMode);
+      // Calcular ruta directa al destino actual (sin waypoints)
+      const routeCoordinates = await getGoogleDirections(origin, destination, [], transportMode);
 
       if (routeCoordinates && routeCoordinates.length > 0) {
         console.log('✅ Ruta obtenida de Google con', routeCoordinates.length, 'puntos');
+        console.log('✅ Primeros 3 puntos de la ruta:', routeCoordinates.slice(0, 3));
+        console.log('✅ Últimos 3 puntos de la ruta:', routeCoordinates.slice(-3));
         setRoutePolyline(routeCoordinates);
         
-        // Ajustar el mapa para mostrar toda la ruta con zoom apropiado
+        // Ajustar el mapa para mostrar la ruta con zoom apropiado
         if (mapRef.current) {
           // Calcular región óptima para la ruta
           const region = calculateOptimalRegion(routeCoordinates);
+          console.log('🗺️ Región calculada para el mapa:', region);
           
           mapRef.current.animateToRegion(region, 1000);
         }
@@ -412,6 +498,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
         console.log('⚠️ Google API falló, usando ruta simulada mejorada');
         const fallbackRoute = generateRealisticRoute(userLocation, currentCenter.coordinate);
         console.log('🛣️ Ruta simulada generada con', fallbackRoute.length, 'puntos');
+        console.log('🛣️ Primeros 3 puntos de ruta simulada:', fallbackRoute.slice(0, 3));
         setRoutePolyline(fallbackRoute);
       }
     } catch (error) {
@@ -823,7 +910,11 @@ const RouteNavigationScreen = ({ navigation, route }) => {
       </View>
 
       {/* Información de la ruta */}
-      <View style={styles.routeInfo}>
+      <TouchableOpacity 
+        style={styles.routeInfo}
+        onPress={centerOnDestination}
+        activeOpacity={0.7}
+      >
         <View style={styles.destinationInfo}>
           <Text style={styles.destinationName}>{currentCenter?.businessName}</Text>
           <Text style={styles.destinationCategory}>{currentCenter?.category}</Text>
@@ -834,7 +925,10 @@ const RouteNavigationScreen = ({ navigation, route }) => {
             <Text style={styles.durationText}>{formatDuration(duration)}</Text>
           )}
         </View>
-      </View>
+        <View style={styles.tapIndicator}>
+          <Ionicons name="location" size={20} color="#3B82F6" />
+        </View>
+      </TouchableOpacity>
 
       {/* Indicador de rotación */}
       {isRotating && (
@@ -1134,6 +1228,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    borderRightWidth: 3,
+    borderRightColor: '#3B82F6', // Indicador visual de que es tocable
   },
   destinationInfo: {
     flex: 1,
@@ -1160,6 +1256,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     marginTop: 2,
+  },
+  tapIndicator: {
+    marginLeft: 12,
+    padding: 4,
   },
   transportModeInfo: {
     flexDirection: 'row',
