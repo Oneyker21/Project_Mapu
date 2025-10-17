@@ -9,6 +9,7 @@ import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors, withOpacity } from '../../config/colors';
 import { getFeaturedRoutes } from '../../services/routes';
+import { getCenterReviews } from '../../services/reviews';
 
 
 const HomeScreen = ({ navigation }) => {
@@ -22,11 +23,14 @@ const HomeScreen = ({ navigation }) => {
   const [hasShownWelcome, setHasShownWelcome] = useState(false);
   const [centerStatus, setCenterStatus] = useState('abierto'); // 'abierto' o 'cerrado'
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [isAutoMode, setIsAutoMode] = useState(true); // true = automático, false = manual
   const [sliderAnimation] = useState(new Animated.Value(0));
   const [isDragging, setIsDragging] = useState(false);
   const [sliderWidth, setSliderWidth] = useState(300); // Ancho por defecto
   const [featuredRoutes, setFeaturedRoutes] = useState([]);
   const [loadingRoutes, setLoadingRoutes] = useState(false);
+  const [featuredReviews, setFeaturedReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
   
   // PanResponder para el deslizamiento del slider
   const panResponder = PanResponder.create({
@@ -146,6 +150,10 @@ const HomeScreen = ({ navigation }) => {
             setCenterStatus(estado);
             // Inicializar animación según el estado
             sliderAnimation.setValue(estado === 'abierto' ? 0 : 1); // Abierto=0 (izquierda), Cerrado=1 (derecha)
+            
+            // Cargar modo automático
+            const modoAutomatico = data.modoAutomatico !== undefined ? data.modoAutomatico : true;
+            setIsAutoMode(modoAutomatico);
           }
         } else {
           console.log('HomeScreen - No se encontraron datos en la colección:', collectionName);
@@ -237,6 +245,98 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
+  // Cargar reseñas destacadas para centros turísticos
+  const loadFeaturedReviews = async () => {
+    if (!authUser || !isCenterUser) return;
+    
+    try {
+      setLoadingReviews(true);
+      console.log('🔄 Cargando reseñas destacadas...');
+      const reviews = await getCenterReviews(authUser.uid, 3); // Solo las 3 mejores
+      console.log('✅ Reseñas destacadas cargadas:', reviews.length);
+      setFeaturedReviews(reviews);
+    } catch (error) {
+      console.error('❌ Error cargando reseñas destacadas:', error);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  // Función para verificar si el centro está abierto según los horarios
+  const checkBusinessStatus = () => {
+    if (!userData || !userData.horarioDetallado) {
+      return 'abierto'; // Por defecto si no hay horarios
+    }
+
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes(); // Tiempo en minutos
+    const currentDay = now.getDay(); // 0 = Domingo, 1 = Lunes, etc.
+
+    // Mapeo de días de la semana
+    const dayMapping = {
+      0: 'domingo',
+      1: 'lunes', 
+      2: 'martes',
+      3: 'miercoles',
+      4: 'jueves',
+      5: 'viernes',
+      6: 'sabado'
+    };
+
+    const today = dayMapping[currentDay];
+    const todaySchedule = userData.horarioDetallado[today];
+
+    // Si el día no está habilitado, está cerrado
+    if (!todaySchedule || !todaySchedule.enabled) {
+      return 'cerrado';
+    }
+
+    // Convertir horarios de apertura y cierre a minutos
+    const [openHour, openMinute] = todaySchedule.open.split(':').map(Number);
+    const [closeHour, closeMinute] = todaySchedule.close.split(':').map(Number);
+    
+    const openTime = openHour * 60 + openMinute;
+    const closeTime = closeHour * 60 + closeMinute;
+
+    // Verificar si está dentro del horario
+    const isOpen = currentTime >= openTime && currentTime <= closeTime;
+    
+    return isOpen ? 'abierto' : 'cerrado';
+  };
+
+  // Función para actualizar el estado del negocio automáticamente
+  const updateBusinessStatus = async () => {
+    // Solo actualizar automáticamente si está en modo automático
+    if (!isAutoMode) return;
+    
+    const newStatus = checkBusinessStatus();
+    if (newStatus !== centerStatus) {
+      try {
+        // Actualizar estado local
+        setCenterStatus(newStatus);
+        
+        // Actualizar en Firebase
+        const userRef = doc(db, 'centrosTuristicos', authUser.uid);
+        await updateDoc(userRef, {
+          estado: newStatus === 'abierto',
+          ultimaActualizacion: new Date().toISOString(),
+        });
+
+        // Actualizar datos del usuario
+        setUserData(prev => ({
+          ...prev,
+          estado: newStatus === 'abierto',
+          ultimaActualizacion: new Date().toISOString()
+        }));
+
+        console.log(`🏪 Estado del negocio actualizado automáticamente: ${newStatus}`);
+        showFloatingNotification(`Estado actualizado automáticamente: ${newStatus === 'abierto' ? 'Abierto' : 'Cerrado'}`);
+      } catch (error) {
+        console.error('Error actualizando estado automáticamente:', error);
+      }
+    }
+  };
+
   // Cargar centros turísticos registrados y datos del usuario
   useEffect(() => {
     loadUserData();
@@ -244,12 +344,104 @@ const HomeScreen = ({ navigation }) => {
     loadFeaturedRoutes();
   }, []);
 
+  // Cargar reseñas destacadas cuando se determine el rol del usuario
+  useEffect(() => {
+    if (!loadingUserData && isCenterUser) {
+      loadFeaturedReviews();
+    }
+  }, [loadingUserData, isCenterUser]);
+
+  // Actualizar estado del negocio cuando se carguen los datos del usuario
+  useEffect(() => {
+    if (!loadingUserData && userData && isCenterUser) {
+      updateBusinessStatus();
+    }
+  }, [loadingUserData, userData, isCenterUser]);
+
+  // Verificar estado del negocio cada minuto
+  useEffect(() => {
+    if (!isCenterUser) return;
+
+    const interval = setInterval(() => {
+      updateBusinessStatus();
+    }, 60000); // Verificar cada minuto
+
+    return () => clearInterval(interval);
+  }, [isCenterUser, userData, isAutoMode]);
+
   // Re-cargar centros cuando se determine el rol/datos del usuario
   useEffect(() => {
     if (!loadingUserData) {
       loadCenters();
     }
   }, [loadingUserData, userData]);
+
+  // Función para cambiar a modo automático
+  const enableAutoMode = async () => {
+    try {
+      setIsAutoMode(true);
+      
+      // Actualizar en Firebase
+      const userRef = doc(db, 'centrosTuristicos', authUser.uid);
+      await updateDoc(userRef, {
+        modoAutomatico: true,
+        ultimaActualizacion: new Date().toISOString(),
+      });
+
+      // Actualizar estado según horarios actuales
+      const newStatus = checkBusinessStatus();
+      if (newStatus !== centerStatus) {
+        setCenterStatus(newStatus);
+        await updateDoc(userRef, {
+          estado: newStatus === 'abierto',
+          ultimaActualizacion: new Date().toISOString(),
+        });
+      }
+
+      showFloatingNotification('Modo automático activado');
+    } catch (error) {
+      console.error('Error activando modo automático:', error);
+      Alert.alert('Error', 'No se pudo activar el modo automático');
+    }
+  };
+
+  // Función para cambiar el estado manualmente
+  const toggleManualStatus = async () => {
+    if (updatingStatus) return;
+
+    try {
+      setUpdatingStatus(true);
+      setIsAutoMode(false);
+      
+      const newStatus = centerStatus === 'abierto' ? 'cerrado' : 'abierto';
+      
+      // Actualizar en Firebase
+      const userRef = doc(db, 'centrosTuristicos', authUser.uid);
+      await updateDoc(userRef, {
+        estado: newStatus === 'abierto',
+        modoAutomatico: false,
+        ultimaActualizacion: new Date().toISOString(),
+      });
+
+      // Actualizar estado local
+      setCenterStatus(newStatus);
+      
+      // Actualizar datos del usuario
+      setUserData(prev => ({
+        ...prev,
+        estado: newStatus === 'abierto',
+        modoAutomatico: false,
+        ultimaActualizacion: new Date().toISOString()
+      }));
+
+      showFloatingNotification(`Estado cambiado manualmente a: ${newStatus === 'abierto' ? 'Abierto' : 'Cerrado'}`);
+    } catch (error) {
+      console.error('Error actualizando estado manualmente:', error);
+      Alert.alert('Error', 'No se pudo actualizar el estado del centro');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
 
   // Recargar datos de usuario cuando Home recobra foco (después de editar perfil)
   useFocusEffect(
@@ -474,6 +666,50 @@ const HomeScreen = ({ navigation }) => {
     );
   };
 
+  // Función para renderizar reseñas destacadas
+  const renderFeaturedReview = (review) => {
+    return (
+      <View key={review.id} style={styles.featuredReviewCard}>
+        <View style={styles.featuredReviewHeader}>
+          <View style={styles.featuredReviewUserInfo}>
+            <View style={styles.featuredReviewAvatar}>
+              {review.userAvatar ? (
+                <Image 
+                  source={{ uri: review.userAvatar }} 
+                  style={styles.featuredReviewAvatarImage}
+                />
+              ) : (
+                <Ionicons name="person" size={20} color={colors.text.muted} />
+              )}
+            </View>
+            <View style={styles.featuredReviewUserDetails}>
+              <Text style={styles.featuredReviewUserName}>
+                {review.userName || 'Usuario'}
+              </Text>
+              <View style={styles.featuredReviewRating}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Ionicons
+                    key={star}
+                    name={star <= (review.rating || 5) ? "star" : "star-outline"}
+                    size={12}
+                    color={colors.warning}
+                  />
+                ))}
+              </View>
+            </View>
+          </View>
+          <Text style={styles.featuredReviewDate}>
+            {review.createdAt ? new Date(review.createdAt.toDate ? review.createdAt.toDate() : review.createdAt).toLocaleDateString('es-ES') : ''}
+          </Text>
+        </View>
+        
+        <Text style={styles.featuredReviewComment} numberOfLines={3}>
+          {review.comment || 'Sin comentario'}
+        </Text>
+      </View>
+    );
+  };
+
   // Función para obtener las acciones de turista optimizadas
   const getTouristQuickActions = () => {
     return []; // Sin botones - ahora están en el footer
@@ -485,17 +721,6 @@ const HomeScreen = ({ navigation }) => {
 
     if (isCenter) {
       return [
-        {
-          id: 'reservations',
-          title: 'Reservaciones',
-          subtitle: 'Gestionar reservas de visitantes',
-          icon: 'calendar',
-          color: '#F59E0B',
-          onPress: () => {
-            setShowMenu(false);
-            navigation.navigate('Reservations');
-          }
-        },
         {
           id: 'analytics',
           title: 'Estadísticas',
@@ -673,13 +898,13 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.quickActionsSection}>
           {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? (
             <>
-              <TouchableOpacity 
-                style={styles.quickActionCard}
-                onPress={() => navigation.navigate('MisServicios')}
-              >
-                <Ionicons name="analytics" size={24} color={colors.primary} />
-                <Text style={[styles.quickActionText, { color: colors.primary }]}>Mis Servicios</Text>
-              </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.centerQuickActionCard}
+                  onPress={() => navigation.navigate('MisServicios')}
+                >
+                  <Ionicons name="analytics" size={24} color="#FFFFFF" />
+                  <Text style={[styles.centerQuickActionText, { color: "#FFFFFF" }]}>Mis Servicios</Text>
+                </TouchableOpacity>
               
             </>
           ) : (
@@ -706,26 +931,62 @@ const HomeScreen = ({ navigation }) => {
         {/* Estado del Centro - Solo para centros turísticos */}
           {isCenterUser && (
             <View style={styles.centerStatusSection}>
-              <View style={styles.statusContainer}>
-                <View style={[
-                  styles.statusBadge,
+              {/* Botón para activar modo automático */}
+              {!isAutoMode && (
+                <TouchableOpacity 
+                  style={styles.autoModeButton}
+                  onPress={enableAutoMode}
+                >
+                  <Ionicons name="time" size={16} color={colors.primary} />
+                  <Text style={styles.autoModeButtonText}>Activar Automático</Text>
+                </TouchableOpacity>
+              )}
+              
+              {/* Switch de estado */}
+              <TouchableOpacity 
+                style={[
+                  styles.statusSwitch,
                   {
                     backgroundColor: centerStatus === 'abierto' ? colors.success : colors.error,
+                    justifyContent: centerStatus === 'abierto' ? 'flex-start' : 'flex-end',
                   }
-                ]}>
+                ]}
+                onPress={toggleManualStatus}
+                disabled={updatingStatus}
+              >
+                <View style={styles.statusSwitchThumb}>
                   <Ionicons 
-                    name={centerStatus === 'abierto' ? 'checkmark-circle' : 'close-circle'} 
+                    name={centerStatus === 'abierto' ? 'checkmark' : 'close'} 
                     size={16} 
-                    color={colors.text.primary} 
+                    color={centerStatus === 'abierto' ? colors.success : colors.error}
                   />
+                </View>
+                <View style={styles.statusSwitchLabels}>
                   <Text style={[
-                    styles.statusBadgeText,
-                    { color: colors.text.primary }
+                    styles.statusSwitchLabel,
+                    { 
+                      color: centerStatus === 'abierto' ? colors.text.primary : colors.text.muted,
+                      fontWeight: centerStatus === 'abierto' ? '600' : '400'
+                    }
                   ]}>
-                    {centerStatus === 'abierto' ? 'Abierto' : 'Cerrado'}
+                    Abierto
+                  </Text>
+                  <Text style={[
+                    styles.statusSwitchLabel,
+                    { 
+                      color: centerStatus === 'cerrado' ? colors.text.primary : colors.text.muted,
+                      fontWeight: centerStatus === 'cerrado' ? '600' : '400'
+                    }
+                  ]}>
+                    Cerrado
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
+              
+              {/* Indicador de modo */}
+              <Text style={styles.modeIndicator}>
+                {isAutoMode ? 'Modo Automático' : 'Modo Manual'}
+              </Text>
             </View>
           )}
 
@@ -745,6 +1006,29 @@ const HomeScreen = ({ navigation }) => {
                   <Ionicons name="chevron-forward" size={20} color={colors.text.muted} />
                 </View>
               </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Reseñas Destacadas - Solo para centros turísticos */}
+          {isCenterUser && featuredReviews.length > 0 && (
+            <View style={styles.featuredReviewsSection}>
+              <View style={styles.featuredReviewsHeader}>
+                <Text style={styles.featuredReviewsTitle}>Reseñas Destacadas</Text>
+                <TouchableOpacity onPress={() => navigation.navigate('Reviews')}>
+                  <Text style={styles.featuredReviewsSeeAll}>Ver todas</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {loadingReviews ? (
+                <View style={styles.featuredReviewsLoading}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.featuredReviewsLoadingText}>Cargando reseñas...</Text>
+                </View>
+              ) : (
+                <View style={styles.featuredReviewsList}>
+                  {featuredReviews.map(renderFeaturedReview)}
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -830,13 +1114,6 @@ const HomeScreen = ({ navigation }) => {
           {(userData?.role === 'centro_turistico' || userData?.tipoUsuario === 'CentroTuristico') ? (
             // Footer para centros turísticos
             <>
-              <TouchableOpacity 
-                style={styles.footerButton}
-                onPress={() => navigation.navigate('Reservations')}
-              >
-                <Ionicons name="calendar" size={24} color={colors.primary} />
-                <Text style={styles.footerButtonText}>Reservas</Text>
-              </TouchableOpacity>
 
               <TouchableOpacity 
                 style={styles.footerButton}
@@ -1097,20 +1374,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     marginHorizontal: 4,
     borderRadius: 12,
-    shadowColor: '#000',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  // Estilo específico para centros turísticos (botón "Mis Servicios")
+  centerQuickActionCard: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    marginHorizontal: 4,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    shadowColor: colors.primary,
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   quickActionText: {
     fontSize: 12,
     fontWeight: '600',
     marginTop: 6,
     textAlign: 'center',
+  },
+  // Estilo específico para el texto del botón de centros turísticos
+  centerQuickActionText: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 8,
+    textAlign: 'center',
+    letterSpacing: 0.5,
   },
   mapContainer: {
     flex: 1,
@@ -1486,16 +1784,9 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   centerStatusSection: {
-    backgroundColor: colors.surface,
     marginHorizontal: 16,
     marginBottom: 16,
-    borderRadius: 12,
     padding: 16,
-    shadowColor: colors.shadow.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   statusSectionTitle: {
     fontSize: 18,
@@ -1517,6 +1808,70 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Estilos para el nuevo switch
+  autoModeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    gap: 6,
+  },
+  autoModeButtonText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  statusSwitch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 50,
+    borderRadius: 25,
+    paddingHorizontal: 4,
+    position: 'relative',
+    marginBottom: 8,
+  },
+  statusSwitchThumb: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  statusSwitchLabels: {
+    position: 'absolute',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 8,
+    pointerEvents: 'none',
+  },
+  statusSwitchLabel: {
+    fontSize: 14,
+    fontWeight: '400',
+    flex: 1,
+    textAlign: 'center',
+  },
+  modeIndicator: {
+    fontSize: 12,
+    color: colors.text.muted,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   statusButtonsContainer: {
     flexDirection: 'row',
@@ -1597,6 +1952,98 @@ const styles = StyleSheet.create({
   promotionSubtitle: {
     fontSize: 12,
     color: colors.text.muted,
+  },
+  // Estilos para reseñas destacadas
+  featuredReviewsSection: {
+    marginBottom: 20,
+  },
+  featuredReviewsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 20,
+  },
+  featuredReviewsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  featuredReviewsSeeAll: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  featuredReviewsLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  featuredReviewsLoadingText: {
+    fontSize: 14,
+    color: colors.text.muted,
+  },
+  featuredReviewsList: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  featuredReviewCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  featuredReviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  featuredReviewUserInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  featuredReviewAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  featuredReviewAvatarImage: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+  },
+  featuredReviewUserDetails: {
+    flex: 1,
+  },
+  featuredReviewUserName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.primary,
+    marginBottom: 2,
+  },
+  featuredReviewRating: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  featuredReviewDate: {
+    fontSize: 12,
+    color: colors.text.muted,
+  },
+  featuredReviewComment: {
+    fontSize: 14,
+    color: colors.text.primary,
+    lineHeight: 20,
   },
   sliderContainer: {
     alignItems: 'center',
