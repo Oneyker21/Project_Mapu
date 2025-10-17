@@ -437,8 +437,8 @@ const RouteCreationScreen = ({ navigation, route }) => {
         longitudeDelta: 0.0421,
       });
 
-      // Seleccionar automáticamente la ubicación del usuario
-      setSelectedMapPoint(userLocation);
+      // Actualizar coordenadas actuales
+      setCurrentCoordinates(userLocation);
       
       console.log('Ubicación del usuario obtenida:', userLocation);
     } catch (error) {

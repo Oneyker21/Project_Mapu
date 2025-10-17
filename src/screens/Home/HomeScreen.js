@@ -1014,7 +1014,7 @@ const HomeScreen = ({ navigation }) => {
             <View style={styles.featuredReviewsSection}>
               <View style={styles.featuredReviewsHeader}>
                 <Text style={styles.featuredReviewsTitle}>Reseñas Destacadas</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('Reviews')}>
+                <TouchableOpacity onPress={() => navigation.navigate('Reviews', { center: { ...userData, id: authUser?.uid } })}>
                   <Text style={styles.featuredReviewsSeeAll}>Ver todas</Text>
                 </TouchableOpacity>
               </View>
