@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, Polyline, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Polyline, Callout } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { buildDirectionsUrl, validateApiKey } from '../../config/googleMaps';
 import { collection, getDocs } from 'firebase/firestore';
@@ -870,7 +870,6 @@ const RouteNavigationScreen = ({ navigation, route }) => {
         <MapView
           ref={mapRef}
           style={styles.map}
-          provider={PROVIDER_GOOGLE}
           initialRegion={{
             latitude: userLocation?.latitude || 12.1167,
             longitude: userLocation?.longitude || -85.3667,

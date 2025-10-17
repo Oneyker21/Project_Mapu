@@ -6,7 +6,7 @@ import { Button } from '../../components';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../config/colors';
 
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 
 const DEFAULT_REGION = {
   latitude: 12.1167, // Juigalpa
@@ -345,7 +345,6 @@ const MapPickerScreen = ({ route, navigation }) => {
 
       <MapView
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
         region={memoizedRegion}
         mapType={mapType}
         showsUserLocation={true}

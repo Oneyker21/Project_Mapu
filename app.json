@@ -4,9 +4,9 @@
     "slug": "mapu",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Images/Mapu-Icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "icon": "./assets/Images/Mapu_Icon.png",
     "splash": {
       "image": "./assets/Images/Mapu-Charging.png",
       "resizeMode": "cover",
@@ -15,7 +15,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/Images/Mapu-Icon.png",
+        "foregroundImage": "./assets/Images/Mapu_Icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -24,7 +24,16 @@
         "resizeMode": "cover",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.anonymous.mapu"
+      "package": "com.anonymous.mapu",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "ACCESS_LOCATION_EXTRA_COMMANDS",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_WIFI_STATE",
+        "INTERNET"
+      ],
     },
     "ios": {
       "supportsTablet": true,
@@ -32,11 +41,24 @@
         "image": "./assets/Images/Mapu-Charging.png",
         "resizeMode": "cover",
         "backgroundColor": "#ffffff"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Esta app necesita acceso a tu ubicación para mostrarte centros turísticos cercanos y crear rutas personalizadas.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Esta app necesita acceso a tu ubicación para mostrarte centros turísticos cercanos y crear rutas personalizadas."
       }
     },
     "web": {
-      "favicon": "./assets/Images/Mapu-Icon.png"
+      "favicon": "./assets/Images/Mapu_Icon.png"
     },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permitir $(PRODUCT_NAME) usar tu ubicación para mostrar centros turísticos cercanos y crear rutas personalizadas.",
+          "locationWhenInUsePermission": "Permitir $(PRODUCT_NAME) usar tu ubicación para mostrar centros turísticos cercanos y crear rutas personalizadas."
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "73011e09-fce7-45be-82f3-b7b565dd837e"

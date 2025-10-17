@@ -19,6 +19,7 @@ import * as Location from 'expo-location';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { colors } from '../../config/colors';
+// import { getCurrentLocation, requestLocationPermission } from '../../utils/locationUtils';
 
 const RouteCreationScreen = ({ navigation, route }) => {
   const [centers, setCenters] = useState([]);
@@ -156,44 +157,46 @@ const RouteCreationScreen = ({ navigation, route }) => {
   // Auto-seleccionar departamento basado en ubicación del usuario
   const autoSelectDepartment = async () => {
     try {
+      // Usar una función más simple y segura para evitar crashes
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
         const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
+          accuracy: Location.Accuracy.Low,
+          timeout: 10000,
         });
         
-        // Determinar departamento basado en coordenadas
-        const department = getDepartmentFromCoordinates(
-          location.coords.latitude,
-          location.coords.longitude
-        );
-        
-        if (department) {
-          setSelectedDepartment(department);
+        if (location && location.coords) {
+          // Determinar departamento basado en coordenadas
+          const department = getDepartmentFromCoordinates(
+            location.coords.latitude,
+            location.coords.longitude
+          );
           
-          // Actualizar las coordenadas actuales con la ubicación del usuario
-          setCurrentCoordinates({
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude
-          });
-          
-          // Actualizar la región del mapa al departamento seleccionado
-          const deptData = nicaraguaDepartments.find(d => d.name === department);
-          if (deptData) {
-            setMapRegion({
-              latitude: deptData.latitude,
-              longitude: deptData.longitude,
-              latitudeDelta: 0.5,
-              longitudeDelta: 0.5,
+          if (department) {
+            setSelectedDepartment(department);
+            console.log('📍 Departamento auto-seleccionado:', department);
+            
+            // Actualizar las coordenadas actuales con la ubicación del usuario
+            setCurrentCoordinates({
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude
             });
+            
+            // Actualizar la región del mapa al departamento seleccionado
+            const deptData = nicaraguaDepartments.find(d => d.name === department);
+            if (deptData) {
+              setMapRegion({
+                latitude: deptData.latitude,
+                longitude: deptData.longitude,
+                latitudeDelta: 0.5,
+                longitudeDelta: 0.5,
+              });
+            }
           }
-          
-          console.log('📍 Departamento auto-seleccionado:', department);
-          console.log('📍 Ubicación actual:', location.coords.latitude, location.coords.longitude);
         }
       }
     } catch (error) {
-      console.log('No se pudo obtener ubicación para auto-selección de departamento');
+      console.log('No se pudo obtener ubicación para auto-selección de departamento:', error.message);
     }
   };
 
@@ -266,7 +269,7 @@ const RouteCreationScreen = ({ navigation, route }) => {
   const openMapPicker = async () => {
     setIsLoadingLocation(true);
     try {
-      // Obtener ubicación actual del usuario
+      // Obtener ubicación actual del usuario usando función simple
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Error', 'Permisos de ubicación denegados');
@@ -275,7 +278,8 @@ const RouteCreationScreen = ({ navigation, route }) => {
       }
 
       const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+        accuracy: Location.Accuracy.Balanced,
+        timeout: 15000,
       });
 
       const userLocation = {
