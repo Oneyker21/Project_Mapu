@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, getDocs, doc, setDoc, addDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, addDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors, withOpacity } from '../../config/colors';
@@ -22,8 +22,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 const GroupsScreen = ({ navigation }) => {
   const { user } = useAuth();
-  const [groups, setGroups] = useState([]);
-  const [userGroups, setUserGroups] = useState([]);
+  const [myGroups, setMyGroups] = useState([]); // Grupos creados por mí
+  const [memberGroups, setMemberGroups] = useState([]); // Grupos donde soy miembro
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -36,53 +36,46 @@ const GroupsScreen = ({ navigation }) => {
   const [joinGroupCode, setJoinGroupCode] = useState('');
   const [editingGroup, setEditingGroup] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('my'); // 'my' o 'member'
 
   useEffect(() => {
     loadGroups();
-    loadUserGroups();
   }, []);
 
   const loadGroups = async () => {
     try {
       setLoading(true);
+      if (!user) return;
+      
       const groupsSnapshot = await getDocs(collection(db, 'groups'));
-      const groupsData = [];
+      const createdByMe = [];
+      const memberOf = [];
       
       groupsSnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        groupsData.push({
+        const groupData = {
           id: docSnap.id,
           ...data,
           memberCount: data.members ? data.members.length : 0
-        });
+        };
+        
+        // Verificar si soy el creador
+        if (data.createdBy && data.createdBy.uid === user.uid) {
+          createdByMe.push(groupData);
+        } 
+        // Verificar si soy miembro (pero no creador)
+        else if (data.members && data.members.includes(user.uid)) {
+          memberOf.push(groupData);
+        }
       });
 
-      setGroups(groupsData);
+      setMyGroups(createdByMe);
+      setMemberGroups(memberOf);
     } catch (error) {
       console.error('Error cargando grupos:', error);
       Alert.alert('Error', 'No se pudieron cargar los grupos');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadUserGroups = async () => {
-    try {
-      if (!user) return;
-      
-      const userDoc = await getDocs(collection(db, 'users'));
-      const userGroupsData = [];
-      
-      userDoc.forEach((docSnap) => {
-        const data = docSnap.data();
-        if (data.groups && data.groups.length > 0) {
-          userGroupsData.push(...data.groups);
-        }
-      });
-
-      setUserGroups(userGroupsData);
-    } catch (error) {
-      console.error('Error cargando grupos del usuario:', error);
     }
   };
 
@@ -250,29 +243,12 @@ const GroupsScreen = ({ navigation }) => {
   };
 
   const renderGroupItem = ({ item }) => {
-    const isMember = item.members && item.members.includes(user.uid);
     const isCreator = item.createdBy && item.createdBy.uid === user.uid;
 
     return (
       <TouchableOpacity 
-        style={[styles.groupCard, isMember && styles.memberGroupCard]}
-        onPress={() => {
-          if (isMember) {
-            navigation.navigate('GroupDetail', { group: item });
-          } else {
-            Alert.alert(
-              'Unirse al Grupo',
-              `¿Te gustaría unirte al grupo "${item.name}"?`,
-              [
-                { text: 'Cancelar', style: 'cancel' },
-                { text: 'Unirse', onPress: () => {
-                  setJoinGroupCode(item.code);
-                  setShowJoinModal(true);
-                }}
-              ]
-            );
-          }
-        }}
+        style={[styles.groupCard, !isCreator && styles.memberGroupCard]}
+        onPress={() => navigation.navigate('GroupDetail', { group: item })}
       >
         <View style={styles.groupHeader}>
           <View style={styles.groupInfo}>
@@ -375,8 +351,39 @@ const GroupsScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
+      {/* Tabs para filtrar grupos */}
+      <View style={styles.tabsContainer}>
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'my' && styles.activeTab]}
+          onPress={() => setActiveTab('my')}
+        >
+          <Ionicons 
+            name="create" 
+            size={20} 
+            color={activeTab === 'my' ? colors.primary : colors.text.muted} 
+          />
+          <Text style={[styles.tabText, activeTab === 'my' && styles.activeTabText]}>
+            Mis Grupos ({myGroups.length})
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'member' && styles.activeTab]}
+          onPress={() => setActiveTab('member')}
+        >
+          <Ionicons 
+            name="people" 
+            size={20} 
+            color={activeTab === 'member' ? colors.primary : colors.text.muted} 
+          />
+          <Text style={[styles.tabText, activeTab === 'member' && styles.activeTabText]}>
+            Miembro ({memberGroups.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
-        data={groups}
+        data={activeTab === 'my' ? myGroups : memberGroups}
         renderItem={renderGroupItem}
         keyExtractor={(item) => item.id}
         style={styles.groupsList}
@@ -385,9 +392,13 @@ const GroupsScreen = ({ navigation }) => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="people-outline" size={64} color="#9CA3AF" />
-            <Text style={styles.emptyTitle}>No hay grupos disponibles</Text>
+            <Text style={styles.emptyTitle}>
+              {activeTab === 'my' ? 'No has creado grupos' : 'No eres miembro de ningún grupo'}
+            </Text>
             <Text style={styles.emptySubtitle}>
-              Crea tu primer grupo o únete a uno existente
+              {activeTab === 'my' 
+                ? 'Crea tu primer grupo para organizar viajes con amigos' 
+                : 'Únete a un grupo existente con un código de invitación'}
             </Text>
           </View>
         }
@@ -665,6 +676,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 12,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: colors.card.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 8,
+  },
+  activeTab: {
+    backgroundColor: withOpacity(colors.primary, 0.1),
+    borderColor: colors.primary,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.muted,
+  },
+  activeTabText: {
+    color: colors.primary,
   },
   actionButton: {
     flex: 1,

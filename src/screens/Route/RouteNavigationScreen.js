@@ -23,8 +23,14 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   const [userLocation, setUserLocation] = useState(passedUserLocation);
   const [currentDestinationIndex, setCurrentDestinationIndex] = useState(0);
   const [currentCenter, setCurrentCenter] = useState(() => {
+    // Validar que routeCenters sea un array válido
+    if (!Array.isArray(routeCenters)) {
+      console.error('routeCenters no es un array:', routeCenters);
+      return null;
+    }
+    
     // Siempre empezar con el primer centro real (no el punto de inicio)
-    const selectedCenters = (routeCenters || []).filter(c => c && c.id !== 'start' && c.coordinate);
+    const selectedCenters = routeCenters.filter(c => c && c.id !== 'start' && c.coordinate);
     return selectedCenters[0] || null;
   });
   const [routePolyline, setRoutePolyline] = useState([]);
