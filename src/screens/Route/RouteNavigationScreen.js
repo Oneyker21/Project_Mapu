@@ -146,34 +146,22 @@ const RouteNavigationScreen = ({ navigation, route }) => {
     };
   }, []);
 
-  // Obtener ubicación actual del usuario
-  const getCurrentLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Error', 'Permisos de ubicación denegados');
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-      const newLocation = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      };
-
-      setUserLocation(newLocation);
-      
-      // Obtener dirección del usuario
-      if (location.coords.heading !== null) {
-        setHeading(location.coords.heading);
-      }
-    } catch (error) {
-      console.error('Error obteniendo ubicación:', error);
-      Alert.alert('Error', 'No se pudo obtener tu ubicación actual');
+  // Centrar mapa en ubicación del usuario (simple y rápido)
+  const getCurrentLocation = () => {
+    if (!userLocation || !mapRef.current) {
+      console.log('⚠️ No hay ubicación del usuario disponible');
+      return;
     }
+    
+    console.log('🎯 Centrando mapa en mi ubicación:', userLocation);
+    
+    // Centrar el mapa INMEDIATAMENTE en la ubicación actual del usuario
+    mapRef.current.animateToRegion({
+      latitude: userLocation.latitude,
+      longitude: userLocation.longitude,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    }, 1000);
   };
 
   // Centrar mapa en el destino actual

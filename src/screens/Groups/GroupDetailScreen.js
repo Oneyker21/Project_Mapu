@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { doc, getDoc, updateDoc, arrayUnion, collection, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, collection, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors, withOpacity } from '../../config/colors';
@@ -34,6 +34,7 @@ const GroupDetailScreen = ({ navigation, route }) => {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [allTourists, setAllTourists] = useState([]);
   const [searching, setSearching] = useState(false);
 
   // Recargar datos cuando la pantalla esté en foco
@@ -44,15 +45,22 @@ const GroupDetailScreen = ({ navigation, route }) => {
     }, [])
   );
 
+  // Cargar todos los turistas al abrir el modal
   useEffect(() => {
-    const delaySearch = setTimeout(() => {
-      if (searchQuery.trim().length >= 3) {
-        searchUsers(searchQuery);
-      }
-    }, 500); // Esperar 500ms después de que el usuario deje de escribir
+    if (showInviteModal) {
+      loadAllTourists();
+    }
+  }, [showInviteModal]);
 
-    return () => clearTimeout(delaySearch);
-  }, [searchQuery]);
+  // Filtrar turistas en tiempo real mientras se escribe
+  useEffect(() => {
+    if (searchQuery.trim().length > 0) {
+      filterTourists(searchQuery);
+    } else {
+      // Si no hay búsqueda, mostrar todos los turistas
+      setSearchResults(allTourists);
+    }
+  }, [searchQuery, allTourists]);
 
   const loadGroupDetails = async () => {
     try {
@@ -176,16 +184,11 @@ const GroupDetailScreen = ({ navigation, route }) => {
     );
   };
 
-  const searchUsers = async (query) => {
-    if (!query || query.trim().length < 3) {
-      setSearchResults([]);
-      return;
-    }
-
+  // Cargar todos los turistas disponibles
+  const loadAllTourists = async () => {
     try {
       setSearching(true);
-      const queryLower = query.toLowerCase().trim();
-      console.log('🔍 Buscando turistas con query:', queryLower);
+      console.log('🔍 Cargando todos los turistas...');
       
       // Solo buscar en turistas (los grupos son solo para turistas)
       const turistasSnapshot = await getDocs(collection(db, 'turistas'));
@@ -195,35 +198,12 @@ const GroupDetailScreen = ({ navigation, route }) => {
       
       turistasSnapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        const nombres = (data.nombres || '').toLowerCase();
-        const apellidos = (data.apellidos || '').toLowerCase();
-        const email = (data.email || '').toLowerCase();
         
-        // Crear nombre completo para búsqueda
-        const fullName = `${nombres} ${apellidos}`.trim();
-        
-        console.log('👤 Turista:', { 
-          id: docSnap.id, 
-          nombres: data.nombres, 
-          apellidos: data.apellidos,
-          email: data.email,
-          fullName: fullName
-        });
-        
-        // Búsqueda mejorada: nombre, apellidos, nombre completo o email
-        const matchesQuery = 
-          nombres.includes(queryLower) ||           // Buscar en nombres
-          apellidos.includes(queryLower) ||         // Buscar en apellidos
-          fullName.includes(queryLower) ||          // Buscar en nombre completo
-          email.includes(queryLower);               // Buscar en email
-        
-        // Filtrar: que coincida con la query Y que no sea el usuario actual Y que no esté ya en el grupo
+        // Filtrar: que no sea el usuario actual Y que no esté ya en el grupo
         if (
-          matchesQuery &&
           docSnap.id !== user.uid &&
           (!groupData.members || !groupData.members.includes(docSnap.id))
         ) {
-          console.log('✅ Turista coincide con la búsqueda:', docSnap.id);
           results.push({
             id: docSnap.id,
             nombres: data.nombres || '',
@@ -234,31 +214,66 @@ const GroupDetailScreen = ({ navigation, route }) => {
         }
       });
 
-      console.log('🎯 Resultados finales encontrados:', results.length);
+      console.log('🎯 Turistas disponibles:', results.length);
+      setAllTourists(results);
       setSearchResults(results);
     } catch (error) {
-      console.error('❌ Error buscando turistas:', error);
-      Alert.alert('Error', 'No se pudieron buscar usuarios');
+      console.error('❌ Error cargando turistas:', error);
+      Alert.alert('Error', 'No se pudieron cargar los usuarios');
     } finally {
       setSearching(false);
     }
   };
 
+  // Filtrar turistas según la búsqueda
+  const filterTourists = (query) => {
+    const queryLower = query.toLowerCase().trim();
+    console.log('🔍 Filtrando turistas con query:', queryLower);
+    
+    const filtered = allTourists.filter((tourist) => {
+      const nombres = (tourist.nombres || '').toLowerCase();
+      const apellidos = (tourist.apellidos || '').toLowerCase();
+      const email = (tourist.email || '').toLowerCase();
+      const fullName = `${nombres} ${apellidos}`.trim();
+      
+      // Búsqueda mejorada: nombre, apellidos, nombre completo o email
+      return (
+        nombres.includes(queryLower) ||
+        apellidos.includes(queryLower) ||
+        fullName.includes(queryLower) ||
+        email.includes(queryLower)
+      );
+    });
+    
+    console.log('🎯 Resultados filtrados:', filtered.length);
+    setSearchResults(filtered);
+  };
+
   const handleInviteUser = async (userId, userName) => {
     try {
-      const groupRef = doc(db, 'groups', group.id);
-      await updateDoc(groupRef, {
-        members: arrayUnion(userId)
-      });
+      // Crear invitación en lugar de agregar directamente
+      const invitationData = {
+        groupId: group.id,
+        groupName: groupData.name,
+        groupDescription: groupData.description || '',
+        invitedUserId: userId,
+        invitedUserName: userName,
+        invitedByUserId: user.uid,
+        invitedByName: user.displayName || user.name || 'Usuario',
+        status: 'pending',
+        createdAt: new Date()
+      };
 
-      Alert.alert('¡Invitado!', `${userName} ha sido agregado al grupo`);
+      await addDoc(collection(db, 'groupInvitations'), invitationData);
+
+      Alert.alert('¡Invitación Enviada!', `Se ha enviado una invitación a ${userName}`);
       setShowInviteModal(false);
       setSearchQuery('');
       setSearchResults([]);
-      loadGroupDetails(); // Recargar para mostrar el nuevo miembro
+      setAllTourists([]);
     } catch (error) {
-      console.error('Error invitando usuario:', error);
-      Alert.alert('Error', 'No se pudo invitar al usuario');
+      console.error('Error enviando invitación:', error);
+      Alert.alert('Error', 'No se pudo enviar la invitación');
     }
   };
 
@@ -738,6 +753,7 @@ const GroupDetailScreen = ({ navigation, route }) => {
                 setShowInviteModal(false);
                 setSearchQuery('');
                 setSearchResults([]);
+                setAllTourists([]);
               }}
             >
               <Ionicons name="close" size={24} color={colors.text.secondary} />
@@ -760,7 +776,7 @@ const GroupDetailScreen = ({ navigation, route }) => {
               )}
             </View>
             <Text style={styles.searchHint}>
-              Escribe al menos 3 caracteres para buscar
+              {allTourists.length > 0 ? `${allTourists.length} turistas disponibles` : 'Cargando turistas...'}
             </Text>
           </View>
 
@@ -801,14 +817,14 @@ const GroupDetailScreen = ({ navigation, route }) => {
               );
             }}
             ListEmptyComponent={
-              searchQuery.trim().length >= 3 && !searching ? (
+              !searching ? (
                 <View style={styles.emptySearchContainer}>
-                  <Ionicons name="search-outline" size={48} color={colors.text.muted} />
+                  <Ionicons name="people-outline" size={48} color={colors.text.muted} />
                   <Text style={styles.emptySearchText}>
-                    No se encontraron usuarios
+                    {searchQuery.trim().length > 0 ? 'No se encontraron usuarios' : 'No hay turistas disponibles'}
                   </Text>
                   <Text style={styles.emptySearchSubtext}>
-                    Intenta con otro nombre o email
+                    {searchQuery.trim().length > 0 ? 'Intenta con otro nombre o email' : 'Todos los turistas ya están en el grupo'}
                   </Text>
                 </View>
               ) : null

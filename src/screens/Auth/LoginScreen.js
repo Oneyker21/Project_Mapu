@@ -358,19 +358,20 @@ const styles = StyleSheet.create({
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.error,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)', // Fondo rojo transparente
     borderWidth: 1,
-    borderColor: '#5B2C2C',
+    borderColor: colors.error,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginBottom: 16,
   },
   errorText: {
-    color: colors.error,
+    color: colors.error, // Texto rojo sobre fondo transparente
     fontSize: 14,
     marginLeft: 8,
     flex: 1,
+    fontWeight: '500',
   },
   divider: {
     flexDirection: 'row',
