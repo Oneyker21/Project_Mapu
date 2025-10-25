@@ -24,7 +24,7 @@
         "resizeMode": "cover",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.anonymous.mapu",
+      "package": "com.mapu.travelguide",
       "displayName": "Mapu",
        "permissions": [
          "ACCESS_FINE_LOCATION",
