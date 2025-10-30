@@ -17,27 +17,48 @@ const CentersMapScreen = ({ navigation, route }) => {
   const { centers = [] } = route.params || {};
   const [userLocation, setUserLocation] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [permissionGranted, setPermissionGranted] = useState(false);
   const mapRef = useRef(null);
 
   useEffect(() => {
-    getCurrentLocation();
+    initializeLocation();
   }, []);
 
-  const getCurrentLocation = async () => {
+  const initializeLocation = async () => {
     try {
+      setLoading(true);
+      
+      // Solicitar permisos PRIMERO
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permisos', 'Se necesita permiso de ubicación para mostrar el mapa');
+        Alert.alert(
+          'Permisos de Ubicación',
+          'Se necesita permiso de ubicación para mostrar el mapa y centros cercanos.',
+          [
+            { text: 'Cancelar', style: 'cancel', onPress: () => setLoading(false) },
+            { text: 'Configuración', onPress: () => setLoading(false) }
+          ]
+        );
+        setPermissionGranted(false);
+        setLoading(false);
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({});
+      setPermissionGranted(true);
+      
+      // Solo obtener ubicación si los permisos fueron concedidos
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+        timeout: 10000,
+      });
+      
       setUserLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       });
     } catch (error) {
       console.error('Error obteniendo ubicación:', error);
+      setPermissionGranted(false);
     } finally {
       setLoading(false);
     }

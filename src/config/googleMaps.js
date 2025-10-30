@@ -1,7 +1,7 @@
 // Configuración de Google Maps API
 export const GOOGLE_MAPS_CONFIG = {
   // Usar API key desde variables de entorno (más seguro)
-  API_KEY: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || 'TU_GOOGLE_MAPS_API_KEY_AQUI', // ← Reemplaza con tu API Key real
+  API_KEY: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY, // ← Solo variable de entorno
   
   // Configuraciones de la API
   DIRECTIONS_API: {
@@ -65,6 +65,17 @@ export const buildDirectionsUrl = (origin, destination, options = {}) => {
 
 // Función para validar API Key
 export const validateApiKey = () => {
-  return GOOGLE_MAPS_CONFIG.API_KEY !== 'TU_GOOGLE_MAPS_API_KEY_AQUI' && 
-         GOOGLE_MAPS_CONFIG.API_KEY.length > 0;
+  const apiKey = GOOGLE_MAPS_CONFIG.API_KEY;
+  return apiKey && 
+         apiKey !== 'TU_GOOGLE_MAPS_API_KEY_AQUI' && 
+         apiKey.length > 0 &&
+         apiKey.startsWith('AIzaSy');
+};
+
+// Función para obtener API Key con logging
+export const getApiKey = () => {
+  const apiKey = GOOGLE_MAPS_CONFIG.API_KEY;
+  console.log('🔑 API Key source:', apiKey ? 'Environment Variable' : 'NOT FOUND');
+  console.log('🔑 API Key valid:', validateApiKey());
+  return apiKey;
 };

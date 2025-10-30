@@ -6,7 +6,7 @@ import { Button } from '../../components';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../config/colors';
 
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 
 const DEFAULT_REGION = {
   latitude: 12.1167, // Juigalpa
@@ -99,7 +99,10 @@ const MapPickerScreen = ({ route, navigation }) => {
   useEffect(() => {
     // 🟢 Solo buscamos ubicación si NO hay coordenadas iniciales
     if (!initial) {
-      getCurrentLocation();
+      initializeLocation();
+    } else {
+      // Si hay coordenadas iniciales, marcar el mapa como listo inmediatamente
+      setMapReady(true);
     }
   }, []);
 
@@ -150,18 +153,20 @@ const MapPickerScreen = ({ route, navigation }) => {
     }
   };
 
-  const getCurrentLocation = async () => {
+  const initializeLocation = async () => {
     setLoading(true);
     try {
       const hasPermission = await requestLocationPermission();
       if (!hasPermission) {
-        setLoading(false);
+        // Si no hay permisos, usar ubicación por defecto pero marcar mapa como listo
         setMapReady(true);
+        setLoading(false);
         return;
       }
 
       const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+        accuracy: Location.Accuracy.Balanced,
+        timeout: 15000,
       });
 
       const { latitude, longitude } = location.coords;
@@ -188,6 +193,10 @@ const MapPickerScreen = ({ route, navigation }) => {
       setLoading(false);
       setMapReady(true);
     }
+  };
+
+  const getCurrentLocation = async () => {
+    await initializeLocation();
   };
 
   const confirm = () => {
@@ -345,7 +354,6 @@ const MapPickerScreen = ({ route, navigation }) => {
 
       <MapView
         style={styles.map}
-        provider={PROVIDER_GOOGLE}
         region={memoizedRegion}
         mapType={mapType}
         showsUserLocation={true}

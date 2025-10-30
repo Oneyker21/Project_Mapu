@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, Polyline, Callout, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Polyline, Callout } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { buildDirectionsUrl, validateApiKey } from '../../config/googleMaps';
 import { collection, getDocs } from 'firebase/firestore';
@@ -503,12 +503,12 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   const getGoogleDirections = async (origin, destination, waypointsArr = [], mode = 'driving') => {
     try {
       // Usar la API key del servicio de GoogleMaps
-      const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+      const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
       
       console.log('🔑 API Key disponible:', !!API_KEY);
       console.log('🔑 API Key (primeros 10 chars):', API_KEY ? API_KEY.substring(0, 10) + '...' : 'NO DISPONIBLE');
       
-      if (!API_KEY || API_KEY === 'TU_GOOGLE_MAPS_API_KEY_AQUI') {
+      if (!API_KEY || API_KEY === 'TU_GOOGLE_MAPS_API_KEY_AQUI' || !API_KEY.startsWith('AIzaSy')) {
         console.warn('❌ Google Maps API Key no configurada o es placeholder');
         return null;
       }
@@ -958,7 +958,6 @@ const RouteNavigationScreen = ({ navigation, route }) => {
         <MapView
           ref={mapRef}
           style={styles.map}
-          provider={PROVIDER_GOOGLE}
           initialRegion={{
             latitude: userLocation?.latitude || 12.1167,
             longitude: userLocation?.longitude || -85.3667,

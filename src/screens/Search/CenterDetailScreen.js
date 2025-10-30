@@ -428,7 +428,7 @@ const CenterDetailScreen = ({ navigation, route }) => {
 
   const getDirections = async (start, end, mode = 'driving') => {
     try {
-      const apiKey = 'AIzaSyDC_aL5CwdBLiEwTyUs2Z9L1kYg0VmSdvw';
+      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
       const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${start.latitude},${start.longitude}&destination=${end.latitude},${end.longitude}&mode=${mode}&key=${apiKey}`;
       
       console.log('Requesting directions from:', url, 'mode:', mode);
@@ -537,7 +537,7 @@ const CenterDetailScreen = ({ navigation, route }) => {
 
   const geocodeAddress = async (address) => {
     try {
-      const apiKey = 'AIzaSyDC_aL5CwdBLiEwTyUs2Z9L1kYg0VmSdvw';
+      const apiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
       const encodedAddress = encodeURIComponent(address);
       const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`;
       

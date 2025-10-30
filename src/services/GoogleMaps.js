@@ -2,14 +2,17 @@
 // Servicio para consumir Google Maps APIs desde el cliente Expo/React Native.
 // Lee la API key desde variables de entorno expuestas al cliente.
 
-const API_KEY =
-  process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 if (!API_KEY) {
   console.warn(
-    "[googleMaps] No se encontró EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ni GOOGLE_MAPS_API_KEY en variables de entorno."
+    "[googleMaps] No se encontró EXPO_PUBLIC_GOOGLE_MAPS_API_KEY en variables de entorno."
   );
 }
+
+// Logging para debugging
+console.log('🔑 Google Maps API Key loaded:', API_KEY ? 'YES' : 'NO');
+console.log('🔑 API Key source:', API_KEY ? 'Environment Variable' : 'NOT FOUND');
 
 const BASE_GEOCODE = "https://maps.googleapis.com/maps/api/geocode/json";
 const BASE_PLACES = "https://maps.googleapis.com/maps/api/place";
