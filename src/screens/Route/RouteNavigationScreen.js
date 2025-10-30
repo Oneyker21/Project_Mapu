@@ -1019,10 +1019,9 @@ const RouteNavigationScreen = ({ navigation, route }) => {
           {currentCenter && (
             <Marker
               coordinate={currentCenter.coordinate}
-              title={currentCenter.businessName}
-              description={`${currentCenter.category} • ${currentCenter.isOpen ? '🟢 Abierto' : '🔴 Cerrado'}`}
               pinColor="transparent"
               anchor={{ x: 0.5, y: 1 }}
+              tracksViewChanges={false}
             >
               {/* Pin de ubicación estilo imagen - gota blanca con círculo de color */}
               <View style={styles.destinationPin}>
@@ -1058,36 +1057,6 @@ const RouteNavigationScreen = ({ navigation, route }) => {
                   </Text>
                 </View>
               </View>
-              
-              {/* Callout personalizado con más información */}
-              <Callout style={styles.customCallout}>
-                <View style={styles.calloutContainer}>
-                  <Text style={styles.calloutTitle}>{currentCenter.businessName}</Text>
-                  <Text style={styles.calloutCategory}>{currentCenter.category}</Text>
-                  <View style={styles.calloutStatus}>
-                    <Ionicons 
-                      name={currentCenter.isOpen ? "checkmark-circle" : "close-circle"} 
-                      size={16} 
-                      color={currentCenter.isOpen ? "#10B981" : "#EF4444"} 
-                    />
-                    <Text style={[
-                      styles.calloutStatusText,
-                      { color: currentCenter.isOpen ? "#10B981" : "#EF4444" }
-                    ]}>
-                      {currentCenter.isOpen ? 'Abierto' : 'Cerrado'}
-                    </Text>
-                  </View>
-                  {currentCenter.services && currentCenter.services.length > 0 && (
-                    <View style={styles.calloutServices}>
-                      <Text style={styles.calloutServicesTitle}>Servicios:</Text>
-                      <Text style={styles.calloutServicesText}>
-                        {currentCenter.services.slice(0, 3).join(', ')}
-                        {currentCenter.services.length > 3 && '...'}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </Callout>
             </Marker>
           )}
 
