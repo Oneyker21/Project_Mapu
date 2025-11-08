@@ -38,10 +38,10 @@
          "android.permission.ACCESS_FINE_LOCATION"
        ],
        "config": {
-         "googleMaps": {
-           "apiKey": "${EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}"
-         }
-       }
+        "googleMaps": {
+          "apiKey": "${EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}"
+        }
+      }
     },
     "ios": {
       "supportsTablet": true,

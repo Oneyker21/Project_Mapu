@@ -354,7 +354,6 @@ const MapPickerScreen = ({ route, navigation }) => {
 
       <MapView
         provider={PROVIDER_GOOGLE}
-        apiKey={process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}
         style={styles.map}
         region={memoizedRegion}
         mapType={mapType}
