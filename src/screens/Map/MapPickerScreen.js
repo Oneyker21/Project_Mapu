@@ -5,7 +5,7 @@ import * as Location from 'expo-location';
 import { Button } from '../../components';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../config/colors';
-
+import { PROVIDER_GOOGLE } from 'react-native-maps';
 import MapView, { Marker } from 'react-native-maps';
 
 const DEFAULT_REGION = {
@@ -353,6 +353,8 @@ const MapPickerScreen = ({ route, navigation }) => {
           )}
 
       <MapView
+        provider={PROVIDER_GOOGLE}
+        apiKey={process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}
         style={styles.map}
         region={memoizedRegion}
         mapType={mapType}

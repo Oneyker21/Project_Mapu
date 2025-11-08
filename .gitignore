@@ -46,4 +46,5 @@ ios/
 # Web
 web/
 
-# Linux
+# credentials
+credentials.json
