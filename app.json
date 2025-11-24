@@ -26,20 +26,20 @@
       },
       "package": "com.mapu.travelguide",
       "displayName": "Mapu",
-       "permissions": [
-         "ACCESS_FINE_LOCATION",
-         "ACCESS_COARSE_LOCATION",
-         "ACCESS_BACKGROUND_LOCATION",
-         "ACCESS_LOCATION_EXTRA_COMMANDS",
-         "ACCESS_NETWORK_STATE",
-         "ACCESS_WIFI_STATE",
-         "INTERNET",
-         "android.permission.ACCESS_COARSE_LOCATION",
-         "android.permission.ACCESS_FINE_LOCATION"
-       ],
-       "config": {
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "ACCESS_LOCATION_EXTRA_COMMANDS",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_WIFI_STATE",
+        "INTERNET",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "config": {
         "googleMaps": {
-          "apiKey": "${EXPO_PUBLIC_GOOGLE_MAPS_API_KEY}"
+          "apiKey": "AIzaSyAQpx1uTt5cv4GdPuim1LN7jxyNtHiSGDM"
         }
       }
     },
@@ -59,20 +59,20 @@
     "web": {
       "favicon": "./assets/Images/Mapu_Icon.png"
     },
-     "plugins": [
-       [
-         "expo-location",
-         {
-           "locationAlwaysAndWhenInUsePermission": "Permitir $(PRODUCT_NAME) usar tu ubicación para mostrar centros turísticos cercanos y crear rutas personalizadas.",
-           "locationWhenInUsePermission": "Permitir $(PRODUCT_NAME) usar tu ubicación para mostrar centros turísticos cercanos y crear rutas personalizadas."
-         }
-       ]
-     ],
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permitir $(PRODUCT_NAME) usar tu ubicación para mostrar centros turísticos cercanos y crear rutas personalizadas.",
+          "locationWhenInUsePermission": "Permitir $(PRODUCT_NAME) usar tu ubicación para mostrar centros turísticos cercanos y crear rutas personalizadas."
+        }
+      ]
+    ],
+    "owner": "oneyker_21",
     "extra": {
       "eas": {
-        "projectId": "4454115f-02cd-4b68-ae0f-0f7ab62abc16"
+        "projectId": "70943da0-26df-4a90-abc0-eb0b60ed12c4"
       }
-    },
-    "owner": "oneygaleano"
+    }
   }
 }
