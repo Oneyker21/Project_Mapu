@@ -513,6 +513,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
         return null;
       }
 
+
       // Construir URL con parámetros optimizados para rutas detalladas
       // Construir parámetros; para optimizar el orden de paradas usa 'optimize:true|'
       const waypointsParam = waypointsArr.length > 0
