@@ -91,40 +91,6 @@ const RouteSummaryScreen = ({ navigation, route }) => {
       </View>
 
       <ScrollView style={styles.content}>
-        {/* Punto de Inicio */}
-        {routeCenters.length > 0 && (() => {
-          const firstCenter = routeCenters[0];
-          const startName = firstCenter.businessName || firstCenter.nombreNegocio || firstCenter.name || 'Centro Turístico';
-          const startCategory = firstCenter.category || firstCenter.categoriaNegocio || 'Sin categoría';
-          const startDepartment = firstCenter.department || firstCenter.departamento || 'Sin ubicación';
-          
-          return (
-            <View style={styles.startPointContainer}>
-              <View style={styles.startPointHeader}>
-                <Ionicons name="flag" size={20} color={colors.primary} />
-                <Text style={styles.startPointTitle}>Punto de Inicio</Text>
-              </View>
-              <View style={styles.startPointCard}>
-                <View style={styles.startPointIcon}>
-                  <Ionicons 
-                    name={getCategoryIcon(startCategory)} 
-                    size={24} 
-                    color={colors.primary} 
-                  />
-                </View>
-                <View style={styles.startPointInfo}>
-                  <Text style={styles.startPointName}>{startName}</Text>
-                  <Text style={styles.startPointCategory}>{startCategory}</Text>
-                  <View style={styles.startPointLocation}>
-                    <Ionicons name="location-outline" size={14} color={colors.text.secondary} />
-                    <Text style={styles.startPointDepartment}>{startDepartment}</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          );
-        })()}
-
         {/* Estadísticas */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
@@ -192,68 +158,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  startPointContainer: {
-    backgroundColor: colors.surface,
-    padding: 16,
-    marginBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  startPointHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  startPointTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
-  startPointCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
-  startPointIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  startPointInfo: {
-    flex: 1,
-  },
-  startPointName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text.primary,
-    marginBottom: 4,
-  },
-  startPointCategory: {
-    fontSize: 14,
-    color: colors.primary,
-    marginBottom: 6,
-    fontWeight: '600',
-  },
-  startPointLocation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  startPointDepartment: {
-    fontSize: 13,
-    color: colors.text.secondary,
   },
   statsContainer: {
     flexDirection: 'row',

@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, getDocs, doc, setDoc, addDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, addDoc, updateDoc, arrayUnion, deleteDoc, getDoc } from 'firebase/firestore';
 import { db } from '../../../database/FirebaseConfig.js';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors, withOpacity } from '../../config/colors';
@@ -24,6 +24,7 @@ const GroupsScreen = ({ navigation }) => {
   const { user } = useAuth();
   const [myGroups, setMyGroups] = useState([]); // Grupos creados por mí
   const [memberGroups, setMemberGroups] = useState([]); // Grupos donde soy miembro
+  const [invitations, setInvitations] = useState([]); // Invitaciones pendientes
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
@@ -36,10 +37,11 @@ const GroupsScreen = ({ navigation }) => {
   const [joinGroupCode, setJoinGroupCode] = useState('');
   const [editingGroup, setEditingGroup] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('my'); // 'my' o 'member'
+  const [activeTab, setActiveTab] = useState('my'); // 'my', 'member' o 'invitations'
 
   useEffect(() => {
     loadGroups();
+    loadInvitations();
   }, []);
 
   const loadGroups = async () => {
@@ -76,6 +78,30 @@ const GroupsScreen = ({ navigation }) => {
       Alert.alert('Error', 'No se pudieron cargar los grupos');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadInvitations = async () => {
+    try {
+      if (!user) return;
+      
+      const invitationsSnapshot = await getDocs(collection(db, 'groupInvitations'));
+      const userInvitations = [];
+      
+      invitationsSnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        // Solo invitaciones pendientes para este usuario
+        if (data.invitedUserId === user.uid && data.status === 'pending') {
+          userInvitations.push({
+            id: docSnap.id,
+            ...data
+          });
+        }
+      });
+
+      setInvitations(userInvitations);
+    } catch (error) {
+      console.error('Error cargando invitaciones:', error);
     }
   };
 
@@ -231,6 +257,44 @@ const GroupsScreen = ({ navigation }) => {
     }
   };
 
+  const acceptInvitation = async (invitation) => {
+    try {
+      // Agregar usuario al grupo
+      await updateDoc(doc(db, 'groups', invitation.groupId), {
+        members: arrayUnion(user.uid)
+      });
+
+      // Marcar invitación como aceptada
+      await updateDoc(doc(db, 'groupInvitations', invitation.id), {
+        status: 'accepted',
+        respondedAt: new Date()
+      });
+
+      Alert.alert('¡Invitación Aceptada!', `Te has unido al grupo "${invitation.groupName}"`);
+      loadGroups();
+      loadInvitations();
+    } catch (error) {
+      console.error('Error aceptando invitación:', error);
+      Alert.alert('Error', 'No se pudo aceptar la invitación');
+    }
+  };
+
+  const rejectInvitation = async (invitation) => {
+    try {
+      // Marcar invitación como rechazada
+      await updateDoc(doc(db, 'groupInvitations', invitation.id), {
+        status: 'rejected',
+        respondedAt: new Date()
+      });
+
+      Alert.alert('Invitación Rechazada', `Has rechazado la invitación al grupo "${invitation.groupName}"`);
+      loadInvitations();
+    } catch (error) {
+      console.error('Error rechazando invitación:', error);
+      Alert.alert('Error', 'No se pudo rechazar la invitación');
+    }
+  };
+
   const formatDate = (timestamp) => {
     if (!timestamp) return 'Fecha no disponible';
     
@@ -298,6 +362,56 @@ const GroupsScreen = ({ navigation }) => {
     );
   };
 
+  const renderInvitationItem = ({ item }) => {
+    return (
+      <View style={styles.invitationCard}>
+        <View style={styles.invitationHeader}>
+          <Ionicons name="mail" size={24} color={colors.primary} />
+          <View style={styles.invitationInfo}>
+            <Text style={styles.invitationTitle}>Invitación a Grupo</Text>
+            <Text style={styles.invitationGroupName}>{item.groupName}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.invitationDescription} numberOfLines={2}>
+          {item.groupDescription || 'Sin descripción'}
+        </Text>
+
+        <View style={styles.invitationMeta}>
+          <View style={styles.invitationMetaItem}>
+            <Ionicons name="person" size={14} color={colors.text.muted} />
+            <Text style={styles.invitationMetaText}>
+              Invitado por {item.invitedByName}
+            </Text>
+          </View>
+          <View style={styles.invitationMetaItem}>
+            <Ionicons name="time" size={14} color={colors.text.muted} />
+            <Text style={styles.invitationMetaText}>
+              {formatDate(item.createdAt)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.invitationActions}>
+          <TouchableOpacity 
+            style={[styles.invitationButton, styles.rejectButton]}
+            onPress={() => rejectInvitation(item)}
+          >
+            <Ionicons name="close-circle" size={20} color="#EF4444" />
+            <Text style={styles.rejectButtonText}>Rechazar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.invitationButton, styles.acceptButton]}
+            onPress={() => acceptInvitation(item)}
+          >
+            <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+            <Text style={styles.acceptButtonText}>Aceptar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -359,7 +473,7 @@ const GroupsScreen = ({ navigation }) => {
         >
           <Ionicons 
             name="create" 
-            size={20} 
+            size={18} 
             color={activeTab === 'my' ? colors.primary : colors.text.muted} 
           />
           <Text style={[styles.tabText, activeTab === 'my' && styles.activeTabText]}>
@@ -373,32 +487,65 @@ const GroupsScreen = ({ navigation }) => {
         >
           <Ionicons 
             name="people" 
-            size={20} 
+            size={18} 
             color={activeTab === 'member' ? colors.primary : colors.text.muted} 
           />
           <Text style={[styles.tabText, activeTab === 'member' && styles.activeTabText]}>
             Miembro ({memberGroups.length})
           </Text>
         </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.tab, activeTab === 'invitations' && styles.activeTab]}
+          onPress={() => setActiveTab('invitations')}
+        >
+          <View style={styles.tabIconContainer}>
+            <Ionicons 
+              name="mail" 
+              size={18} 
+              color={activeTab === 'invitations' ? colors.primary : colors.text.muted} 
+            />
+            {invitations.length > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{invitations.length}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.tabText, activeTab === 'invitations' && styles.activeTabText]}>
+            Invitaciones
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
-        data={activeTab === 'my' ? myGroups : memberGroups}
-        renderItem={renderGroupItem}
+        data={
+          activeTab === 'my' ? myGroups : 
+          activeTab === 'member' ? memberGroups : 
+          invitations
+        }
+        renderItem={activeTab === 'invitations' ? renderInvitationItem : renderGroupItem}
         keyExtractor={(item) => item.id}
         style={styles.groupsList}
         contentContainerStyle={styles.groupsListContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={64} color="#9CA3AF" />
+            <Ionicons 
+              name={activeTab === 'invitations' ? 'mail-outline' : 'people-outline'} 
+              size={64} 
+              color="#9CA3AF" 
+            />
             <Text style={styles.emptyTitle}>
-              {activeTab === 'my' ? 'No has creado grupos' : 'No eres miembro de ningún grupo'}
+              {activeTab === 'my' ? 'No has creado grupos' : 
+               activeTab === 'member' ? 'No eres miembro de ningún grupo' :
+               'No tienes invitaciones'}
             </Text>
             <Text style={styles.emptySubtitle}>
               {activeTab === 'my' 
                 ? 'Crea tu primer grupo para organizar viajes con amigos' 
-                : 'Únete a un grupo existente con un código de invitación'}
+                : activeTab === 'member'
+                ? 'Únete a un grupo existente con un código de invitación'
+                : 'Cuando alguien te invite a un grupo, aparecerá aquí'}
             </Text>
           </View>
         }
@@ -1001,6 +1148,106 @@ const styles = StyleSheet.create({
   createGroupButtonText: {
     color: colors.button.text,
     fontSize: 16,
+    fontWeight: '600',
+  },
+  tabIconContainer: {
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -8,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  invitationCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderLeftWidth: 4,
+  },
+  invitationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  invitationInfo: {
+    flex: 1,
+  },
+  invitationTitle: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    marginBottom: 4,
+  },
+  invitationGroupName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text.primary,
+  },
+  invitationDescription: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  invitationMeta: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  invitationMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  invitationMetaText: {
+    fontSize: 12,
+    color: colors.text.muted,
+  },
+  invitationActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  invitationButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  rejectButton: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+  },
+  rejectButtonText: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  acceptButton: {
+    backgroundColor: colors.success,
+    borderWidth: 1,
+    borderColor: colors.success,
+  },
+  acceptButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '600',
   },
   joinGroupButton: {
