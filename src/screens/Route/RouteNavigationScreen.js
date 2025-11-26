@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
   Alert,
   ActivityIndicator,
   Animated
@@ -19,7 +19,7 @@ import { db } from '../../../database/FirebaseConfig.js';
 const RouteNavigationScreen = ({ navigation, route }) => {
   const { route: routeCenters, currentIndex = 0, userLocation: passedUserLocation, transportMode = 'driving' } = route.params;
   const mapRef = useRef(null);
-  
+
   const [userLocation, setUserLocation] = useState(passedUserLocation);
   const [currentDestinationIndex, setCurrentDestinationIndex] = useState(0);
   const [currentCenter, setCurrentCenter] = useState(() => {
@@ -28,7 +28,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
       console.error('routeCenters no es un array:', routeCenters);
       return null;
     }
-    
+
     // Siempre empezar con el primer centro real (no el punto de inicio)
     const selectedCenters = routeCenters.filter(c => c && c.id !== 'start' && c.coordinate);
     return selectedCenters[0] || null;
@@ -84,7 +84,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   // Obtener dirección del móvil en tiempo real
   useEffect(() => {
     let watchId = null;
-    
+
     const startWatching = async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -136,7 +136,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
       };
 
       setUserLocation(newLocation);
-      
+
       // Obtener dirección del usuario
       if (location.coords.heading !== null) {
         setHeading(location.coords.heading);
@@ -154,13 +154,13 @@ const RouteNavigationScreen = ({ navigation, route }) => {
     const R = 6371; // Radio de la Tierra en km
     const dLat = (currentCenter.coordinate.latitude - userLocation.latitude) * Math.PI / 180;
     const dLon = (currentCenter.coordinate.longitude - userLocation.longitude) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(userLocation.latitude * Math.PI / 180) * Math.cos(currentCenter.coordinate.latitude * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(userLocation.latitude * Math.PI / 180) * Math.cos(currentCenter.coordinate.latitude * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
-    
+
     setDistance(distance);
   };
 
@@ -169,11 +169,11 @@ const RouteNavigationScreen = ({ navigation, route }) => {
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const lat1Rad = lat1 * Math.PI / 180;
     const lat2Rad = lat2 * Math.PI / 180;
-    
+
     const y = Math.sin(dLon) * Math.cos(lat2Rad);
-    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - 
-              Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
-    
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+      Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+
     let bearing = Math.atan2(y, x) * 180 / Math.PI;
     return (bearing + 360) % 360; // Normalizar a 0-360
   };
@@ -181,22 +181,22 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   // Animación de rotación 360 grados hacia el destino
   const startRotationAnimation = () => {
     if (!userLocation || !currentCenter) return;
-    
+
     const bearing = calculateBearing(
       userLocation.latitude,
       userLocation.longitude,
       currentCenter.coordinate.latitude,
       currentCenter.coordinate.longitude
     );
-    
+
     setDestinationBearing(bearing);
     setIsRotating(true);
-    
+
     // Resetear animación
     rotationAnim.setValue(0);
-    
+
     console.log('🔄 Iniciando rotación hacia bearing:', bearing);
-    
+
     // Animar el overlay de rotación
     Animated.timing(rotationAnim, {
       toValue: bearing,
@@ -209,7 +209,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
         startNavigation();
       }
     });
-    
+
     // También animar el mapa hacia la región
     if (mapRef.current) {
       const region = {
@@ -225,21 +225,21 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   // Iniciar navegación
   const startNavigation = () => {
     setNavigating(true);
-    
+
     // Centrar el mapa en la ruta completa
     if (mapRef.current && routePolyline.length > 0) {
       const coordinates = routePolyline.map(point => ({
         latitude: point.latitude,
         longitude: point.longitude
       }));
-      
+
       // Ajustar el mapa para mostrar toda la ruta
       mapRef.current.fitToCoordinates(coordinates, {
         edgePadding: { top: 100, right: 50, bottom: 200, left: 50 },
         animated: true,
       });
     }
-    
+
     // Mostrar alerta de navegación iniciada
     Alert.alert(
       'Navegación Iniciada',
@@ -257,12 +257,12 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   const goToNextDestination = () => {
     const nextIndex = currentDestinationIndex + 1;
     const selectedCenters = (routeCenters || []).filter(c => c && c.id !== 'start' && c.coordinate);
-    
+
     if (nextIndex < selectedCenters.length) {
       setCurrentDestinationIndex(nextIndex);
       setCurrentCenter(selectedCenters[nextIndex]);
       setNavigating(false); // Resetear navegación para el nuevo destino
-      
+
       Alert.alert(
         'Siguiente Destino',
         `Ahora te diriges a ${selectedCenters[nextIndex].businessName}`,
@@ -300,7 +300,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   // Completar ruta actual
   const completeCurrentDestination = () => {
     const selectedCenters = (routeCenters || []).filter(c => c && c.id !== 'start' && c.coordinate);
-    
+
     if (currentDestinationIndex < selectedCenters.length - 1) {
       Alert.alert(
         '¿Qué quieres hacer?',
@@ -311,7 +311,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
             style: 'default',
             onPress: () => {
               // Navegar a pantalla de reseñas para este centro
-              navigation.navigate('Reviews', { 
+              navigation.navigate('Reviews', {
                 center: currentCenter,
                 fromRoute: true,
                 routeData: {
@@ -345,7 +345,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
             style: 'default',
             onPress: () => {
               // Navegar a pantalla de reseñas para este centro
-              navigation.navigate('Reviews', { 
+              navigation.navigate('Reviews', {
                 center: currentCenter,
                 fromRoute: true,
                 routeData: {
@@ -398,15 +398,15 @@ const RouteNavigationScreen = ({ navigation, route }) => {
       if (routeCoordinates && routeCoordinates.length > 0) {
         console.log('✅ Ruta obtenida de Google con', routeCoordinates.length, 'puntos');
         setRoutePolyline(routeCoordinates);
-        
+
         // Ajustar el mapa para mostrar toda la ruta con zoom apropiado
         if (mapRef.current) {
           // Calcular región óptima para la ruta
           const region = calculateOptimalRegion(routeCoordinates);
-          
+
           mapRef.current.animateToRegion(region, 1000);
         }
-        
+
         console.log('✅ Ruta aplicada al mapa exitosamente');
       } else {
         console.log('⚠️ Google API falló, usando ruta simulada mejorada');
@@ -428,16 +428,16 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   const getGoogleDirections = async (origin, destination, waypointsArr = [], mode = 'driving') => {
     try {
       // Usar la API key del servicio de GoogleMaps
-      const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-      
+      const API_KEY = "AIzaSyAQpx1uTt5cv4GdPuim1LN7jxyNtHiSGDM";
+
       console.log('🔑 API Key disponible:', !!API_KEY);
       console.log('🔑 API Key (primeros 10 chars):', API_KEY ? API_KEY.substring(0, 10) + '...' : 'NO DISPONIBLE');
-      
+
       if (!API_KEY || API_KEY === 'TU_GOOGLE_MAPS_API_KEY_AQUI' || !API_KEY.startsWith('AIzaSy')) {
         console.warn('❌ Google Maps API Key no configurada o es placeholder');
         return null;
       }
-      
+
       // Construir URL con parámetros optimizados para rutas detalladas
       // Construir parámetros; para optimizar el orden de paradas usa 'optimize:true|'
       const waypointsParam = waypointsArr.length > 0
@@ -459,17 +459,17 @@ const RouteNavigationScreen = ({ navigation, route }) => {
         // Parámetros críticos para obtener rutas detalladas
         waypoints: waypointsParam
       });
-      
+
       const url = `https://maps.googleapis.com/maps/api/directions/json?${params.toString()}`;
-      
+
       console.log('🌐 Llamando a Google Directions API...');
       console.log('🌐 URL (sin API key):', url.replace(API_KEY, 'API_KEY_HIDDEN'));
-      
+
       const response = await fetch(url);
       console.log('📡 Respuesta HTTP:', response.status, response.statusText);
-      
+
       const data = await response.json();
-      
+
       console.log('📊 Respuesta completa de Google Directions:', {
         status: data.status,
         routes: data.routes?.length || 0,
@@ -478,37 +478,37 @@ const RouteNavigationScreen = ({ navigation, route }) => {
         overview_polyline: !!data.routes?.[0]?.overview_polyline?.points,
         error_message: data.error_message
       });
-      
+
       if (data.status === 'OK' && data.routes && data.routes.length > 0) {
         const route = data.routes[0];
         const leg = route.legs[0];
-        
+
         // Actualizar duración y distancia
         if (leg.duration) {
           setDuration(leg.duration.value);
         }
-        
+
         const coordinates = [];
-        
+
         // PRIORIDAD 1: Usar overview_polyline que contiene la ruta completa optimizada
         if (route.overview_polyline && route.overview_polyline.points) {
           const decodedPoints = decodePolyline(route.overview_polyline.points);
           coordinates.push(...decodedPoints);
           console.log('✅ Usando overview_polyline con', decodedPoints.length, 'puntos detallados');
-          
+
           // Verificar que la ruta no esté vacía
           if (coordinates.length === 0) {
             console.error('❌ Ruta vacía recibida de Google overview_polyline');
             return null;
           }
-          
+
           return coordinates;
         }
-        
+
         // PRIORIDAD 2: Usar steps detallados si overview_polyline no está disponible
         if (leg.steps && leg.steps.length > 0) {
           console.log('📍 Procesando', leg.steps.length, 'steps detallados');
-          
+
           // Procesar cada step para obtener la ruta exacta
           leg.steps.forEach((step, stepIndex) => {
             if (step.polyline && step.polyline.points) {
@@ -517,22 +517,22 @@ const RouteNavigationScreen = ({ navigation, route }) => {
               console.log(`📍 Step ${stepIndex + 1}: ${stepPoints.length} puntos - ${step.html_instructions || 'Instrucción no disponible'}`);
             }
           });
-          
+
           console.log('✅ Usando steps detallados con', coordinates.length, 'puntos totales');
-          
+
           // Verificar que la ruta no esté vacía
           if (coordinates.length === 0) {
             console.error('❌ Ruta vacía de steps');
             return null;
           }
-          
+
           return coordinates;
         }
-        
+
         // PRIORIDAD 3: Fallback con solo inicio y fin (NO USAR - genera línea recta)
         console.warn('⚠️ Solo hay inicio y fin - esto generará línea recta');
         return null; // No devolver línea recta
-        
+
       } else {
         console.error('❌ Error en Google Directions API:', {
           status: data.status,
@@ -629,76 +629,76 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   // Generar ruta simulada que SIGUE CARRETERAS (NO línea recta)
   const generateRealisticRoute = (start, end) => {
     const points = [];
-    
+
     // Calcular distancia y dirección
     const deltaLat = end.latitude - start.latitude;
     const deltaLng = end.longitude - start.longitude;
     const distance = Math.sqrt(deltaLat * deltaLat + deltaLng * deltaLng);
-    
+
     // Determinar número de puntos basado en la distancia (más puntos para distancias mayores)
     const steps = Math.max(80, Math.min(400, Math.floor(distance * 2000))); // 80-400 puntos para más detalle
-    
+
     console.log(`🛣️ Generando ruta simulada REALISTA: ${distance.toFixed(3)}° de distancia, ${steps} puntos`);
-    
+
     // Vector unitario de dirección
     const dirLat = deltaLat / distance;
     const dirLng = deltaLng / distance;
-    
+
     // Vector perpendicular para curvas
     const perpLat = -dirLng;
     const perpLng = dirLat;
-    
+
     // Agregar punto de inicio
     points.push({ latitude: start.latitude, longitude: start.longitude });
-    
+
     // Crear una ruta que simule carreteras reales con múltiples segmentos
     const segments = Math.max(3, Math.floor(distance * 500)); // Más segmentos para distancias mayores
     const segmentLength = 1 / segments;
-    
+
     console.log(`🛣️ Creando ${segments} segmentos de carretera`);
-    
+
     for (let segment = 0; segment < segments; segment++) {
       const segmentStart = segment * segmentLength;
       const segmentEnd = (segment + 1) * segmentLength;
       const segmentSteps = Math.floor(steps / segments);
-      
+
       // Dirección base del segmento
       let segmentDirLat = dirLat;
       let segmentDirLng = dirLng;
-      
+
       // Variar la dirección del segmento para simular cambios de carretera
       const segmentVariation = Math.sin(segment * Math.PI * 0.8) * 0.3;
       segmentDirLat += segmentVariation * perpLat;
       segmentDirLng += segmentVariation * perpLng;
-      
+
       // Normalizar dirección del segmento
       const segmentDist = Math.sqrt(segmentDirLat * segmentDirLat + segmentDirLng * segmentDirLng);
       segmentDirLat /= segmentDist;
       segmentDirLng /= segmentDist;
-      
+
       // Generar puntos del segmento
       for (let i = 0; i < segmentSteps; i++) {
         const t = segmentStart + (i / segmentSteps) * segmentLength;
-        
+
         // Interpolación base
         let lat = start.latitude + deltaLat * t;
         let lng = start.longitude + deltaLng * t;
-        
+
         // Intensidad de curvas basada en la distancia total
         const curveIntensity = Math.min(distance * 0.08, 0.02); // Curvas más pronunciadas
-        
+
         // Patrón 1: Curvas principales del segmento
         const segmentCurve = Math.sin(t * Math.PI * 3) * curveIntensity * 0.8;
         const roadVariation = Math.cos(t * Math.PI * 5) * curveIntensity * 0.4;
-        
+
         // Aplicar curvas perpendiculares (giros)
         lat += segmentCurve * perpLat;
         lng += segmentCurve * perpLng;
-        
+
         // Aplicar variaciones en la dirección principal
         lat += roadVariation * segmentDirLat;
         lng += roadVariation * segmentDirLng;
-        
+
         // Patrón 2: Simular intersecciones importantes
         const intersectionPoints = [0.2, 0.4, 0.6, 0.8];
         for (const intersectionPoint of intersectionPoints) {
@@ -711,7 +711,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
             break;
           }
         }
-        
+
         // Patrón 3: Curvas pronunciadas en puntos específicos
         const sharpTurnPoints = [0.15, 0.35, 0.65, 0.85];
         for (const turnPoint of sharpTurnPoints) {
@@ -724,37 +724,37 @@ const RouteNavigationScreen = ({ navigation, route }) => {
             break;
           }
         }
-        
+
         // Patrón 4: Variaciones menores para simular irregularidades de la carretera
         const minorVariation = (Math.random() - 0.5) * curveIntensity * 0.15;
         lat += minorVariation * perpLat;
         lng += minorVariation * perpLng;
-        
+
         // Patrón 5: Simular cambios de dirección en carreteras principales
         if (t > 0.3 && t < 0.7) {
           const mainRoadVariation = Math.sin(t * Math.PI * 4) * curveIntensity * 0.6;
           lat += mainRoadVariation * perpLat;
           lng += mainRoadVariation * perpLng;
         }
-        
+
         // Validar coordenadas (no deben salir de Nicaragua)
         lat = Math.max(10.7, Math.min(15.0, lat));
         lng = Math.max(-87.7, Math.min(-82.7, lng));
-        
+
         // Solo agregar si no es el último punto del último segmento
         if (segment < segments - 1 || i < segmentSteps - 1) {
           points.push({ latitude: lat, longitude: lng });
         }
       }
     }
-    
+
     // Asegurar que el último punto sea exactamente el destino
     points.push({ latitude: end.latitude, longitude: end.longitude });
-    
+
     console.log('🛣️ Ruta simulada REALISTA generada con', points.length, 'puntos');
     console.log('🛣️ Primeros 3 puntos:', points.slice(0, 3));
     console.log('🛣️ Últimos 3 puntos:', points.slice(-3));
-    
+
     return points;
   };
 
@@ -762,7 +762,7 @@ const RouteNavigationScreen = ({ navigation, route }) => {
   // Obtener icono según la categoría del centro
   const getCategoryIcon = (category) => {
     const categoryLower = category?.toLowerCase() || '';
-    
+
     if (categoryLower.includes('restaurante') || categoryLower.includes('comida')) {
       return 'restaurant';
     } else if (categoryLower.includes('hotel') || categoryLower.includes('hospedaje')) {
@@ -807,14 +807,14 @@ const RouteNavigationScreen = ({ navigation, route }) => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color="#6B7280" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Navegación</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.locationButton}
           onPress={getCurrentLocation}
         >
@@ -951,14 +951,14 @@ const RouteNavigationScreen = ({ navigation, route }) => {
                     { backgroundColor: currentCenter.isOpen ? '#10B981' : '#EF4444' }
                   ]}>
                     {/* Icono de categoría en el centro del círculo */}
-                    <Ionicons 
-                      name={getCategoryIcon(currentCenter.category)} 
-                      size={16} 
-                      color="#FFFFFF" 
+                    <Ionicons
+                      name={getCategoryIcon(currentCenter.category)}
+                      size={16}
+                      color="#FFFFFF"
                     />
                   </View>
                 </View>
-                
+
                 {/* Información del centro debajo del pin */}
                 <View style={styles.pinInfo}>
                   <Text style={styles.pinName} numberOfLines={1}>
@@ -975,17 +975,17 @@ const RouteNavigationScreen = ({ navigation, route }) => {
                   </Text>
                 </View>
               </View>
-              
+
               {/* Callout personalizado con más información */}
               <Callout style={styles.customCallout}>
                 <View style={styles.calloutContainer}>
                   <Text style={styles.calloutTitle}>{currentCenter.businessName}</Text>
                   <Text style={styles.calloutCategory}>{currentCenter.category}</Text>
                   <View style={styles.calloutStatus}>
-                    <Ionicons 
-                      name={currentCenter.isOpen ? "checkmark-circle" : "close-circle"} 
-                      size={16} 
-                      color={currentCenter.isOpen ? "#10B981" : "#EF4444"} 
+                    <Ionicons
+                      name={currentCenter.isOpen ? "checkmark-circle" : "close-circle"}
+                      size={16}
+                      color={currentCenter.isOpen ? "#10B981" : "#EF4444"}
                     />
                     <Text style={[
                       styles.calloutStatusText,
@@ -1038,15 +1038,15 @@ const RouteNavigationScreen = ({ navigation, route }) => {
         {navigating ? (
           // Botones cuando está navegando
           <>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
               onPress={getCurrentLocation}
             >
               <Ionicons name="locate" size={20} color="#3B82F6" />
               <Text style={styles.actionButtonText}>Mi ubicación</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={[styles.actionButton, styles.successButton]}
               onPress={completeCurrentDestination}
             >
@@ -1059,23 +1059,23 @@ const RouteNavigationScreen = ({ navigation, route }) => {
         ) : (
           // Botones cuando no está navegando
           <>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionButton}
               onPress={getCurrentLocation}
             >
               <Ionicons name="locate" size={20} color="#3B82F6" />
               <Text style={styles.actionButtonText}>Mi ubicación</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={[styles.actionButton, styles.primaryButton]}
               onPress={startRotationAnimation}
               disabled={isRotating}
             >
-              <Ionicons 
-                name={isRotating ? "refresh" : "navigate"} 
-                size={20} 
-                color="#FFFFFF" 
+              <Ionicons
+                name={isRotating ? "refresh" : "navigate"}
+                size={20}
+                color="#FFFFFF"
               />
               <Text style={[styles.actionButtonText, styles.primaryButtonText]}>
                 {isRotating ? 'Girando...' : 'Iniciar Navegación'}
