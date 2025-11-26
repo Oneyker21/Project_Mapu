@@ -24,7 +24,19 @@
         "resizeMode": "cover",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.anonymous.mapu"
+      "package": "com.anonymous.mapu",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDC_aL5CwdBLiEwTyUs2Z9L1kYg0VmSdvw"
+        }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "ios": {
       "supportsTablet": true,
@@ -39,8 +51,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "73011e09-fce7-45be-82f3-b7b565dd837e"
+        "projectId": "63a75b2b-d13a-4e8a-9af5-71e108ea3027"
       }
-    }
+    },
+    "owner": "kenny_alegria"
   }
 }

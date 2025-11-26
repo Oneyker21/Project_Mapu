@@ -2,15 +2,8 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet } from 'react-native';
-import 'react-native-gesture-handler';
-import { AuthProvider } from './src/contexts/AuthContext';
-import { AuthNavigator } from './src/navigation/AuthNavigator';
-
-// Silenciar logs verbosos en desarrollo (mantener warnings/errores visibles)
-if (__DEV__) {
-  // eslint-disable-next-line no-console
-  console.log = () => {};
-}
+import { AuthProvider } from './src/contexts/AuthContextSimple';
+import { SimpleNavigator } from './src/navigation/SimpleNavigator';
 
 // Componente de error boundary
 class ErrorBoundary extends React.Component {
@@ -46,14 +39,14 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-export default function App() {
+export default function AppTest() {
   try {
     return (
       <ErrorBoundary>
         <SafeAreaProvider>
           <AuthProvider>
             <NavigationContainer>
-              <AuthNavigator />
+              <SimpleNavigator />
             </NavigationContainer>
           </AuthProvider>
         </SafeAreaProvider>

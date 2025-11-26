@@ -418,58 +418,75 @@ const MisServiciosScreen = ({ navigation }) => {
 
   const renderServiceCard = (service) => {
     const tipoInfo = tiposServicio.find(t => t.id === service.tipo);
+    const productCount = products.filter(p => p.servicioId === service.id).length;
     
     return (
       <View key={service.id} style={styles.serviceCard}>
-        <View style={styles.serviceMainContent}>
-          <View style={styles.serviceInfo}>
-            <View style={styles.serviceIconContainer}>
-              <Ionicons 
-                name={tipoInfo?.icon || 'business'} 
-                size={20} 
-                color={colors.primary} 
-              />
-            </View>
-            <View style={styles.serviceDetails}>
-              <Text style={styles.serviceName}>{service.nombre}</Text>
-              <Text style={styles.serviceType}>{tipoInfo?.nombre || service.tipo}</Text>
-              {service.descripcion && (
-                <Text style={styles.serviceDescription} numberOfLines={2}>
-                  {service.descripcion}
-                </Text>
-              )}
-            </View>
+        {/* Header con icono y estado */}
+        <View style={styles.serviceCardHeader}>
+          <View style={styles.serviceIconContainer}>
+            <Ionicons 
+              name={tipoInfo?.icon || 'business'} 
+              size={24} 
+              color={colors.text.primary} 
+            />
           </View>
-          
-          <View style={styles.serviceActions}>
+          <View style={styles.serviceStatusContainer}>
             <TouchableOpacity
-              style={[
-                styles.statusButton,
-                { backgroundColor: service.activo ? colors.success : colors.error }
-              ]}
+              style={styles.statusIndicator}
               onPress={() => toggleServiceStatus(service)}
             >
-              <Text style={styles.statusButtonText}>
-                {service.activo ? 'Activo' : 'Inactivo'}
-              </Text>
+              <Ionicons 
+                name={service.activo ? "toggle" : "toggle-outline"} 
+                size={20} 
+                color={service.activo ? colors.success : colors.error} 
+              />
             </TouchableOpacity>
           </View>
         </View>
-        
-        <View style={styles.serviceActionButtons}>
+
+        {/* Contenido principal */}
+        <View style={styles.serviceCardContent}>
+          <Text style={styles.serviceName}>{service.nombre}</Text>
+          <Text style={styles.serviceType}>{tipoInfo?.nombre || service.tipo}</Text>
+          
+          {service.descripcion && (
+            <Text style={styles.serviceDescription} numberOfLines={2}>
+              {service.descripcion}
+            </Text>
+          )}
+
+          {/* Stats del servicio */}
+          <View style={styles.serviceStats}>
+            <View style={styles.serviceStatItem}>
+              <Ionicons name="cube" size={14} color={colors.text.muted} />
+              <Text style={styles.serviceStatText}>{productCount} productos</Text>
+            </View>
+            <View style={styles.serviceStatItem}>
+              <Ionicons name="time" size={14} color={colors.text.muted} />
+              <Text style={styles.serviceStatText}>
+                {new Date(service.fechaCreacion).toLocaleDateString()}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Acciones */}
+        <View style={styles.serviceCardActions}>
           <TouchableOpacity
-            style={styles.actionButton}
+            style={[styles.actionButton, styles.editButton]}
             onPress={() => handleEditService(service)}
           >
-            <Ionicons name="create" size={18} color={colors.primary} />
+            <Ionicons name="create-outline" size={16} color={colors.primary} />
             <Text style={styles.actionButtonText}>Editar</Text>
           </TouchableOpacity>
+          
           <TouchableOpacity
-            style={styles.actionButton}
+            style={[styles.actionButton, styles.deleteButton]}
             onPress={() => handleDeleteService(service.id)}
           >
-            <Ionicons name="trash" size={18} color={colors.error} />
-            <Text style={styles.actionButtonText}>Eliminar</Text>
+            <Ionicons name="trash-outline" size={16} color={colors.error} />
+            <Text style={[styles.actionButtonText, { color: colors.error }]}>Eliminar</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -481,70 +498,100 @@ const MisServiciosScreen = ({ navigation }) => {
     const tipoInfo = tiposServicio.find(t => t.id === service?.tipo);
     
     return (
-      <View key={product.id} style={styles.productCard}>
-        <View style={styles.productMainContent}>
-          <View style={styles.productInfo}>
-            <View style={styles.productIconContainer}>
-              {product.imagen ? (
-                <Image 
-                  source={{ uri: product.imagen }} 
-                  style={styles.productImage}
-                />
-              ) : (
-                <Ionicons
-                  name="cube"
-                  size={20}
-                  color={colors.primary}
-                />
-              )}
-            </View>
-            <View style={styles.productDetails}>
-              <Text style={styles.productName}>{product.nombre}</Text>
-              <Text style={styles.productService}>
-                {tipoInfo?.nombre || service?.nombre || 'Sin servicio'}
-              </Text>
-              {product.descripcion && (
-                <Text style={styles.productDescription} numberOfLines={2}>
-                  {product.descripcion}
-                </Text>
-              )}
-              {product.precio && (
-                <Text style={styles.productPrice}>
-                  C$ {parseFloat(product.precio).toLocaleString('es-NI')}
-                </Text>
-              )}
-            </View>
+      <View key={product.id} style={styles.serviceCard}>
+        {/* Header con icono y estado */}
+        <View style={styles.serviceCardHeader}>
+          <View style={styles.serviceIconContainer}>
+            {product.imagen ? (
+              <Image 
+                source={{ uri: product.imagen }} 
+                style={styles.productImage}
+              />
+            ) : (
+              <Ionicons
+                name="cube"
+                size={24}
+                color={colors.text.primary}
+              />
+            )}
           </View>
-          
-          <View style={styles.productActions}>
+          <View style={styles.serviceStatusContainer}>
             <TouchableOpacity
-              style={[
-                styles.statusButton,
-                { backgroundColor: product.disponible ? colors.success : colors.error }
-              ]}
+              style={styles.statusIndicator}
               onPress={() => toggleProductStatus(product)}
             >
-              <Text style={styles.statusButtonText}>
-                {product.disponible ? 'Disponible' : 'No Disponible'}
-              </Text>
+              <Ionicons 
+                name={product.disponible ? "toggle" : "toggle-outline"} 
+                size={20} 
+                color={product.disponible ? colors.success : colors.error} 
+              />
             </TouchableOpacity>
           </View>
         </View>
-        
-        <View style={styles.productActionButtons}>
+
+        {/* Contenido principal */}
+        <View style={styles.serviceCardContent}>
+          <Text style={styles.serviceName}>{product.nombre}</Text>
+          <Text style={styles.serviceType}>
+            {tipoInfo?.nombre || service?.nombre || 'Sin servicio'}
+          </Text>
+          
+          {product.descripcion && (
+            <Text style={styles.serviceDescription} numberOfLines={2}>
+              {product.descripcion}
+            </Text>
+          )}
+
+          {/* Precio destacado */}
+          {product.precio && (
+            <View style={styles.productPriceContainer}>
+              <Text style={styles.productPriceLabel}>Precio:</Text>
+              <Text style={styles.productPrice}>
+                C$ {parseFloat(product.precio).toLocaleString('es-NI')}
+              </Text>
+            </View>
+          )}
+
+          {/* Stats del producto */}
+          <View style={styles.serviceStats}>
+            <View style={styles.serviceStatItem}>
+              <Ionicons name="calendar" size={14} color={colors.text.muted} />
+              <Text style={styles.serviceStatText}>
+                {new Date(product.fechaCreacion).toLocaleDateString()}
+              </Text>
+            </View>
+            <View style={styles.serviceStatItem}>
+              <Ionicons 
+                name={product.disponible ? "checkmark-circle" : "close-circle"} 
+                size={14} 
+                color={product.disponible ? colors.success : colors.error} 
+              />
+              <Text style={[
+                styles.serviceStatText,
+                { color: product.disponible ? colors.success : colors.error }
+              ]}>
+                {product.disponible ? 'Disponible' : 'No disponible'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Acciones */}
+        <View style={styles.serviceCardActions}>
           <TouchableOpacity
-            style={styles.actionButton}
+            style={[styles.actionButton, styles.editButton]}
             onPress={() => handleEditProduct(product)}
           >
-            <Ionicons name="create" size={18} color={colors.primary} />
+            <Ionicons name="create-outline" size={16} color={colors.primary} />
             <Text style={styles.actionButtonText}>Editar</Text>
           </TouchableOpacity>
+          
           <TouchableOpacity
-            style={styles.actionButton}
+            style={[styles.actionButton, styles.deleteButton]}
             onPress={() => handleDeleteProduct(product.id)}
           >
-            <Ionicons name="trash" size={18} color={colors.error} />
-            <Text style={styles.actionButtonText}>Eliminar</Text>
+            <Ionicons name="trash-outline" size={16} color={colors.error} />
+            <Text style={[styles.actionButtonText, { color: colors.error }]}>Eliminar</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1261,15 +1308,41 @@ const MisServiciosScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mis Servicios</Text>
-        <View style={styles.headerRight} />
+      {/* Header con gradiente */}
+      <View style={styles.headerGradient}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Mis Servicios</Text>
+            <Text style={styles.headerSubtitle}>Gestiona tus servicios y productos</Text>
+          </View>
+        </View>
+        
+        {/* Stats Cards */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Ionicons name="business" size={16} color={colors.text.primary} />
+            <Text style={styles.statNumber}>{services.length}</Text>
+            <Text style={styles.statLabel}>Servicios</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Ionicons name="cube" size={16} color={colors.text.primary} />
+            <Text style={styles.statNumber}>{products.length}</Text>
+            <Text style={styles.statLabel}>Productos</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Ionicons name="checkmark-circle" size={16} color={colors.text.primary} />
+            <Text style={styles.statNumber}>
+              {services.filter(s => s.activo).length + products.filter(p => p.disponible).length}
+            </Text>
+            <Text style={styles.statLabel}>Activos</Text>
+          </View>
+        </View>
       </View>
 
       {/* Tabs */}
@@ -1333,8 +1406,16 @@ const MisServiciosScreen = ({ navigation }) => {
                 style={styles.addServiceButton}
                 onPress={() => setShowAddModal(true)}
               >
-                <Ionicons name="add" size={24} color={colors.text.primary} />
-                <Text style={styles.addServiceButtonText}>Agregar Servicio</Text>
+                <View style={styles.addServiceButtonContent}>
+                  <View style={styles.addServiceIconContainer}>
+                    <Ionicons name="add" size={24} color={colors.text.primary} />
+                  </View>
+                  <View style={styles.addServiceTextContainer}>
+                    <Text style={styles.addServiceButtonText}>Agregar Servicio</Text>
+                    <Text style={styles.addServiceButtonSubtext}>Crear nuevo servicio</Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={20} color={colors.text.primary} />
+                </View>
               </TouchableOpacity>
             </>
           )
@@ -1410,11 +1491,19 @@ const MisServiciosScreen = ({ navigation }) => {
                   {getFilteredProducts().map(renderProductCard)}
                 </View>
                 <TouchableOpacity
-                  style={styles.addServiceButton}
+                  style={styles.addProductButton}
                   onPress={() => setShowAddProductModal(true)}
                 >
-                  <Ionicons name="add" size={24} color={colors.text.primary} />
-                  <Text style={styles.addServiceButtonText}>Agregar Producto</Text>
+                  <View style={styles.addProductButtonContent}>
+                    <View style={styles.addProductIconContainer}>
+                      <Ionicons name="add" size={20} color={colors.text.primary} />
+                    </View>
+                    <View style={styles.addProductTextContainer}>
+                      <Text style={styles.addProductButtonText}>Agregar Producto</Text>
+                      <Text style={styles.addProductButtonSubtext}>Crear nuevo producto</Text>
+                    </View>
+                    <Ionicons name="arrow-forward" size={18} color={colors.text.primary} />
+                  </View>
                 </TouchableOpacity>
               </>
             )}
@@ -1435,6 +1524,56 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  // Header con gradiente
+  headerGradient: {
+    backgroundColor: colors.background,
+    paddingTop: 4,
+    paddingBottom: 12,
+    paddingHorizontal: 0,
+  },
+  headerContent: {
+    flex: 1,
+    alignItems: 'flex-start',
+    marginLeft: 12,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: colors.text.primary,
+    opacity: 0.8,
+    marginTop: 2,
+  },
+  // Stats Cards
+  statsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 8,
+    gap: 4,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    backdropFilter: 'blur(10px)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  statNumber: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text.primary,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 9,
+    color: colors.text.primary,
+    opacity: 0.8,
+    marginTop: 0,
   },
   loadingContainer: {
     flex: 1,
@@ -1462,8 +1601,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: colors.surface,
+    paddingVertical: 8,
+    backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -1484,7 +1623,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: 16,
   },
   emptyState: {
     flex: 1,
@@ -1519,38 +1658,163 @@ const styles = StyleSheet.create({
   },
   addServiceButton: {
     backgroundColor: colors.primary,
+    borderRadius: 10,
+    marginTop: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  addServiceButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 12,
+  },
+  addServiceIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginTop: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  addServiceTextContainer: {
+    flex: 1,
   },
   addServiceButtonText: {
     color: colors.text.primary,
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 1,
   },
-  servicesList: {
-    gap: 16,
+  addServiceButtonSubtext: {
+    color: colors.text.primary,
+    fontSize: 11,
+    opacity: 0.8,
   },
-  serviceCard: {
-    backgroundColor: colors.surface,
+  // Add Product Button
+  addProductButton: {
+    backgroundColor: colors.success,
     borderRadius: 12,
-    padding: 16,
+    marginTop: 16,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  addProductButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  addProductIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  addProductTextContainer: {
+    flex: 1,
+  },
+  addProductButtonText: {
+    color: colors.text.primary,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  addProductButtonSubtext: {
+    color: colors.text.primary,
+    fontSize: 12,
+    opacity: 0.8,
+  },
+  servicesList: {
+    gap: 8,
+  },
+  serviceCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  serviceCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  serviceCardContent: {
+    marginBottom: 8,
+  },
+  serviceCardActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  serviceIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  serviceStatusContainer: {
+    alignItems: 'flex-end',
+  },
+  statusIndicator: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  serviceStats: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+  },
+  serviceStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  serviceStatText: {
+    fontSize: 12,
+    color: colors.text.muted,
+    fontWeight: '500',
+  },
+  editButton: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  deleteButton: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.error,
   },
   serviceMainContent: {
     flexDirection: 'row',
@@ -1764,7 +2028,7 @@ const styles = StyleSheet.create({
   },
   // Product styles
   productsList: {
-    padding: 16,
+    gap: 12,
   },
   productCard: {
     backgroundColor: colors.surface,
@@ -1773,9 +2037,84 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  productCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  productCardContent: {
+    marginBottom: 12,
+  },
+  productCardActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  productImageContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  productImagePlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  productImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  productStatusContainer: {
+    alignItems: 'flex-end',
+  },
+  productPriceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  productPriceLabel: {
+    fontSize: 12,
+    color: colors.text.muted,
+    marginRight: 6,
+  },
+  productPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  productStats: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  productStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  productStatText: {
+    fontSize: 12,
+    color: colors.text.muted,
+    fontWeight: '500',
   },
   productMainContent: {
     flexDirection: 'row',
